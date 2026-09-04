@@ -1,0 +1,7 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { canRoleTransitionOrder, getAvailableOrderTransitions, getOrderDashboardStatus, getOrderPermissions } from "../app/lib/order-rules.js";
+test("consulta no avanza pedidos y sólo administración puede cancelar", () => { const order = { status: "CREATED", paymentRequired: false }; assert.equal(getOrderPermissions("viewer").transition, false); assert.equal(canRoleTransitionOrder("operator", order, "CANCELLED"), false); assert.equal(canRoleTransitionOrder("admin", order, "CANCELLED"), true); });
+test("un pedido con pago requerido no entra a picking sin PAID", () => { assert.deepEqual(getAvailableOrderTransitions({ status: "CONFIRMED", paymentRequired: true }), ["PAID", "CANCELLED"]); assert.deepEqual(getAvailableOrderTransitions({ status: "CONFIRMED", paymentRequired: false }), ["PAID", "PICKING", "CANCELLED"]); });
+test("la máquina permite el recorrido operativo y cierra entregados", () => { assert.equal(canRoleTransitionOrder("operator", { status: "PICKING", paymentRequired: false }, "PACKED"), true); assert.equal(canRoleTransitionOrder("operator", { status: "DELIVERED", paymentRequired: false }, "PICKING"), false); });
+test("el tablero agrupa los estados intermedios correctamente", () => { assert.equal(getOrderDashboardStatus("PAID"), "confirmed"); assert.equal(getOrderDashboardStatus("PACKED"), "picking"); assert.equal(getOrderDashboardStatus("CANCELLED"), "cancelled"); });

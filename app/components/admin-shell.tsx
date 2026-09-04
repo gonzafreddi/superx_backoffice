@@ -8,6 +8,7 @@ const items = [
   { href: "/productos", label: "Productos", icon: "□" },
   { href: "/precios", label: "Precios", icon: "◇" },
   { href: "/inventario", label: "Inventario", icon: "▦" },
+  { href: "/pedidos", label: "Pedidos", icon: "◫" },
 ];
 
 export function AdminShell({ children }: { children: ReactNode }) {
