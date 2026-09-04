@@ -12,10 +12,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "SuperX · Productos",
-  description: "Administración de catálogo de productos SuperX",
-};
+export const metadata: Metadata = { title: "SuperX · Precios", description: "Administración de precios SuperX" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

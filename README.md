@@ -1,5 +1,11 @@
 # SuperX Backoffice
 
+## Gestión de precios
+
+La pantalla principal permite buscar y filtrar precios por producto, categoría y estado. Al seleccionar un producto se ve el precio vigente y su historial básico con actor, fecha, importe anterior y motivo. **Consulta** sólo puede ver; **operador** actualiza un precio individual; **administración** también puede seleccionar varios productos y aplicar un importe masivo. Toda actualización exige confirmación y rechaza importes negativos, no numéricos o con más de dos decimales.
+
+BE-007 todavía no expone precios. Por ello `app/lib/price-api.ts` es un mock temporal en memoria, aislado detrás del contrato tipado `PriceApi`, cuyo reemplazo previsto consume `GET /api/prices` y `PUT /api/prices`. No hay persistencia real ni modificación de la base de datos hasta que se integre ese backend.
+
 ## Gestión de productos
 
 La pantalla principal permite buscar por nombre, SKU o barcode y filtrar por categoría, marca y estado. Seleccioná un producto para ver el detalle y editarlo. El selector de rol permite verificar los permisos: **consulta** sólo ve; **operador** crea, edita y activa/inactiva; **administración** además puede eliminar, siempre con confirmación.
