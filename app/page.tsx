@@ -1,5 +1,5 @@
-import { InventoryManager } from "@/app/components/inventory-manager";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <InventoryManager />;
+  redirect("/inventario");
 }
