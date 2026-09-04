@@ -1,5 +1,5 @@
-import { PriceManager } from "@/app/components/price-manager";
+import { InventoryManager } from "@/app/components/inventory-manager";
 
 export default function Home() {
-  return <PriceManager />;
+  return <InventoryManager />;
 }
