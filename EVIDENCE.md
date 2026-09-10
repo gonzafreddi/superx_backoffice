@@ -53,3 +53,31 @@ Las pruebas existentes de RBAC y validaciones se mantienen sin cambios y aprobar
 | `pnpm build` | Correcto: 6 rutas, `/pedidos` incluida. |
 
 _Nota: sin navegador/Playwright en el entorno; pendiente validación visual manual del panel de detalle._
+
+## BO-007 · Gestión de zonas y franjas
+
+### Cambios
+
+- Nueva ruta `app/(backoffice)/entregas/page.tsx` + `app/components/delivery-manager.tsx`. Entrada "Entregas" agregada a `admin-shell.tsx`.
+- `app/lib/delivery-contract.ts`: tipos `DeliveryZone` (name, cityName, postalCodes[], neighborhoods[], deliveryFee, freeDeliveryThreshold, priority, active, history) y `DeliverySlot` (zoneId, date, start/end, capacity, bookedCount, active, history), sus inputs y `DeliveryApi` (listZones/createZone/updateZone/listSlots/createSlot/updateSlot). Contrato objetivo: endpoints admin de BE-012 (zonas) y BE-013 (franjas).
+- `app/lib/delivery-rules.js` (puro/testeable): `DELIVERY_PERMISSIONS` + `getDeliveryPermissions`; `validateZoneInput` (nombre, ciudad, fee ≥ 0 con 2 decimales, umbral > 0 u opcional, prioridad entero ≥ 0, al menos un CP o barrio); `validateSlotInput` (no fecha pasada, fin > inicio, capacidad ≥ 1 y ≥ reservas al editar, sin solapamiento con otra franja activa de la zona ese día); `slotWindowsOverlap`; `slotOccupancy`; `summarizeCheckoutImpact` (texto de lo que ve el cliente); `buildDeliveryChangeEvent` (auditoría).
+- `app/lib/delivery-api.ts`: mock temporal con 3 zonas (una inactiva, una sin envío gratis) y franjas de ejemplo (una completa). Cada create/update valida con las reglas y agrega un evento de auditoría; respuestas clonadas.
+- `delivery-manager.tsx`: lista de zonas + detalle con recuadro "en el checkout", cobertura, historial de la zona, y sección de franjas con barra de ocupación. Modales `ZoneForm` y `SlotForm` con validación inline (`role="alert"`), permisos por rol y campo de motivo. Estados carga / error (con reintento y detección offline) / vacío.
+- `docs/delivery-operations.md`: guía para el operador.
+
+### Criterios de aceptación
+
+- **Impacta el checkout sin deploy**: los cambios de zona/franja se aplican al estado que consume el checkout (mismo contrato); la UI lo comunica explícitamente ("impacta el checkout de inmediato").
+- **Validado y auditado**: toda alta/edición pasa por `validateZoneInput`/`validateSlotInput` (server y cliente) y deja un `DeliveryChange` con actor, rol, timestamp y resumen, visible en el historial.
+- Errores esperables (capacidad por debajo de reservas, solapamiento, zona inexistente) se muestran claros y sin filtrar internos.
+
+### Verificación ejecutada
+
+| Comando | Resultado (cola) |
+| --- | --- |
+| `pnpm lint` | Correcto: `eslint` sin hallazgos. |
+| `pnpm typecheck` | Correcto: `tsc --noEmit` sin errores. |
+| `pnpm test` | Correcto: 21 pruebas (`node --test`), 7 nuevas en `tests/delivery-rules.test.mjs`. |
+| `pnpm build` | Correcto: 7 rutas, `/entregas` incluida. |
+
+_Nota: sin navegador/Playwright en el entorno; pendiente validación visual manual._

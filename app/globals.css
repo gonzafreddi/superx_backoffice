@@ -12,3 +12,23 @@
 .order-info.charges{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
 .order-info.charges dd strong{font-size:16px}
 .line-sub{display:block;color:var(--muted);font-size:12px;font-style:normal;line-height:1.35;margin-top:2px}
+.zone-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.zone-row{width:100%;display:grid;gap:4px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);text-align:left}
+.zone-row:hover{border-color:var(--green);background:var(--green-soft)}
+.zone-row.selected{border-color:var(--green);background:var(--green-soft);box-shadow:inset 4px 0 var(--green)}
+.zone-row-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.zone-row-head strong{font-size:14px;color:#344054}
+.zone-row-meta{color:var(--muted);font-size:12px;line-height:1.35}
+.slots-section{margin-top:24px}
+.slots-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.slots-head h3{margin:0;color:#344054;font-size:14px}
+.slots-empty{color:var(--muted);font-size:13px;margin:8px 0}
+.slot-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.slot-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.slot-row.slot-inactive{opacity:.6}
+.slot-info{display:grid;gap:4px;min-width:0;flex:1}
+.slot-info strong{font-size:13px;color:#344054}
+.slot-info span{color:var(--muted);font-size:12px}
+.slot-bar{display:block;height:6px;border-radius:999px;background:var(--green-soft);overflow:hidden}
+.slot-bar span{display:block;height:100%;border-radius:999px;background:var(--green)}
+.slot-bar span.slot-bar-full{background:var(--red)}
