@@ -1,0 +1,42 @@
+.shell{min-height:100dvh;max-width:520px;margin:0 auto;padding:16px 16px calc(16px + env(safe-area-inset-bottom));background:var(--bg,#f7f8fa);display:flex;flex-direction:column;gap:14px}
+.header{display:flex;align-items:center;gap:12px}
+.header strong{font-size:20px;letter-spacing:-.02em}
+.eyebrow{margin:0 0 2px;color:var(--green,#149C3B);font-size:11px;font-weight:800;letter-spacing:.08em}
+.back{width:44px;height:44px;flex:none;border:1px solid var(--line,#e4e7ec);border-radius:12px;background:#fff;font-size:20px}
+.progressTrack{height:10px;border-radius:999px;background:#e6f4ea;overflow:hidden}
+.progressTrack span{display:block;height:100%;border-radius:999px;background:var(--green,#149C3B);transition:width .2s}
+.card{margin:auto 0;padding:24px;border:1px solid var(--line,#e4e7ec);border-radius:16px;background:#fff;display:grid;gap:12px;justify-items:center;text-align:center}
+.card h1{margin:0;font-size:22px}
+.card p{margin:0;color:#667085;line-height:1.5}
+.doneMark{width:64px;height:64px;display:grid;place-items:center;border-radius:999px;background:var(--green,#149C3B);color:#fff;font-size:32px}
+.pickCard{padding:18px;border:1px solid var(--line,#e4e7ec);border-radius:16px;background:#fff;display:grid;gap:12px}
+.location{margin:0;font-family:var(--font-geist-mono,monospace);font-size:26px;font-weight:800;letter-spacing:.04em;color:var(--green-strong,#0F7F30)}
+.pickCard h2{margin:0;font-size:18px;line-height:1.25}
+.need{margin:0;color:#667085;font-size:14px}
+.need strong{color:#171a1f}
+.stepper{display:grid;grid-template-columns:64px 1fr 64px;align-items:center;gap:8px}
+.stepper button{height:64px;border:1px solid var(--line,#e4e7ec);border-radius:14px;background:#fff;font-size:28px}
+.stepper button:disabled{opacity:.4}
+.stepper span{text-align:center;font-size:34px;font-weight:800}
+.primary{width:100%;min-height:52px;border:0;border-radius:14px;background:var(--green,#149C3B);color:#fff;font-size:16px;font-weight:750}
+.primary:disabled{opacity:.5}
+.primary:active{background:var(--green-strong,#0F7F30)}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.nav button{min-height:44px;padding:0 14px;border:1px solid var(--line,#e4e7ec);border-radius:12px;background:#fff;font-weight:700}
+.nav button:disabled{opacity:.4}
+.nav span{color:#667085;font-size:13px}
+.finishBar{margin-top:auto;display:grid;gap:8px;padding-top:8px}
+.hint{margin:0;color:#b42318;font-size:13px;font-weight:600;text-align:center}
+.error{margin:0;padding:10px 12px;border-radius:12px;background:rgb(180 35 24/.1);color:#b42318;font-size:13px;font-weight:700}
+.group{display:grid;gap:8px}
+.group h2{margin:4px 0;font-size:14px;color:#344054}
+.empty{margin:0;color:#667085;font-size:13px}
+.taskRow{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px;padding:12px 14px;border:1px solid var(--line,#e4e7ec);border-radius:14px;background:#fff;text-align:left}
+.taskRow span{display:grid;gap:2px}
+.taskRow strong{font-size:15px}
+.taskRow span span{color:#667085;font-size:12px}
+.taskProgress{font-family:var(--font-geist-mono,monospace);font-weight:800;color:#344054}
+.take{padding:6px 12px;border-radius:999px;background:#e6f4ea;color:var(--green-strong,#0F7F30);font-size:12px;font-weight:800}
+.skeleton{height:200px;border-radius:16px;background:#e4e7ec;animation:pkPulse 1.4s ease-in-out infinite}
+@keyframes pkPulse{50%{opacity:.5}}
+@media(prefers-reduced-motion:reduce){.skeleton{animation:none}.progressTrack span{transition:none}}

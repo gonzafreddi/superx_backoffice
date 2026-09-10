@@ -110,3 +110,31 @@ _Nota: sin navegador/Playwright en el entorno; pendiente validación visual manu
 | `pnpm build` | Correcto: 8 rutas, `/tablero` incluida. |
 
 _Nota: sin navegador/Playwright en el entorno; pendiente validación visual manual._
+
+## PK-003 · Interfaz móvil de picking — backoffice
+
+### Cambios
+
+- Nueva ruta `/picking` **fuera del grupo `(backoffice)`** → sin `AdminShell`, pantalla completa mobile-first para usar con una mano. `app/picking/page.tsx` + `picking-app.tsx` + `picking.module.css`.
+- `app/lib/picking-contract.ts` + `picking-api.ts` (adaptador temporal sobre los endpoints `/api/picking/tasks` de PK-002/PK-003, con fixture) + `picking-rules.js` (puras/testeables): `sequenceItems`, `pickingProgress`, `pendingLines`, `canCompleteTask`, `nextPendingIndex`, `clampPickQuantity`.
+- Flujo: lista **En curso** / **Disponibles** (ordenada por prioridad y franja) → tomar (assign+start en un paso) → tarjeta por línea con **ubicación en grande**, producto, cantidad pedida y stepper (default = pedido) → **Confirmar línea** avanza sola a la próxima pendiente por orden de recorrido → barra de progreso `resueltas/total` → **Finalizar** habilitado sólo cuando no quedan líneas PENDING (con hint del faltante). Navegación Anterior/Siguiente libre.
+- Estados: loading (skeleton), error (reintento), auth (401), listas vacías, done. Objetivos táctiles 44–64 px, `role="progressbar"` con `aria-valuenow`, `aria-live` en la cantidad, `role="alert"` en errores. **No toca stock**; la cantidad se limita a lo pedido.
+- `docs/picking-app.md`.
+
+### Criterios de aceptación
+
+- **Usable con una mano**: layout de una columna ≤ 520 px, botones grandes, stepper y acciones al alcance del pulgar.
+- **Muestra progreso**: barra + contador `resueltas/total` siempre visibles.
+- **No permite cerrar con ítems pendientes**: `canCompleteTask` exige IN_PROGRESS + cero líneas PENDING; el backend (`POST /complete`) lo revalida con 409. Botón deshabilitado + `aria-disabled` + mensaje.
+- Errores esperables (más de lo pedido, tarea de otro picker, sin conexión) se muestran claros y sin filtrar internos.
+
+### Verificación ejecutada
+
+| Comando | Resultado (cola) |
+| --- | --- |
+| `pnpm lint` | Correcto: `eslint` sin hallazgos. |
+| `pnpm typecheck` | Correcto: `tsc --noEmit` sin errores. |
+| `pnpm test` | Correcto: 31 pruebas (`node --test`), 5 nuevas en `tests/picking-rules.test.mjs`. |
+| `pnpm build` | Correcto: 9 rutas, `/picking` incluida (se prerenderiza y opera en el cliente). |
+
+_Nota: sin navegador/Playwright en el entorno; pendiente validación visual manual en móvil._
