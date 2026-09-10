@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 const items = [
+  { href: "/tablero", label: "Tablero", icon: "▲" },
   { href: "/productos", label: "Productos", icon: "□" },
   { href: "/precios", label: "Precios", icon: "◇" },
   { href: "/inventario", label: "Inventario", icon: "▦" },

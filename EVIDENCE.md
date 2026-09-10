@@ -81,3 +81,32 @@ _Nota: sin navegador/Playwright en el entorno; pendiente validación visual manu
 | `pnpm build` | Correcto: 7 rutas, `/entregas` incluida. |
 
 _Nota: sin navegador/Playwright en el entorno; pendiente validación visual manual._
+
+## BO-008 · Dashboard mínimo de KPIs
+
+### Cambios
+
+- Nueva ruta `app/(backoffice)/tablero/page.tsx` + `app/components/kpi-dashboard.tsx`. Entrada "Tablero" al principio del sidebar (`admin-shell.tsx`).
+- `app/lib/metrics-contract.ts`: `KpiSnapshot` (orderCount, ordersPerDay[], gmv, averageTicket, cancellations {count,rate}, stockouts, fillRate|null, operationalTimes|null, currency, range, generatedAt) y `MetricsApi.getOverview(range)` → `KpiSnapshot | null`. Contrato objetivo: `GET /api/metrics/overview?from=&to=` (métricas definidas y calculadas en backend).
+- `app/lib/metrics-rules.js` (puro/testeable, sin cálculo de KPIs): `getMetricsVisibility(role)` (oculta GMV y ticket al rol consulta); `validateRange` (fecha válida, no invertida, no futura, ≤ 92 días); `presetRange` (Hoy / 7d / 30d / 90d terminando hoy); `rangeDays`; `describeDataCoverage` (qué KPIs faltan por histórico y si hay datos).
+- `app/lib/metrics-api.ts`: mock temporal determinístico por rango; devuelve `null`/estado sin datos para rangos de 1 día para ejercitar el vacío; valida el rango con las reglas.
+- `kpi-dashboard.tsx`: selector de rango (presets + fechas, `max=today`), grilla de KPI cards (financieras sólo si el rol las ve), mini gráfico de pedidos/día, nota de "pendientes de datos", y estados carga / error (reintento + offline) / **"todavía no hay datos suficientes"**. El frontend no recalcula nada: sólo formatea y muestra los valores del snapshot.
+- `docs/kpi-dashboard.md`.
+
+### Criterios de aceptación
+
+- **Métricas definidas en backend**: el contrato entrega cifras ya calculadas; `metrics-rules.js` no computa GMV, promedios ni tasas (sólo valida el rango y arma presets). El único derivado en la UI es "pedidos/día promedio" a partir de `orderCount` y la longitud del rango, etiquetado como aproximado.
+- **Filtros por rango**: presets + rango personalizado validado (invertido / futuro / > 92 días → error inline `role="alert"`).
+- **RBAC**: consulta no ve KPIs financieros; operador/administración sí.
+- Fallos esperables (rango inválido, sin conexión) se muestran claros y sin filtrar internos. Estado vacío explícito "cuando haya datos".
+
+### Verificación ejecutada
+
+| Comando | Resultado (cola) |
+| --- | --- |
+| `pnpm lint` | Correcto: `eslint` sin hallazgos. |
+| `pnpm typecheck` | Correcto: `tsc --noEmit` sin errores. |
+| `pnpm test` | Correcto: 26 pruebas (`node --test`), 5 nuevas en `tests/metrics-rules.test.mjs`. |
+| `pnpm build` | Correcto: 8 rutas, `/tablero` incluida. |
+
+_Nota: sin navegador/Playwright en el entorno; pendiente validación visual manual._
