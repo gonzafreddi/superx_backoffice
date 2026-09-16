@@ -8,6 +8,7 @@ import styles from "./picking.module.css";
 
 type View = "list" | "task" | "done";
 type LoadState = "loading" | "ready" | "error" | "auth";
+type ShortageResolution = "REPLACE_SIMILAR" | "CONTACT_ME" | "REMOVE_ITEM";
 
 type Deps = {
   loadMine?: () => Promise<PickingTask[]>;
@@ -16,6 +17,8 @@ type Deps = {
   assign?: (id: string) => Promise<PickingTask>;
   start?: (id: string) => Promise<PickingTask>;
   pick?: (taskId: string, itemId: string, quantity: number, barcode?: string) => Promise<PickingTask>;
+  reportShortage?: (taskId: string, itemId: string, resolution: ShortageResolution, substituteProductId?: string, note?: string) => Promise<PickingTask>;
+  searchProducts?: (query: string) => Promise<Array<{ id: string; name: string }>>;
   complete?: (id: string) => Promise<PickingTask>;
 };
 
@@ -26,6 +29,8 @@ export function PickingApp({
   assign = pickingApi.assignToMe,
   start = pickingApi.startTask,
   pick = pickingApi.pickItem,
+  reportShortage = pickingApi.reportShortage,
+  searchProducts = pickingApi.searchProducts,
   complete = pickingApi.completeTask,
 }: Deps) {
   const [view, setView] = useState<View>("list");
@@ -36,6 +41,11 @@ export function PickingApp({
   const [cursor, setCursor] = useState(0);
   const [qty, setQty] = useState(0);
   const [scannedBarcode, setScannedBarcode] = useState("");
+  const [shortageResolution, setShortageResolution] = useState<ShortageResolution | null>(null);
+  const [substituteQuery, setSubstituteQuery] = useState("");
+  const [substituteResults, setSubstituteResults] = useState<Array<{ id: string; name: string }>>([]);
+  const [substitute, setSubstitute] = useState<{ id: string; name: string } | null>(null);
+  const [shortageNote, setShortageNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
@@ -72,9 +82,37 @@ export function PickingApp({
   const currentItem: PickingItem | undefined = sequence[cursor];
   const progress = task ? pickingProgress(task) : { resolved: 0, total: 0, percent: 0 };
 
+  const resetShortage = useCallback(() => {
+    setShortageResolution(null);
+    setSubstituteQuery("");
+    setSubstituteResults([]);
+    setSubstitute(null);
+    setShortageNote("");
+  }, []);
+
   useEffect(() => {
     scanInputRef.current?.focus();
-  }, [currentItem?.id]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    resetShortage();
+  }, [currentItem?.id, resetShortage]);
+
+  useEffect(() => {
+    if (shortageResolution !== "REPLACE_SIMILAR" || !substituteQuery.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSubstituteResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      void searchProducts(substituteQuery.trim()).then((results) => {
+        if (!cancelled) setSubstituteResults(results);
+      });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [searchProducts, shortageResolution, substituteQuery]);
 
   useEffect(() => {
     if (!busy && refocusScanInput.current) {
@@ -96,6 +134,7 @@ export function PickingApp({
       const startIndex = first === -1 ? 0 : first;
       setCursor(startIndex);
       setQty(seq[startIndex]?.quantityRequired ?? 0);
+      resetShortage();
       setView("task");
     } catch (err) {
       handle(err, "No pudimos abrir la tarea.");
@@ -108,6 +147,7 @@ export function PickingApp({
     setCursor(index);
     setQty(sequence[index]?.quantityRequired ?? 0);
     setScannedBarcode("");
+    resetShortage();
     setError(null);
   };
 
@@ -133,6 +173,25 @@ export function PickingApp({
     setCursor(index);
     setQty(seq[index]?.quantityRequired ?? 0);
     setScannedBarcode("");
+    resetShortage();
+  };
+
+  const confirmShortage = async () => {
+    if (!task || !currentItem || !shortageResolution || (shortageResolution === "REPLACE_SIMILAR" && !substitute)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const next = await reportShortage(task.id, currentItem.id, shortageResolution, substitute?.id, shortageNote.trim() || undefined);
+      setTask(next);
+      const seq = sequenceItems(next);
+      const nextPending = nextPendingIndex(seq, cursor);
+      if (nextPending !== -1) goToWith(seq, nextPending);
+      else resetShortage();
+    } catch (err) {
+      handle(err, "No pudimos registrar el faltante.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const finish = async () => {
@@ -215,6 +274,66 @@ export function PickingApp({
             <button className={styles.primary} disabled={busy} onClick={() => void confirmItem()}>
               {busy ? "Guardando…" : qty === currentItem.quantityRequired ? "Confirmar línea" : `Confirmar ${qty} de ${currentItem.quantityRequired}`}
             </button>
+            {!shortageResolution ? (
+              <button className={styles.shortageTrigger} disabled={busy} onClick={() => setShortageResolution("CONTACT_ME")}>Reportar faltante</button>
+            ) : (
+              <section className={styles.shortagePanel} aria-label="Reportar faltante">
+                <div className={styles.shortageChoices} aria-label="Resolución del faltante">
+                  {([
+                    ["REPLACE_SIMILAR", "Reemplazar por similar"],
+                    ["CONTACT_ME", "Consultar al cliente"],
+                    ["REMOVE_ITEM", "Quitar del pedido"],
+                  ] as const).map(([resolution, label]) => (
+                    <button
+                      key={resolution}
+                      type="button"
+                      className={shortageResolution === resolution ? styles.shortageChoiceSelected : styles.shortageChoice}
+                      aria-pressed={shortageResolution === resolution}
+                      disabled={busy}
+                      onClick={() => {
+                        setShortageResolution(resolution);
+                        setSubstituteQuery("");
+                        setSubstituteResults([]);
+                        setSubstitute(null);
+                      }}
+                    >{label}</button>
+                  ))}
+                </div>
+                {shortageResolution === "REPLACE_SIMILAR" && (
+                  <div className={styles.substituteSearch}>
+                    <label htmlFor="substitute-search">Buscar producto sustituto</label>
+                    <input
+                      id="substitute-search"
+                      type="search"
+                      disabled={busy}
+                      value={substituteQuery}
+                      onChange={(event) => { setSubstituteQuery(event.target.value); setSubstitute(null); }}
+                      placeholder="Nombre, código o código de barras"
+                    />
+                    {substitute && <p className={styles.selectedSubstitute}>Seleccionado: <strong>{substitute.name}</strong></p>}
+                    {substituteResults.length > 0 && (
+                      <div className={styles.searchResults} aria-label="Productos encontrados">
+                        {substituteResults.map((product) => (
+                          <button key={product.id} type="button" disabled={busy} onClick={() => { setSubstitute(product); setSubstituteResults([]); }}>
+                            {product.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <label className={styles.shortageNote} htmlFor="shortage-note">
+                  Nota opcional
+                  <input id="shortage-note" type="text" maxLength={280} disabled={busy} value={shortageNote} onChange={(event) => setShortageNote(event.target.value)} placeholder="Agregá un detalle si hace falta" />
+                </label>
+                <div className={styles.shortageActions}>
+                  <button className={styles.shortageCancel} type="button" disabled={busy} onClick={resetShortage}>Cancelar</button>
+                  <button className={styles.shortageConfirm} type="button" disabled={busy || (shortageResolution === "REPLACE_SIMILAR" && !substitute)} onClick={() => void confirmShortage()}>
+                    {busy ? "Guardando…" : "Confirmar faltante"}
+                  </button>
+                </div>
+              </section>
+            )}
             <div className={styles.nav}>
               <button disabled={busy || cursor === 0} onClick={() => goTo(cursor - 1)}>Anterior</button>
               <span>{cursor + 1} / {sequence.length}</span>

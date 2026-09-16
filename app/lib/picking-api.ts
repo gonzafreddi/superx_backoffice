@@ -52,6 +52,12 @@ let fixtureTasks: PickingTask[] = [
   },
 ];
 
+const fixtureProducts = [
+  { id: "prod-yogur", name: "Yogur natural 200 g" },
+  { id: "prod-agua", name: "Agua mineral con gas 1,5 L" },
+  { id: "prod-pan", name: "Pan integral con semillas 500 g" },
+];
+
 const clone = (task: PickingTask): PickingTask => ({ ...task, items: task.items.map((i) => ({ ...i })) });
 const replace = (next: PickingTask) => {
   fixtureTasks = fixtureTasks.map((t) => (t.id === next.id ? next : t));
@@ -93,6 +99,22 @@ async function httpList(path: string): Promise<PickingTask[]> {
   if (!response.ok) throw new PickingApiError("No pudimos cargar las tareas.", response.status);
   const payload: unknown = await response.json().catch(() => undefined);
   return Array.isArray(payload) ? (payload as PickingTask[]) : [];
+}
+
+async function searchProductsHttp(query: string): Promise<Array<{ id: string; name: string }>> {
+  try {
+    const url = base()!;
+    const response = await fetch(`${url.replace(/\/$/, "")}/api/products?q=${encodeURIComponent(query)}`, {
+      headers: { Accept: "application/json" },
+      credentials: "include",
+    });
+    if (!response.ok) return [];
+    const payload: unknown = await response.json();
+    if (!payload || typeof payload !== "object" || !Array.isArray((payload as { items?: unknown }).items)) return [];
+    return (payload as { items: Array<{ id: string; name: string }> }).items;
+  } catch {
+    return [];
+  }
 }
 
 export const pickingApi: PickingApi = {
@@ -148,6 +170,33 @@ export const pickingApi: PickingApi = {
       method: "POST",
       body: JSON.stringify({ quantity, ...(barcode ? { barcode } : {}) }),
     });
+  },
+  async reportShortage(taskId, itemId, resolution, substituteProductId, note) {
+    if (!base()) {
+      await wait();
+      const next = clone(find(taskId));
+      const line = next.items.find((i) => i.id === itemId);
+      if (!line) throw new PickingApiError("Línea no encontrada.", 404, "not_found");
+      const substitute = fixtureProducts.find((product) => product.id === substituteProductId);
+      line.status = resolution === "REPLACE_SIMILAR" ? "SUBSTITUTED" : "SHORT";
+      line.resolution = resolution;
+      line.substituteProductId = substituteProductId;
+      line.substituteProductName = substitute?.name;
+      replace(next);
+      return clone(next);
+    }
+    return http(`/api/picking/tasks/${encodeURIComponent(taskId)}/items/${encodeURIComponent(itemId)}/shortage`, {
+      method: "POST",
+      body: JSON.stringify({ resolution, ...(substituteProductId ? { substituteProductId } : {}), ...(note ? { note } : {}) }),
+    });
+  },
+  async searchProducts(query) {
+    if (!base()) {
+      await wait();
+      const normalizedQuery = query.trim().toLocaleLowerCase();
+      return fixtureProducts.filter((product) => product.name.toLocaleLowerCase().includes(normalizedQuery));
+    }
+    return searchProductsHttp(query);
   },
   async completeTask(id) {
     if (!base()) {

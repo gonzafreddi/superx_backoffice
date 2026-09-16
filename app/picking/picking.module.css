@@ -25,6 +25,24 @@
 .primary{width:100%;min-height:52px;border:0;border-radius:14px;background:var(--green,#149C3B);color:#fff;font-size:16px;font-weight:750}
 .primary:disabled{opacity:.5}
 .primary:active{background:var(--green-strong,#0F7F30)}
+.shortageTrigger{justify-self:center;min-height:44px;padding:0 10px;border:0;background:transparent;color:#667085;font-size:13px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.shortageTrigger:disabled{opacity:.5}
+.shortagePanel{display:grid;gap:10px;padding:12px;border:1px solid #d9e8de;border-radius:14px;background:#f8fcf9}
+.shortageChoices{display:grid;gap:7px}
+.shortageChoice,.shortageChoiceSelected{min-height:44px;padding:8px 12px;border:1px solid var(--line,#e4e7ec);border-radius:10px;background:#fff;color:#344054;text-align:left;font:inherit;font-size:14px;font-weight:700}
+.shortageChoiceSelected{border-color:var(--green,#149C3B);background:#e6f4ea;color:var(--green-strong,#0F7F30)}
+.shortageChoice:disabled,.shortageChoiceSelected:disabled{opacity:.5}
+.substituteSearch,.shortageNote{display:grid;gap:6px;color:#344054;font-size:13px;font-weight:700}
+.substituteSearch input,.shortageNote input{min-height:44px;padding:0 12px;border:1px solid var(--line,#e4e7ec);border-radius:10px;background:#fff;color:#171a1f;font:inherit;font-size:16px}
+.substituteSearch input:focus,.shortageNote input:focus{outline:2px solid color-mix(in srgb,var(--green,#149C3B) 35%,transparent);outline-offset:1px;border-color:var(--green,#149C3B)}
+.selectedSubstitute{margin:0;color:#475467;font-size:13px;font-weight:400}
+.searchResults{display:grid;gap:6px;max-height:176px;overflow:auto}
+.searchResults button{min-height:44px;padding:8px 12px;border:1px solid var(--line,#e4e7ec);border-radius:10px;background:#fff;color:#344054;text-align:left;font:inherit;font-size:14px;font-weight:700}
+.shortageActions{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
+.shortageCancel,.shortageConfirm{min-height:44px;border-radius:10px;font:inherit;font-size:14px;font-weight:750}
+.shortageCancel{border:1px solid var(--line,#e4e7ec);background:#fff;color:#475467}
+.shortageConfirm{border:0;background:#e6f4ea;color:var(--green-strong,#0F7F30)}
+.shortageCancel:disabled,.shortageConfirm:disabled{opacity:.5}
 .nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .nav button{min-height:44px;padding:0 14px;border:1px solid var(--line,#e4e7ec);border-radius:12px;background:#fff;font-weight:700}
 .nav button:disabled{opacity:.4}
