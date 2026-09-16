@@ -10,6 +10,7 @@ export type PickingItem = {
   locationCode: string | null;
   locationSortOrder: number;
   status: PickingItemStatus;
+  barcode?: string;
 };
 
 export type PickingTask = {
@@ -30,6 +31,6 @@ export type PickingApi = {
   getTask(id: string): Promise<PickingTask>;
   assignToMe(id: string): Promise<PickingTask>;
   startTask(id: string): Promise<PickingTask>;
-  pickItem(taskId: string, itemId: string, quantity: number): Promise<PickingTask>;
+  pickItem(taskId: string, itemId: string, quantity: number, barcode?: string): Promise<PickingTask>;
   completeTask(id: string): Promise<PickingTask>;
 };

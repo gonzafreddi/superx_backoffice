@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pickingApi, PickingApiError } from "@/app/lib/picking-api";
 import type { PickingItem, PickingTask } from "@/app/lib/picking-contract";
 import { canCompleteTask, clampPickQuantity, nextPendingIndex, pendingLines, pickingProgress, sequenceItems } from "@/app/lib/picking-rules";
@@ -15,7 +15,7 @@ type Deps = {
   loadTask?: (id: string) => Promise<PickingTask>;
   assign?: (id: string) => Promise<PickingTask>;
   start?: (id: string) => Promise<PickingTask>;
-  pick?: (taskId: string, itemId: string, quantity: number) => Promise<PickingTask>;
+  pick?: (taskId: string, itemId: string, quantity: number, barcode?: string) => Promise<PickingTask>;
   complete?: (id: string) => Promise<PickingTask>;
 };
 
@@ -35,8 +35,11 @@ export function PickingApp({
   const [task, setTask] = useState<PickingTask | null>(null);
   const [cursor, setCursor] = useState(0);
   const [qty, setQty] = useState(0);
+  const [scannedBarcode, setScannedBarcode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+  const refocusScanInput = useRef(false);
 
   const handle = useCallback((err: unknown, fallback: string) => {
     if (err instanceof PickingApiError && err.code === "unauthenticated") { setState("auth"); return; }
@@ -69,6 +72,17 @@ export function PickingApp({
   const currentItem: PickingItem | undefined = sequence[cursor];
   const progress = task ? pickingProgress(task) : { resolved: 0, total: 0, percent: 0 };
 
+  useEffect(() => {
+    scanInputRef.current?.focus();
+  }, [currentItem?.id]);
+
+  useEffect(() => {
+    if (!busy && refocusScanInput.current) {
+      refocusScanInput.current = false;
+      scanInputRef.current?.focus();
+    }
+  }, [busy]);
+
   const openTask = async (id: string, needsAssign: boolean) => {
     setBusy(true);
     setError(null);
@@ -93,28 +107,32 @@ export function PickingApp({
   const goTo = (index: number) => {
     setCursor(index);
     setQty(sequence[index]?.quantityRequired ?? 0);
+    setScannedBarcode("");
     setError(null);
   };
 
-  const confirmItem = async () => {
+  const confirmItem = async (barcode?: string) => {
     if (!task || !currentItem) return;
     setBusy(true);
     setError(null);
     try {
-      const next = await pick(task.id, currentItem.id, qty);
+      const next = await pick(task.id, currentItem.id, qty, barcode);
       setTask(next);
       const seq = sequenceItems(next);
       const nextPending = nextPendingIndex(seq, cursor);
       if (nextPending !== -1) goToWith(seq, nextPending);
     } catch (err) {
       handle(err, "No pudimos registrar la cantidad.");
+      if (err instanceof PickingApiError && err.code === "barcode_mismatch") refocusScanInput.current = true;
     } finally {
+      setScannedBarcode("");
       setBusy(false);
     }
   };
   const goToWith = (seq: PickingItem[], index: number) => {
     setCursor(index);
     setQty(seq[index]?.quantityRequired ?? 0);
+    setScannedBarcode("");
   };
 
   const finish = async () => {
@@ -174,11 +192,26 @@ export function PickingApp({
             <p className={styles.location}>{currentItem.locationCode ?? "Sin ubicación"}</p>
             <h2>{currentItem.productName}</h2>
             <p className={styles.need}>Pedido: <strong>{currentItem.quantityRequired} {currentItem.unitCode}</strong>{currentItem.status !== "PENDING" ? ` · ${currentItem.status === "PICKED" ? "pickeado" : currentItem.status.toLowerCase()}` : ""}</p>
+            <form className={styles.scanForm} onSubmit={(event) => { event.preventDefault(); void confirmItem(scannedBarcode.trim()); }}>
+              <label htmlFor="barcode-scan">Escaneá el código de barras</label>
+              <input
+                ref={scanInputRef}
+                id="barcode-scan"
+                type="text"
+                autoFocus
+                disabled={busy}
+                value={scannedBarcode}
+                onChange={(event) => setScannedBarcode(event.target.value)}
+                placeholder="Esperando escaneo"
+                aria-label="Código de barras escaneado"
+              />
+            </form>
             <div className={styles.stepper}>
               <button aria-label="Restar una unidad" disabled={busy || qty <= 0} onClick={() => setQty((v) => Math.max(0, v - 1))}>−</button>
               <span aria-live="polite" aria-label="Cantidad a confirmar">{qty}</span>
               <button aria-label="Sumar una unidad" disabled={busy || qty >= currentItem.quantityRequired} onClick={() => setQty((v) => clampPickQuantity(currentItem, v + 1))}>+</button>
             </div>
+            <p className={styles.manualLabel}>o confirmá manualmente</p>
             <button className={styles.primary} disabled={busy} onClick={() => void confirmItem()}>
               {busy ? "Guardando…" : qty === currentItem.quantityRequired ? "Confirmar línea" : `Confirmar ${qty} de ${currentItem.quantityRequired}`}
             </button>

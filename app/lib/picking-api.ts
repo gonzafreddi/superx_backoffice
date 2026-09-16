@@ -13,7 +13,7 @@ export class PickingApiError extends Error {
 
 // --- fixture ------------------------------------------------------------
 
-const item = (id: string, name: string, req: number, code: string, sort: number): PickingItem => ({
+const item = (id: string, name: string, req: number, code: string, sort: number, barcode?: string): PickingItem => ({
   id,
   productName: name,
   unitCode: "UN",
@@ -22,6 +22,7 @@ const item = (id: string, name: string, req: number, code: string, sort: number)
   locationCode: code,
   locationSortOrder: sort,
   status: "PENDING",
+  barcode,
 });
 
 let fixtureTasks: PickingTask[] = [
@@ -34,8 +35,8 @@ let fixtureTasks: PickingTask[] = [
     slotStart: "10:00",
     assignedPickerId: "me",
     items: [
-      item("pi-1", "Yerba mate tradicional 500 g", 2, "A-01-2", 12),
-      item("pi-2", "Agua mineral sin gas 1,5 L", 3, "B-04-1", 41),
+      item("pi-1", "Yerba mate tradicional 500 g", 2, "A-01-2", 12, "7791234567891"),
+      item("pi-2", "Agua mineral sin gas 1,5 L", 3, "B-04-1", 41, "7791234567890"),
       item("pi-3", "Pan lactal 500 g", 1, "C-02-3", 63),
     ],
   },
@@ -47,7 +48,7 @@ let fixtureTasks: PickingTask[] = [
     slotDate: "2026-09-12",
     slotStart: "12:00",
     assignedPickerId: null,
-    items: [item("pi-4", "Jugo de naranja 1 L", 4, "A-03-1", 20)],
+    items: [item("pi-4", "Jugo de naranja 1 L", 4, "A-03-1", 20, "7791234567892")],
   },
 ];
 
@@ -77,6 +78,9 @@ async function http(path: string, init?: RequestInit): Promise<PickingTask> {
     const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string"
       ? (payload as { message: string }).message
       : "No pudimos completar la acción.";
+    if (response.status === 400 && message === "Scanned barcode does not match this item.") {
+      throw new PickingApiError("El código escaneado no corresponde a este producto.", 400, "barcode_mismatch");
+    }
     throw new PickingApiError(message, response.status);
   }
   return payload as PickingTask;
@@ -123,7 +127,7 @@ export const pickingApi: PickingApi = {
     }
     return http(`/api/picking/tasks/${encodeURIComponent(id)}/start`, { method: "POST", body: "{}" });
   },
-  async pickItem(taskId, itemId, quantity) {
+  async pickItem(taskId, itemId, quantity, barcode) {
     if (!base()) {
       await wait(150);
       const task = find(taskId);
@@ -131,6 +135,9 @@ export const pickingApi: PickingApi = {
       const next = clone(task);
       const line = next.items.find((i) => i.id === itemId);
       if (!line) throw new PickingApiError("Línea no encontrada.", 404, "not_found");
+      if (barcode && barcode !== line.barcode) {
+        throw new PickingApiError("El código escaneado no corresponde a este producto.", 400, "barcode_mismatch");
+      }
       if (quantity > line.quantityRequired) throw new PickingApiError(`No podés pickear más de ${line.quantityRequired}.`, 400, "over_pick");
       line.quantityPicked = clampPickQuantity(line, quantity);
       line.status = line.quantityPicked === line.quantityRequired ? "PICKED" : "PENDING";
@@ -139,7 +146,7 @@ export const pickingApi: PickingApi = {
     }
     return http(`/api/picking/tasks/${encodeURIComponent(taskId)}/items/${encodeURIComponent(itemId)}/pick`, {
       method: "POST",
-      body: JSON.stringify({ quantity }),
+      body: JSON.stringify({ quantity, ...(barcode ? { barcode } : {}) }),
     });
   },
   async completeTask(id) {

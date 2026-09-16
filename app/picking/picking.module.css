@@ -14,6 +14,10 @@
 .pickCard h2{margin:0;font-size:18px;line-height:1.25}
 .need{margin:0;color:#667085;font-size:14px}
 .need strong{color:#171a1f}
+.scanForm{display:grid;gap:6px}
+.scanForm label,.manualLabel{margin:0;color:#667085;font-size:13px;font-weight:700}
+.scanForm input{min-height:52px;padding:0 14px;border:1px solid var(--line,#e4e7ec);border-radius:14px;background:#fff;color:#171a1f;font:inherit;font-size:16px}
+.scanForm input:focus{outline:2px solid color-mix(in srgb,var(--green,#149C3B) 35%,transparent);outline-offset:1px;border-color:var(--green,#149C3B)}
 .stepper{display:grid;grid-template-columns:64px 1fr 64px;align-items:center;gap:8px}
 .stepper button{height:64px;border:1px solid var(--line,#e4e7ec);border-radius:14px;background:#fff;font-size:28px}
 .stepper button:disabled{opacity:.4}
