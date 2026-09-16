@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canMarkDelivered, canReportIncident, canStartDelivery, describeDeliveryProgress, formatPaymentSummary, getAvailableActions, sortDeliveries, validateIncidentInput } from "../app/lib/driver-rules.js";
+import { buildMapsUrl, canMarkDelivered, canReportIncident, canStartDelivery, describeDeliveryProgress, formatPaymentSummary, getAvailableActions, sortDeliveries, validateIncidentInput } from "../app/lib/driver-rules.js";
 
 const delivery = (id, progress, sortOrder = 1) => ({ assignmentId: id, deliveryProgress: progress, sortOrder, orderCode: `SX-${id}`, paymentMethod: "CASH", total: 7850 });
 
@@ -31,4 +31,12 @@ test("describeDeliveryProgress y formatPaymentSummary producen copy operativo", 
   assert.equal(describeDeliveryProgress("EN_CAMINO"), "En camino");
   assert.equal(describeDeliveryProgress("DESCONOCIDO"), "Sin estado");
   assert.equal(formatPaymentSummary(delivery("1", "PENDING")), "Efectivo · $ 7.850");
+});
+
+test("buildMapsUrl arma un deep-link universal con la dirección y la zona", () => {
+  const url = buildMapsUrl({ deliveryAddress: "Av. Cabildo 1820, 4° B", deliveryZone: "Belgrano" });
+  assert.equal(url, "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent("Av. Cabildo 1820, 4° B, Belgrano"));
+  assert.equal(buildMapsUrl({ deliveryAddress: "Moldes 2480" }), "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent("Moldes 2480"));
+  assert.equal(buildMapsUrl({}), null);
+  assert.equal(buildMapsUrl(undefined), null);
 });

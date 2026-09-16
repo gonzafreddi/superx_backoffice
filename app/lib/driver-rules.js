@@ -35,3 +35,15 @@ export function formatPaymentSummary(delivery) {
   const total = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(Number(delivery?.total ?? 0));
   return `${payment} · ${total}`;
 }
+
+/**
+ * Deep-link universal de Google Maps a la dirección de la entrega: sin ruteo
+ * ni optimización de paradas (una sola ubicación), abre la app si está
+ * instalada y cae solo al mapa web si no — sin depender de esquemas nativos
+ * por plataforma (geo:/intent://) que no tienen ese fallback garantizado.
+ */
+export function buildMapsUrl(delivery) {
+  const query = [delivery?.deliveryAddress, delivery?.deliveryZone].filter((part) => typeof part === "string" && part.trim().length > 0).join(", ");
+  if (!query) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}

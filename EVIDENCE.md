@@ -1,3 +1,32 @@
+# Evidencia — LG-005: integrar apertura de mapas
+
+## Implementado
+
+- Nueva función pura `buildMapsUrl(delivery)` en `app/lib/driver-rules.js`: arma `https://www.google.com/maps/search/?api=1&query=<dirección>, <zona>` (URL-encoded), o `null` si la entrega no tiene dirección. Es el formato universal de Google Maps: en un dispositivo móvil abre la app si está instalada, y cae solo al mapa en el navegador si no — sin depender de esquemas nativos por plataforma (`geo:`/`intent://`) que no garantizan ese fallback.
+- En `app/reparto/driver-app.tsx`, cada tarjeta de entrega muestra un enlace **Cómo llegar** (`target="_blank" rel="noopener noreferrer"`) construido con `buildMapsUrl`, junto al teléfono. No hay ruteo ni optimización de múltiples paradas — es siempre una sola ubicación, tal como pide la tarjeta ("sin optimización automática de rutas").
+- `docs/driver-app.md` actualizado.
+
+## Verificación ejecutada
+
+```sh
+pnpm typecheck && pnpm lint && pnpm test && pnpm build
+```
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 38 tests (1 nuevo: `buildMapsUrl` en `tests/driver-rules.test.mjs`, cubre dirección+zona, sólo dirección, y ausencia de dirección → `null`).
+- `pnpm build`: PASS — `/reparto` se prerenderiza.
+
+## Guía de prueba manual
+
+1. Abrí `/reparto`. En cualquier tarjeta, tocá **Cómo llegar**.
+2. En un navegador de escritorio abre Google Maps en una pestaña nueva con la dirección de esa entrega. En un teléfono con la app de Google Maps instalada, la abre directamente en la ubicación correcta; sin la app instalada, abre el mapa en el navegador igual (mismo enlace, sin lógica adicional de detección de plataforma).
+
+## Decisiones y supuestos
+
+- No se ampliar alcance: es un único enlace por entrega a la ubicación del pedido, sin ruteo multi-parada, geolocalización del repartidor ni integración con un SDK de mapas — exactamente lo que pide la tarjeta.
+- Se usa `deliveryAddress` + `deliveryZone` (sin ciudad fija en el string) porque el modelo de `DriverDelivery` no incluye una ciudad explícita; si en el futuro se agrega, sumarla a `buildMapsUrl` mejoraría la precisión del geocoding de Google.
+
 # Evidencia — LG-002: panel móvil de repartidor
 
 ## Implementado

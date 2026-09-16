@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { driverApi, DriverApiError } from "@/app/lib/driver-api";
 import type { DriverDelivery, DriverDeliveryEvent } from "@/app/lib/driver-contract";
-import { describeDeliveryProgress, formatPaymentSummary, getAvailableActions, INCIDENT_REASONS, sortDeliveries, validateIncidentInput } from "@/app/lib/driver-rules";
+import { buildMapsUrl, describeDeliveryProgress, formatPaymentSummary, getAvailableActions, INCIDENT_REASONS, sortDeliveries, validateIncidentInput } from "@/app/lib/driver-rules";
 import styles from "./driver.module.css";
 
 type LoadState = "loading" | "ready" | "error" | "auth";
@@ -127,6 +127,10 @@ export function DriverApp({
                       <a className={styles.phone} href={`tel:${delivery.customerPhone.replace(/\s+/g, "")}`}>{delivery.customerPhone}</a>
                       <span>{formatPaymentSummary(delivery)}</span>
                     </p>
+
+                    {buildMapsUrl(delivery) && (
+                      <a className={styles.mapLink} href={buildMapsUrl(delivery) ?? undefined} target="_blank" rel="noopener noreferrer">Cómo llegar</a>
+                    )}
 
                     {delivery.note && <p className={styles.note}>{delivery.note}</p>}
 

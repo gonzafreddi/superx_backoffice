@@ -24,6 +24,7 @@
 .detail{margin:0;display:grid;gap:2px;font-size:13px;color:#344054}
 .detail strong{color:#171a1f}
 .phone{color:var(--green-strong,#0F7F30);font-weight:700;text-decoration:none}
+.mapLink{justify-self:start;padding:6px 12px;border:1px solid var(--line,#e4e7ec);border-radius:999px;background:#fff;color:#344054;font-size:12px;font-weight:700;text-decoration:none}
 .note{margin:0;padding:8px 10px;border-radius:10px;background:#f8fcf9;color:#344054;font-size:13px}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .actions.single{grid-template-columns:1fr}
