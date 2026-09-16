@@ -1,5 +1,5 @@
 import type { Order, OrderApi, OrderFilters, OrderLine, OrderTransitionInput } from "./order-contract";
-import { buildOrderTransitionEvent, canTransitionOrder } from "./order-rules";
+import { buildOrderTransitionEvent, canSubmitOrderTransition, canTransitionOrder } from "./order-rules";
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 const line = (id: string, productName: string, quantity: number, unitPrice: number, substitution: OrderLine["substitution"] = null): OrderLine => ({ id, productName, quantity, unitPrice, substitution });
@@ -40,6 +40,7 @@ export const orderApi: OrderApi = {
     const order = orders.find((candidate) => candidate.id === id);
     if (!order) throw notFound();
     if (!canTransitionOrder(order, input.status)) throw new Error("El pedido cambió de estado y esta operación ya no está permitida. Actualizá el listado.");
+    if (!canSubmitOrderTransition(order, input.status, input.checklist)) throw new Error("Completá el checklist de empaque (ítems verificados, embalaje sellado, etiqueta colocada) antes de marcar el pedido como listo.");
     const occurredAt = new Date().toISOString();
     const auditEvent = buildOrderTransitionEvent(input, occurredAt, `oe-${crypto.randomUUID()}`);
     const updated: Order = { ...order, status: input.status, updatedAt: occurredAt, events: [...order.events, auditEvent] };

@@ -33,7 +33,8 @@ export type Order = {
 };
 
 export type OrderFilters = { query?: string; status?: "all" | OrderStatus; from?: string; to?: string };
-export type OrderTransitionInput = { status: OrderStatus; performedBy: string; performedByRole?: OrderRole; note?: string };
+export type PackingChecklist = { itemsVerified: boolean; packagingSealed: boolean; labelAttached: boolean };
+export type OrderTransitionInput = { status: OrderStatus; performedBy: string; performedByRole?: OrderRole; note?: string; checklist?: PackingChecklist };
 
 /** Contrato objetivo: GET /api/orders, GET /api/orders/:id y PATCH /api/orders/:id/status. */
 export type OrderApi = {

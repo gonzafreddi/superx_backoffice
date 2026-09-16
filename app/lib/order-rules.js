@@ -6,6 +6,12 @@ export function getOrderPermissions(role) { return ORDER_PERMISSIONS[role] ?? OR
 export function getAvailableOrderTransitions(order) { return (ORDER_TRANSITIONS[order.status] ?? []).filter((status) => !(order.paymentRequired && order.status === "CONFIRMED" && status === "PICKING")); }
 export function canTransitionOrder(order, nextStatus) { return getAvailableOrderTransitions(order).includes(nextStatus); }
 export function canRoleTransitionOrder(role, order, nextStatus) { const permissions = getOrderPermissions(role); return canTransitionOrder(order, nextStatus) && permissions.transition && (nextStatus !== "CANCELLED" || permissions.cancel); }
+export const PACKING_CHECKLIST_FIELDS = ["itemsVerified", "packagingSealed", "labelAttached"];
+/** READY is only reachable from PACKED (see ORDER_TRANSITIONS), so this is exactly the packing-close step. */
+export function requiresPackingChecklist(order, nextStatus) { return order.status === "PACKED" && nextStatus === "READY"; }
+export function isPackingChecklistComplete(checklist) { return Boolean(checklist) && PACKING_CHECKLIST_FIELDS.every((field) => checklist[field] === true); }
+/** Final submission gate: blocks an inconsistent close even if the action button was reachable. */
+export function canSubmitOrderTransition(order, nextStatus, checklist) { return canTransitionOrder(order, nextStatus) && (!requiresPackingChecklist(order, nextStatus) || isPackingChecklistComplete(checklist)); }
 export function getOrderDashboardStatus(status) { if (status === "CREATED") return "pending"; if (status === "CONFIRMED" || status === "PAID") return "confirmed"; if (status === "PICKING" || status === "PACKED") return "picking"; if (status === "READY") return "ready"; if (status === "OUT_FOR_DELIVERY") return "delivery"; if (status === "DELIVERED") return "delivered"; return "cancelled"; }
 
 export const ORDER_PAYMENT_METHOD_LABELS = { CASH: "Efectivo", BANK_TRANSFER: "Transferencia", MERCADO_PAGO: "Mercado Pago" };
@@ -53,12 +59,14 @@ export function describeOrderTransition(order, nextStatus) {
 /** Builds the audit event appended on every transition: status, actor, role, timestamp and optional note. */
 export function buildOrderTransitionEvent(input, occurredAt, id) {
   const note = typeof input.note === "string" ? input.note.trim() : "";
+  const checklistNote = input.status === "READY" && isPackingChecklistComplete(input.checklist) ? "packing checklist confirmed: items verified, packaging sealed, label attached" : "";
+  const combinedNote = [note, checklistNote].filter(Boolean).join(" — ");
   return {
     id: id ?? `oe-${occurredAt}`,
     status: input.status,
     occurredAt,
     actor: input.performedBy,
     ...(input.performedByRole ? { role: input.performedByRole } : {}),
-    ...(note ? { note } : {}),
+    ...(combinedNote ? { note: combinedNote } : {}),
   };
 }
