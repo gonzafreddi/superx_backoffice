@@ -1,3 +1,26 @@
+# IQ-001 — Convenciones de repositorio y quickstart
+
+## Implementado
+
+- `.editorconfig` (2 espacios, UTF-8, LF, newline final, sin trim en Markdown).
+- `.env.example` documentando `NEXT_PUBLIC_SUPERX_API_BASE_URL` (opcional; sin valor cae a los fixtures tipados de `app/lib/*-api.ts`).
+- `CONVENTIONS.md`: ramas (trunk-based sobre `main`), commits (Conventional Commits + footer de coautoría), el patrón manager+api+contract+rules por dominio, la restricción de `*-rules.js` (ESM plano, sin importar `.ts`), y el aviso de leer `AGENTS.md`/`node_modules/next/dist/docs/` antes de codear.
+- README: sección `## Quickstart` (clone → install → env opcional → dev → verify).
+
+## Verificación ejecutada
+
+| Comando | Resultado |
+| --- | --- |
+| `pnpm typecheck` | PASS |
+| `pnpm lint` | PASS |
+| `pnpm test` | PASS — 38 tests (`node --test`) |
+| `pnpm build` | PASS |
+| Prueba real de arranque | `pnpm exec next dev -p 3200` → `curl localhost:3200/` → `307` (redirect esperado a la ruta por defecto). **Mismo hallazgo que en `superx_front`**: `pnpm dev -- -p 3200` no pasa el flag correctamente; el Quickstart usa `pnpm exec next dev -p 3200`, ya verificado. |
+
+## Decisiones y supuestos
+
+- Puerto de desarrollo recomendado 3200 (3000 y 3100 quedan reservados para backend y frontend cliente) para poder levantar los tres repos en simultáneo en la misma máquina sin colisión.
+
 # Evidencia — LG-005: integrar apertura de mapas
 
 ## Implementado

@@ -1,5 +1,19 @@
 # SuperX Backoffice
 
+## Quickstart
+
+```bash
+git clone git@github.com:gonzafreddi/superx_backoffice.git
+cd superx_backoffice
+pnpm install
+cp .env.example .env.local   # opcional: apunta a un backend real (ver comentario)
+pnpm exec next dev -p 3200   # http://localhost:3200 (3000/3100 quedan para backend/front)
+```
+
+Convenciones de repositorio (ramas, commits, naming): ver [`CONVENTIONS.md`](CONVENTIONS.md).
+Este proyecto usa una versión de Next.js con cambios respecto al conocimiento
+de base de los modelos — leer [`AGENTS.md`](AGENTS.md) antes de codear.
+
 ## Panel operativo de pedidos
 
 En **Pedidos** se puede buscar por código o cliente y filtrar por estado y fecha. El detalle muestra entrega, pago, productos e historial. **Consulta** sólo visualiza; **operador** avanza el flujo permitido; **administración** también puede cancelar antes de que el pedido esté empacado. Cada cambio exige confirmación.
