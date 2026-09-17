@@ -1,3 +1,23 @@
+# IQ-003 — CI/CD
+
+## Implementado
+
+- `.github/workflows/ci.yml`: job `verify` en `push`/`pull_request` a `main` — `pnpm typecheck && pnpm lint && pnpm test && pnpm build`.
+- **Bug real capturado por la primera corrida real en GitHub Actions** (este repo es público, así que se pudo leer el resultado sin `gh auth`): `tsc --noEmit` fallaba en frío con `Cannot find name 'LayoutProps'` en `app/layout.tsx:17` — localmente pasaba solo porque `.next/types` (gitignored) ya existía de un build/dev previo; un checkout limpio no lo tiene. Fix: `"typecheck": "next typegen && tsc --noEmit"`. Mismo fix aplicado en `superx_front` (mismo setup de Next 16) antes de que su propio push expusiera el bug.
+
+## Verificación ejecutada
+
+| Comando | Resultado |
+| --- | --- |
+| Primera corrida en GitHub Actions (`132818e`) | **FAIL** en el step `pnpm typecheck` — confirmado vía `GET /repos/.../check-runs/.../annotations` (repo público, sin auth) |
+| `rm -rf .next && pnpm typecheck` local tras el fix | PASS |
+| `pnpm lint && pnpm test && pnpm build` | PASS — 38 tests |
+| Segunda corrida en GitHub Actions (`0e763ce`) | **PASS** — confirma que el workflow completo (checkout → pnpm/action-setup → setup-node → install → typecheck → lint → test → build) funciona de punta a punta en un runner real |
+
+## Decisiones y supuestos
+
+- Sin job de e2e (no aplica: fixtures locales, sin backend real conectado todavía).
+
 # IQ-001 — Convenciones de repositorio y quickstart
 
 ## Implementado
