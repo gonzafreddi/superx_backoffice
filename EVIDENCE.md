@@ -1,3 +1,17 @@
+# (sin card) — Código de barras opcional + campo Nombre visible en la ficha de producto
+
+## Implemented
+
+- El código de barras era obligatorio, con formato "solo 8-14 dígitos" y chequeo de duplicado en el frontend — más estricto que el backend real (`BarcodeInputDto`: opcional, alfanumérico + guiones, hasta 64 caracteres; la unicidad la enforce la constraint `unique` de la tabla `barcodes` en Postgres, no el frontend). Se sacaron las 3 validaciones de `validateProduct` y el filtro de solo-dígitos del input; el campo quedó libre y sin asterisco de obligatorio.
+- Auditoría del reporte "no puedo poner el nombre, no está el campo": el campo funcionaba (estaba conectado al estado y al guardado), pero visualmente era un input gigante sin borde ni etiqueta —se veía como un título estático, no como un campo completable—, y no mostraba el error de validación como el resto de los campos. Se le agregó una etiqueta visible "Nombre comercial *" y el mensaje de error inline, manteniendo el tamaño grande tipo Odoo.
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | PASS — 41 tests (el test de barcode se reescribió para el comportamiento nuevo) |
+| `curl` contra `next dev` real | `/productos/nuevo`, `/productos/prd-001` → 200 |
+
 # (sin card) — Alta rápida de categoría desde la ficha de producto
 
 ## Implemented
