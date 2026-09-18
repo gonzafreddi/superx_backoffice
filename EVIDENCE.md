@@ -1,3 +1,33 @@
+# (sin card) — Wiring al backend real (login + 5 dominios de AdminShell)
+
+Pedido explícito del usuario, sin card de Trello (Trello estuvo caído toda la sesión). Alcance acordado con el usuario tras encontrar que cada dominio era más profundo de lo previsto: **login + productos, precios, inventario, pedidos y entregas** (los 5 dominios de `AdminShell`). Quedan deliberadamente fuera de esta pasada: **picking y reparto** (rutas standalone sin login, necesitarían su propio flujo de auth) y **tablero/métricas** (no existe ningún endpoint real de KPIs en el backend — sigue siendo fixture, no hay nada que conectar).
+
+## Login (nuevo)
+
+- `app/lib/auth-api.ts` (`login`/`getAccessToken`/`logout`, mismo mecanismo bearer que `superx_front`, sin cookies), `app/components/login.tsx` + `app/login/page.tsx`, `AdminShell` ahora redirige a `/login` si no hay token (excepto en modo fixture, sin `NEXT_PUBLIC_SUPERX_API_BASE_URL`, que nunca lo pide). Cualquier rol puede iniciar sesión; las acciones que no puede hacer las rechaza el backend (401/403), la UI no duplica esa decisión.
+
+## Hallazgos de contrato reales (no solo URLs — los tipos mismos no coincidían)
+
+- **`product-contract.ts`**: el backend no tiene `sku` (se deriva del `slug`), ni un `barcode` único (es un array — solo se gestiona el primero), ni una `unit` de 4 valores fijos (las unidades son filas dinámicas: UN/KG/L/ML/G). Se agregó `ProductApi.listUnits()` y el formulario de `product-manager.tsx` ahora carga unidades reales en vez de un `<select>` hardcodeado de 4 opciones.
+- **No existe `DELETE /products`** — los productos solo se desactivan. `productApi.deleteProduct` ahora lanza un error explícito ("no se pueden eliminar, solo desactivar") en vez de fingir que funciona; se dejó el botón "Eliminar" tal cual en la UI (sin restructurarla) porque ese error ya es honesto y accionable.
+- **Precios**: el backend no tiene "un precio por producto" — precios viven en listas (`PriceList`/`ProductPrice`) resueltas por scope/prioridad, sin historial de cambios consultable. `price-api.ts` gestiona una lista global única "Lista general" (la crea si no existe) para las escrituras, y usa el `/product-prices` en lote (mismo endpoint nuevo del frontend) para las lecturas. **Limitación real**: `/product-prices` solo resuelve productos `isActive:true` — un producto inactivo con precio cargado se ve como "Sin precio cargado" en el listado admin, aunque el precio exista.
+- **Inventario**: no hay concepto de "mínimo/umbral de reposición" en el backend — el estado "low" nunca se activa (`minimum` queda en 0 siempre), solo "ok"/"out". `InventoryMovement.actorUserId` no resuelve a un nombre (no hay directorio de usuarios), se muestra `Usuario #<id>`. El "id" de cada posición de stock es un compuesto `productId:warehouseId` armado en el adaptador (no hay snapshot previo para productos sin movimientos, así que un id real de snapshot no serviría para crear el primer movimiento).
+- **Pedidos**: campos ya bien alineados (`orderNumber`, `itemsSubtotal`, `deliveryFee`, `grandTotal`, etc. — mismo patrón que en `superx_front`). Detalle real: `GET /orders` sin `scope=all` solo devuelve los pedidos del propio usuario — un admin necesita ese query param para ver todos. Las sustituciones de picking no se reflejan en `OrderLine.substitution` (siempre `null` acá; solo visibles vía el módulo de picking, no conectado hoy).
+- **Entregas**: `cityName` en el contrato es texto libre en el formulario — se resuelve a `cityId` real buscando por nombre exacto contra `GET /cities` (lanza error claro si no coincide). **`UpdateDeliverySlotDto` real solo acepta `capacity`/`isActive`** — no se puede cambiar fecha/horario de una franja ya creada; el adaptador solo envía esos dos campos al actualizar y documenta la limitación acá en vez de fingir que el resto se aplicó. Igual que precios/inventario, no hay historial de auditoría real para zonas/franjas (`history: []` siempre, en vez de inventar entradas).
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build` (tras cada dominio) | PASS — 38 tests sin cambios en ningún paso |
+| Simulación real completa vía curl contra el backend corriendo, replicando exactamente cada llamada de cada adaptador | login admin → CRUD de productos (crear/editar/desactivar, unidades reales) → precios (lista por defecto, crear/actualizar, lectura en lote) → inventario (stock, ajuste ADJUSTMENT, movimientos) → pedidos (listar con `scope=all`, transición de estado) → entregas (zonas con resolución de ciudad, franjas con creación y actualización parcial). Todo devolvió exactamente la forma esperada por cada adaptador. |
+| No se pudo probar visualmente en navegador (sin Chrome/Playwright disponible en esta sesión) | Verificado a nivel de contrato HTTP (nombres de campo, códigos de estado, headers), no visualmente — el usuario debería hacer una pasada visual antes de darlo por definitivo. |
+
+## Pendiente explícito para una próxima sesión
+
+- Picking (`/picking`) y reparto (`/reparto`): necesitan su propio login (picker/driver) antes de poder wirearse — hoy siguen 100% fixture aunque el backend de ambos dominios está completo desde PK-001..006/LG-001..005.
+- Tablero de métricas (`/tablero`): no hay ningún endpoint de KPIs en el backend — sigue fixture hasta que se construya esa capacidad (fuera del alcance de "wiring", es una feature nueva).
+
 # IQ-003 — CI/CD
 
 ## Implementado

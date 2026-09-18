@@ -1,4 +1,5 @@
-import type { Order, OrderApi, OrderFilters, OrderLine, OrderTransitionInput } from "./order-contract";
+import { authHeaders } from "@/app/lib/auth-api";
+import type { Order, OrderApi, OrderEvent, OrderFilters, OrderLine, OrderTransitionInput } from "./order-contract";
 import { buildOrderTransitionEvent, canSubmitOrderTransition, canTransitionOrder } from "./order-rules";
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
@@ -20,31 +21,110 @@ let orders: Order[] = [
 const notFound = () => new Error("El pedido ya no está disponible. Actualizá el listado e intentá nuevamente.");
 const clone = (order: Order): Order => ({ ...order, payment: { ...order.payment }, charges: { ...order.charges }, deliverySlot: order.deliverySlot ? { ...order.deliverySlot } : null, lines: order.lines.map((item) => ({ ...item, substitution: item.substitution ? { ...item.substitution } : null })), events: order.events.map((entry) => ({ ...entry })) });
 
-/** Mock TEMPORAL: el backend de órdenes aún no existe. Sustituir por GET /api/orders, GET /api/orders/:id y PATCH /api/orders/:id/status cuando esté disponible. */
+function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; }
+
+type RawOrderItem = { id: string; productName: string; quantity: number; unitPrice: string };
+type RawOrder = {
+  id: string; orderNumber: string; status: Order["status"];
+  recipientName: string; phone: string; street: string; streetNumber: string; apartment: string | null; postalCode: string;
+  deliveryZoneName: string | null; deliverySlotId: string | null; slotDate: string | null; slotStart: string | null; slotEnd: string | null;
+  createdAt: string; updatedAt: string; paymentMethod: Order["payment"]["method"]; paymentStatus: Order["payment"]["status"];
+  substitutionPreference: Order["substitutionPreference"]; customerNotes: string | null;
+  itemsSubtotal: string; deliveryFee: string; discountTotal: string; grandTotal: string; items: RawOrderItem[];
+};
+type RawOrderEvent = { id: string; toStatus: Order["status"]; actorUserId: string; actorRole: string; note: string | null; createdAt: string };
+
+async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
+  const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";
+    throw new Error(response.status === 401 || response.status === 403 ? "No tenés permiso para hacer esto. Iniciá sesión con una cuenta de administración." : message);
+  }
+  return payload;
+}
+
+function adaptEvent(raw: RawOrderEvent): OrderEvent {
+  return { id: raw.id, status: raw.toStatus, occurredAt: raw.createdAt, actor: `Usuario #${raw.actorUserId}`, role: raw.actorRole as OrderEvent["role"], ...(raw.note ? { note: raw.note } : {}) };
+}
+
+function adaptOrder(raw: RawOrder, events: RawOrderEvent[]): Order {
+  const addressParts = [raw.street, raw.streetNumber].filter(Boolean).join(" ") + (raw.apartment ? `, ${raw.apartment}` : "") + (raw.postalCode ? ` (CP ${raw.postalCode})` : "");
+  return {
+    id: raw.id,
+    code: raw.orderNumber,
+    customerName: raw.recipientName,
+    customerPhone: raw.phone,
+    deliveryAddress: addressParts || "Dirección a confirmar",
+    deliveryZone: raw.deliveryZoneName ?? "Sin zona",
+    deliverySlot: raw.slotDate && raw.slotStart && raw.slotEnd ? { date: raw.slotDate, startTime: raw.slotStart.slice(0, 5), endTime: raw.slotEnd.slice(0, 5) } : null,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+    status: raw.status,
+    // No explicit "requires payment confirmation" flag on the backend — a non-cash method is the closest proxy.
+    paymentRequired: raw.paymentMethod !== "CASH",
+    payment: { method: raw.paymentMethod, status: raw.paymentStatus },
+    substitutionPreference: raw.substitutionPreference,
+    customerNotes: raw.customerNotes,
+    charges: charges(Number(raw.itemsSubtotal), Number(raw.deliveryFee), Number(raw.discountTotal)),
+    total: Number(raw.grandTotal),
+    // Picking-time substitutions aren't exposed on this endpoint (only via the picking module, not wired here).
+    lines: raw.items.map((item) => line(item.id, item.productName, item.quantity, Number(item.unitPrice))),
+    events: events.map(adaptEvent),
+  };
+}
+
+async function fetchOrderWithEvents(root: string, id: string): Promise<Order> {
+  const [orderPayload, eventsPayload] = await Promise.all([
+    fetchJson(`${root}/orders/${encodeURIComponent(id)}`),
+    fetchJson(`${root}/orders/${encodeURIComponent(id)}/events`),
+  ]);
+  return adaptOrder(orderPayload as RawOrder, eventsPayload as RawOrderEvent[]);
+}
+
 export const orderApi: OrderApi = {
   async listOrders(filters: OrderFilters = {}) {
-    await wait();
+    const url = baseUrl();
+    if (!url) {
+      await wait();
+      const query = filters.query?.trim().toLocaleLowerCase("es-AR") ?? "";
+      return orders
+        .filter((order) => (!query || [order.code, order.customerName].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.status || filters.status === "all" || order.status === filters.status) && (!filters.from || order.createdAt.slice(0, 10) >= filters.from) && (!filters.to || order.createdAt.slice(0, 10) <= filters.to))
+        .map(clone);
+    }
+    const root = url.replace(/\/$/, "");
+    const params = new URLSearchParams({ scope: "all", pageSize: "100" });
+    if (filters.status && filters.status !== "all") params.set("status", filters.status);
+    const payload = (await fetchJson(`${root}/orders?${params}`)) as { items?: RawOrder[] };
+    const items = payload.items ?? [];
+    const withEvents = await Promise.all(items.map(async (raw) => {
+      const eventsPayload = (await fetchJson(`${root}/orders/${raw.id}/events`)) as RawOrderEvent[];
+      return adaptOrder(raw, eventsPayload);
+    }));
     const query = filters.query?.trim().toLocaleLowerCase("es-AR") ?? "";
-    return orders
-      .filter((order) => (!query || [order.code, order.customerName].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.status || filters.status === "all" || order.status === filters.status) && (!filters.from || order.createdAt.slice(0, 10) >= filters.from) && (!filters.to || order.createdAt.slice(0, 10) <= filters.to))
-      .map(clone);
+    return withEvents.filter((order) => (!query || [order.code, order.customerName].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.from || order.createdAt.slice(0, 10) >= filters.from) && (!filters.to || order.createdAt.slice(0, 10) <= filters.to));
   },
   async getOrder(id: string) {
-    await wait();
-    const order = orders.find((candidate) => candidate.id === id);
-    if (!order) throw notFound();
-    return clone(order);
+    const url = baseUrl();
+    if (!url) { await wait(); const order = orders.find((candidate) => candidate.id === id); if (!order) throw notFound(); return clone(order); }
+    return fetchOrderWithEvents(url.replace(/\/$/, ""), id);
   },
   async transitionOrder(id: string, input: OrderTransitionInput) {
-    await wait();
-    const order = orders.find((candidate) => candidate.id === id);
-    if (!order) throw notFound();
-    if (!canTransitionOrder(order, input.status)) throw new Error("El pedido cambió de estado y esta operación ya no está permitida. Actualizá el listado.");
-    if (!canSubmitOrderTransition(order, input.status, input.checklist)) throw new Error("Completá el checklist de empaque (ítems verificados, embalaje sellado, etiqueta colocada) antes de marcar el pedido como listo.");
-    const occurredAt = new Date().toISOString();
-    const auditEvent = buildOrderTransitionEvent(input, occurredAt, `oe-${crypto.randomUUID()}`);
-    const updated: Order = { ...order, status: input.status, updatedAt: occurredAt, events: [...order.events, auditEvent] };
-    orders = orders.map((candidate) => (candidate.id === id ? updated : candidate));
-    return clone(updated);
+    const url = baseUrl();
+    if (!url) {
+      await wait();
+      const order = orders.find((candidate) => candidate.id === id);
+      if (!order) throw notFound();
+      if (!canTransitionOrder(order, input.status)) throw new Error("El pedido cambió de estado y esta operación ya no está permitida. Actualizá el listado.");
+      if (!canSubmitOrderTransition(order, input.status, input.checklist)) throw new Error("Completá el checklist de empaque (ítems verificados, embalaje sellado, etiqueta colocada) antes de marcar el pedido como listo.");
+      const occurredAt = new Date().toISOString();
+      const auditEvent = buildOrderTransitionEvent(input, occurredAt, `oe-${crypto.randomUUID()}`);
+      const updated: Order = { ...order, status: input.status, updatedAt: occurredAt, events: [...order.events, auditEvent] };
+      orders = orders.map((candidate) => (candidate.id === id ? updated : candidate));
+      return clone(updated);
+    }
+    const root = url.replace(/\/$/, "");
+    await fetchJson(`${root}/orders/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify({ status: input.status, ...(input.note?.trim() ? { note: input.note.trim() } : {}), ...(input.checklist ? { checklist: input.checklist } : {}) }) });
+    return fetchOrderWithEvents(root, id);
   },
 };

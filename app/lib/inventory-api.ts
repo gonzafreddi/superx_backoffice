@@ -1,4 +1,5 @@
-import type { InventoryApi, InventoryFilters, InventoryItem, InventoryMovementInput, Warehouse } from "./inventory-contract";
+import { authHeaders } from "@/app/lib/auth-api";
+import type { InventoryApi, InventoryFilters, InventoryItem, InventoryMovement, InventoryMovementInput, MovementType, Warehouse } from "./inventory-contract";
 import { getInventoryStatus } from "./inventory-rules";
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
@@ -11,9 +12,110 @@ let inventory: InventoryItem[] = [
 ];
 const unavailable = () => new Error("La posición de stock ya no está disponible. Actualizá el listado e intentá nuevamente.");
 
-/** Mock TEMPORAL bloqueado por BE-008. Conserva el contrato de GET /api/inventory y POST /api/inventory/movements; reemplazar por cliente HTTP cuando el backend esté disponible. */
+function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; }
+const itemId = (productId: string, warehouseId: string) => `${productId}:${warehouseId}`;
+const parseItemId = (id: string) => { const [productId, warehouseId] = id.split(":"); return { productId, warehouseId }; };
+
+type RawWarehouse = { id: string; name: string };
+type RawSnapshot = { id: string; productId: string; warehouseId: string; quantityOnHand: number; updatedAt: string };
+type RawProduct = { id: string; name: string; slug: string };
+type RawMovement = { id: string; type: string; quantity: number; reference: string | null; note: string | null; actorUserId: string; createdAt: string };
+
+const MOVEMENT_TYPE_MAP: Record<string, MovementType> = { PURCHASE: "receipt", RETURN: "receipt", SALE: "sale", ADJUSTMENT: "adjustment", TRANSFER_IN: "transfer", TRANSFER_OUT: "transfer" };
+
+async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
+  const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";
+    throw new Error(response.status === 401 || response.status === 403 ? "No tenés permiso para hacer esto. Iniciá sesión con una cuenta de administración." : message);
+  }
+  return payload;
+}
+
+/** No user directory endpoint exists (only "/me" for the current user), so movements can only be attributed by id. */
+function adaptMovement(raw: RawMovement): InventoryMovement {
+  return {
+    id: raw.id,
+    inventoryItemId: "",
+    type: MOVEMENT_TYPE_MAP[raw.type] ?? "adjustment",
+    quantity: (raw.type === "SALE" || raw.type === "TRANSFER_OUT" ? -1 : 1) * raw.quantity,
+    reason: raw.note ?? raw.reference ?? "—",
+    occurredAt: raw.createdAt,
+    createdBy: `Usuario #${raw.actorUserId}`,
+  };
+}
+
+async function fetchMovements(root: string, productId: string, warehouseId: string): Promise<InventoryMovement[]> {
+  const payload = (await fetchJson(`${root}/inventory/movements?productId=${productId}&warehouseId=${warehouseId}&pageSize=50`)) as { items?: unknown };
+  const items = Array.isArray(payload.items) ? (payload.items as RawMovement[]) : [];
+  return items.map((raw) => ({ ...adaptMovement(raw), inventoryItemId: itemId(productId, warehouseId) }));
+}
+
 export const inventoryApi: InventoryApi = {
-  async listInventory(filters: InventoryFilters = {}) { await wait(); const query = filters.query?.trim().toLocaleLowerCase("es-AR") ?? ""; return inventory.filter((item) => (!query || [item.productName, item.sku].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.warehouseId || item.warehouseId === filters.warehouseId) && (!filters.status || filters.status === "all" || getInventoryStatus(item) === filters.status)); },
-  async listWarehouses() { await wait(); return warehouses; },
-  async createMovement(input: InventoryMovementInput) { await wait(); const item = inventory.find((candidate) => candidate.id === input.inventoryItemId); if (!item) throw unavailable(); if (!Number.isInteger(input.quantity) || input.quantity === 0 || !input.reason.trim()) throw new Error("El movimiento informado no es válido."); if (item.onHand + input.quantity < 0) throw new Error("El movimiento no puede dejar el stock por debajo de cero."); const movement = { id: `mov-${crypto.randomUUID()}`, inventoryItemId: item.id, type: "adjustment" as const, quantity: input.quantity, reason: input.reason.trim(), occurredAt: new Date().toISOString(), createdBy: input.createdBy }; const updated: InventoryItem = { ...item, onHand: item.onHand + input.quantity, updatedAt: movement.occurredAt, movements: [movement, ...item.movements] }; inventory = inventory.map((candidate) => candidate.id === item.id ? updated : candidate); return updated; },
+  async listInventory(filters: InventoryFilters = {}) {
+    const url = baseUrl();
+    if (!url) { await wait(); return inventory.filter((item) => (!filters.query?.trim() || [item.productName, item.sku].some((value) => value.toLocaleLowerCase("es-AR").includes(filters.query!.trim().toLocaleLowerCase("es-AR")))) && (!filters.warehouseId || item.warehouseId === filters.warehouseId) && (!filters.status || filters.status === "all" || getInventoryStatus(item) === filters.status)); }
+    const root = url.replace(/\/$/, "");
+    const [snapshotsPayload, productsPayload] = await Promise.all([
+      fetchJson(`${root}/inventory/stock${filters.warehouseId ? `?warehouseId=${filters.warehouseId}` : ""}`),
+      fetchJson(`${root}/products?pageSize=100&includeInactive=true`),
+    ]);
+    const snapshots = Array.isArray(snapshotsPayload) ? (snapshotsPayload as RawSnapshot[]) : [];
+    const products = new Map(((productsPayload as { items?: RawProduct[] }).items ?? []).map((product) => [product.id, product]));
+    const items = await Promise.all(snapshots.map(async (snapshot) => {
+      const product = products.get(snapshot.productId);
+      const movements = await fetchMovements(root, snapshot.productId, snapshot.warehouseId);
+      const item: InventoryItem = {
+        id: itemId(snapshot.productId, snapshot.warehouseId),
+        productId: snapshot.productId,
+        productName: product?.name ?? `Producto #${snapshot.productId}`,
+        sku: product?.slug.toUpperCase() ?? snapshot.productId,
+        warehouseId: snapshot.warehouseId,
+        onHand: snapshot.quantityOnHand,
+        // The backend has no reorder-threshold concept yet — "low" stock status is unavailable, only "ok"/"out".
+        minimum: 0,
+        updatedAt: snapshot.updatedAt,
+        movements,
+      };
+      return item;
+    }));
+    const query = filters.query?.trim().toLocaleLowerCase("es-AR") ?? "";
+    return items.filter((item) => (!query || [item.productName, item.sku].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.status || filters.status === "all" || getInventoryStatus(item) === filters.status));
+  },
+  async listWarehouses() {
+    const url = baseUrl();
+    if (!url) { await wait(); return warehouses; }
+    const payload = await fetchJson(`${url.replace(/\/$/, "")}/warehouses`);
+    return Array.isArray(payload) ? (payload as RawWarehouse[]).map((item) => ({ id: item.id, name: item.name, code: item.name })) : [];
+  },
+  async createMovement(input: InventoryMovementInput) {
+    const url = baseUrl();
+    if (!url) { await wait(); const item = inventory.find((candidate) => candidate.id === input.inventoryItemId); if (!item) throw unavailable(); if (!Number.isInteger(input.quantity) || input.quantity === 0 || !input.reason.trim()) throw new Error("El movimiento informado no es válido."); if (item.onHand + input.quantity < 0) throw new Error("El movimiento no puede dejar el stock por debajo de cero."); const movement = { id: `mov-${crypto.randomUUID()}`, inventoryItemId: item.id, type: "adjustment" as const, quantity: input.quantity, reason: input.reason.trim(), occurredAt: new Date().toISOString(), createdBy: input.createdBy }; const updated: InventoryItem = { ...item, onHand: item.onHand + input.quantity, updatedAt: movement.occurredAt, movements: [movement, ...item.movements] }; inventory = inventory.map((candidate) => candidate.id === item.id ? updated : candidate); return updated; }
+    const root = url.replace(/\/$/, "");
+    const { productId, warehouseId } = parseItemId(input.inventoryItemId);
+    if (!Number.isInteger(input.quantity) || input.quantity === 0 || !input.reason.trim()) throw new Error("El movimiento informado no es válido.");
+    await fetchJson(`${root}/inventory/movements`, {
+      method: "POST",
+      body: JSON.stringify({ productId: Number(productId), warehouseId: Number(warehouseId), type: "ADJUSTMENT", quantity: Math.abs(input.quantity), direction: input.quantity >= 0 ? "increase" : "decrease", note: input.reason.trim() }),
+    });
+    const [snapshotPayload, productPayload, movements] = await Promise.all([
+      fetchJson(`${root}/inventory/stock?productId=${productId}&warehouseId=${warehouseId}`),
+      fetchJson(`${root}/products/${productId}`).catch(() => undefined),
+      fetchMovements(root, productId, warehouseId),
+    ]);
+    const snapshot = (Array.isArray(snapshotPayload) ? snapshotPayload as RawSnapshot[] : [])[0];
+    const product = productPayload as RawProduct | undefined;
+    return {
+      id: itemId(productId, warehouseId),
+      productId,
+      productName: product?.name ?? `Producto #${productId}`,
+      sku: product?.slug.toUpperCase() ?? productId,
+      warehouseId,
+      onHand: snapshot?.quantityOnHand ?? 0,
+      minimum: 0,
+      updatedAt: snapshot?.updatedAt ?? new Date().toISOString(),
+      movements,
+    };
+  },
 };
