@@ -1,3 +1,18 @@
+# (sin card) — Ver el contenido de cada ubicación
+
+## Implemented
+
+- La pantalla ya permitía asignar un producto a una ubicación, pero no había forma de ver lo inverso: qué hay en una ubicación dada. El usuario lo marcó como prioritario ("no le podemos errar acá").
+- Backend (`superx_back` `e444843`): `GET /warehouses/:id/locations` ahora trae `products: [{id,name,slug}]` embebido en cada ubicación (una sola query batched para todo el depósito, no N+1).
+- Backoffice: el listado de ubicaciones muestra ahora una línea con los productos guardados ahí (o "Vacía"); el panel de detalle lista los productos completos bajo "Productos en esta ubicación". Tipo nuevo `WarehouseLocationWithProducts` separado de `WarehouseLocation` (el que se usa en la asignación individual no trae ni necesita esta lista).
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | PASS — 41 tests |
+| Manual contra backend real | `GET /warehouses/1/locations` devuelve cada ubicación con sus productos reales asignados; verificado que coincide con lo que va a renderizar la pantalla |
+
 # (sin card) — Ubicaciones de depósito
 
 ## Implemented

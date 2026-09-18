@@ -1,5 +1,5 @@
 import { authHeaders } from "@/app/lib/auth-api";
-import type { LocationApi, LocationInput, LocationProduct, LocationWarehouse, ProductLocation, WarehouseLocation } from "./location-contract";
+import type { LocationApi, LocationInput, LocationProduct, LocationWarehouse, ProductLocation, WarehouseLocation, WarehouseLocationWithProducts } from "./location-contract";
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 const baseUrl = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL;
@@ -13,11 +13,14 @@ const fixtureWarehouses: LocationWarehouse[] = [{ id: "wh-central", name: "Depó
 const fixtureProducts: LocationProduct[] = [{ id: "prd-001", name: "Agua mineral sin gas 1,5 L" }, { id: "prd-002", name: "Yerba mate tradicional 500 g" }, { id: "prd-003", name: "Jugo de naranja 1 L" }];
 let fixtureAssignments: ProductLocation[] = [{ productId: "prd-001", warehouseId: "wh-central", location: fixtureLocations[0] }];
 
-type RawLocation = { id: string | number; warehouseId: string | number; code: string; aisle: string; rack: string; level: string; sortOrder: number; isActive: boolean; createdAt: string; updatedAt: string };
+type RawLocationProduct = { id: string | number; name: string };
+type RawLocation = { id: string | number; warehouseId: string | number; code: string; aisle: string; rack: string; level: string; sortOrder: number; isActive: boolean; createdAt: string; updatedAt: string; products?: RawLocationProduct[] };
 type RawWarehouse = { id: string | number; name: string };
 type RawProductLocation = { productId: string | number; warehouseId: string | number; location: RawLocation };
 
+const adaptProduct = (raw: RawLocationProduct): LocationProduct => ({ id: String(raw.id), name: raw.name });
 const adaptLocation = (raw: RawLocation): WarehouseLocation => ({ ...raw, id: String(raw.id), warehouseId: String(raw.warehouseId) });
+const adaptLocationWithProducts = (raw: RawLocation): WarehouseLocationWithProducts => ({ ...adaptLocation(raw), products: (raw.products ?? []).map(adaptProduct) });
 const adaptAssignment = (raw: RawProductLocation): ProductLocation => ({ productId: String(raw.productId), warehouseId: String(raw.warehouseId), location: adaptLocation(raw.location) });
 
 async function fetchJson(path: string, init: RequestInit = {}): Promise<unknown> {
@@ -39,9 +42,15 @@ export const locationApi: LocationApi = {
     return Array.isArray(payload) ? (payload as RawWarehouse[]).map((warehouse) => ({ id: String(warehouse.id), name: warehouse.name })) : [];
   },
   async listLocations(warehouseId) {
-    if (!baseUrl()) { await wait(); return fixtureLocations.filter((location) => location.warehouseId === warehouseId).sort((a, b) => a.sortOrder - b.sortOrder).map((location) => ({ ...location })); }
+    if (!baseUrl()) {
+      await wait();
+      return fixtureLocations
+        .filter((location) => location.warehouseId === warehouseId)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((location) => ({ ...location, products: fixtureAssignments.filter((assignment) => assignment.warehouseId === warehouseId && assignment.location.id === location.id).map((assignment) => fixtureProducts.find((product) => product.id === assignment.productId) ?? { id: assignment.productId, name: assignment.productId }) }));
+    }
     const payload = await fetchJson(`/warehouses/${encodeURIComponent(warehouseId)}/locations`);
-    return Array.isArray(payload) ? (payload as RawLocation[]).map(adaptLocation) : [];
+    return Array.isArray(payload) ? (payload as RawLocation[]).map(adaptLocationWithProducts) : [];
   },
   async createLocation(warehouseId, input) {
     if (!baseUrl()) { await wait(); const next = { ...inputBody(input), id: `loc-${crypto.randomUUID()}`, warehouseId, sortOrder: input.sortOrder ?? 0, isActive: input.isActive ?? true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; fixtureLocations = [...fixtureLocations, next]; return next; }
