@@ -1,3 +1,25 @@
+# (sin card) — Sistema visual empresarial para el backoffice
+
+## Implemented
+
+- Reforcé el sistema visual de todas las rutas administrativas con una paleta gris estructurada, verde SuperX como único acento, menor densidad de espacio desperdiciado y jerarquía tipográfica de consola operativa.
+- Unifiqué listas y tablas de productos, precios, inventario y pedidos como grillas de datos: encabezados en mayúsculas, columnas y filas delimitadas, selección con acento lateral y tags de estado rectangulares.
+- Ajusté botones, campos, diálogos, alertas, zonas/franjas, KPIs y login para que tengan marcos finos, medidas consistentes y una apariencia de herramienta interna. Los switches conservan pista y perilla redondeadas porque es necesario para reconocer el control.
+- Actualicé picking y reparto por separado para preservar su uso móvil de una mano: superficies, acciones, tags, campos y paneles ahora son compactos y cuadrados, sin intentar imponerles el shell de escritorio.
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck` | PASS |
+| `pnpm lint` | PASS |
+| `pnpm test` | PASS — 38 tests |
+| `pnpm build` | PASS — las 10 rutas operativas se generaron estáticamente |
+
+Los avisos de Node sobre `*-rules.js` sin `"type":"module"` ya existían durante `pnpm test`; no se tocaron porque los adaptadores/reglas de `app/lib` están explícitamente fuera de alcance.
+
+**Nota post-revisión**: este pase (hecho con codex) se ejecutó sobre `app/globals.css` después de un pase manual mío previo (padding del workspace, tamaño del título, borde de los `.status`, encabezados de tabla, redondeo del switch). Como el bloque nuevo de codex pisa esas mismas propiedades más abajo en el archivo, revertí mis cinco cambios puntuales a su valor original para no dejar declaraciones duplicadas/muertas — el resultado final es un único sistema coherente, no dos superpuestos.
+
 # (sin card) — Wiring de picking y reparto (flujo completo punta a punta)
 
 Continuación de la sesión anterior (el usuario se iba a dormir y pidió seguir para dejar todo probable de punta a punta). Conecta los 2 dominios que habían quedado explícitamente afuera por falta de login: **picking** (`/picking`) y **reparto** (`/reparto`).
