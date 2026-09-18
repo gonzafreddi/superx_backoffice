@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pickingApi, PickingApiError } from "@/app/lib/picking-api";
 import type { PickingItem, PickingTask } from "@/app/lib/picking-contract";
@@ -212,7 +213,7 @@ export function PickingApp({
   // --- render --------------------------------------------------------
 
   if (state === "auth") {
-    return <main className={styles.shell}><div className={styles.card}><h1>Iniciá sesión</h1><p>Entrá con tu cuenta de picker para ver tus tareas.</p></div></main>;
+    return <main className={styles.shell}><div className={styles.card}><h1>Iniciá sesión</h1><p>Entrá con tu cuenta de picker para ver tus tareas.</p><Link className="button primary" href="/login?next=/picking">Ingresar</Link></div></main>;
   }
 
   if (view === "done") {

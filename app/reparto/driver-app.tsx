@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { driverApi, DriverApiError } from "@/app/lib/driver-api";
 import type { DriverDelivery, DriverDeliveryEvent } from "@/app/lib/driver-contract";
@@ -81,7 +82,7 @@ export function DriverApp({
   };
 
   if (state === "auth") {
-    return <main className={styles.shell}><div className={styles.card}><h1>Iniciá sesión</h1><p>Entrá con tu cuenta de repartidor para ver tus entregas.</p></div></main>;
+    return <main className={styles.shell}><div className={styles.card}><h1>Iniciá sesión</h1><p>Entrá con tu cuenta de repartidor para ver tus entregas.</p><Link className="button primary" href="/login?next=/reparto">Ingresar</Link></div></main>;
   }
 
   return (

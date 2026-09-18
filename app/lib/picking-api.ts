@@ -1,3 +1,4 @@
+import { authHeaders } from "@/app/lib/auth-api";
 import type { PickingApi, PickingItem, PickingTask } from "./picking-contract";
 import { clampPickQuantity } from "./picking-rules";
 
@@ -69,13 +70,14 @@ const find = (id: string): PickingTask => {
 };
 
 // --- HTTP -------------------------------------------------------------
+// Real backend at `/picking/tasks` (no `/api` prefix) and bearer auth (no
+// cookies) — see auth-api.ts.
 
 async function http(path: string, init?: RequestInit): Promise<PickingTask> {
   const url = base()!;
   const response = await fetch(`${url.replace(/\/$/, "")}${path}`, {
     ...init,
-    headers: { Accept: "application/json", ...(init?.body ? { "Content-Type": "application/json" } : {}) },
-    credentials: "include",
+    headers: { Accept: "application/json", ...(init?.body ? { "Content-Type": "application/json" } : {}), ...authHeaders() },
   });
   const payload: unknown = await response.json().catch(() => undefined);
   if (response.status === 401) throw new PickingApiError("Iniciá sesión para trabajar en picking.", 401, "unauthenticated");
@@ -94,7 +96,7 @@ async function http(path: string, init?: RequestInit): Promise<PickingTask> {
 
 async function httpList(path: string): Promise<PickingTask[]> {
   const url = base()!;
-  const response = await fetch(`${url.replace(/\/$/, "")}${path}`, { headers: { Accept: "application/json" }, credentials: "include" });
+  const response = await fetch(`${url.replace(/\/$/, "")}${path}`, { headers: { Accept: "application/json", ...authHeaders() } });
   if (response.status === 401) throw new PickingApiError("Iniciá sesión para trabajar en picking.", 401, "unauthenticated");
   if (!response.ok) throw new PickingApiError("No pudimos cargar las tareas.", response.status);
   const payload: unknown = await response.json().catch(() => undefined);
@@ -104,9 +106,8 @@ async function httpList(path: string): Promise<PickingTask[]> {
 async function searchProductsHttp(query: string): Promise<Array<{ id: string; name: string }>> {
   try {
     const url = base()!;
-    const response = await fetch(`${url.replace(/\/$/, "")}/api/products?q=${encodeURIComponent(query)}`, {
-      headers: { Accept: "application/json" },
-      credentials: "include",
+    const response = await fetch(`${url.replace(/\/$/, "")}/products?q=${encodeURIComponent(query)}`, {
+      headers: { Accept: "application/json", ...authHeaders() },
     });
     if (!response.ok) return [];
     const payload: unknown = await response.json();
@@ -120,15 +121,15 @@ async function searchProductsHttp(query: string): Promise<Array<{ id: string; na
 export const pickingApi: PickingApi = {
   async listMyTasks() {
     if (!base()) { await wait(); return fixtureTasks.filter((t) => t.assignedPickerId === "me" && t.status !== "COMPLETED" && t.status !== "CANCELLED").map(clone); }
-    return httpList("/api/picking/tasks?assignedTo=me");
+    return httpList("/picking/tasks?assignedTo=me");
   },
   async listAvailableTasks() {
     if (!base()) { await wait(); return fixtureTasks.filter((t) => t.status === "PENDING").map(clone); }
-    return httpList("/api/picking/tasks?status=PENDING");
+    return httpList("/picking/tasks?assignedTo=unassigned&status=PENDING");
   },
   async getTask(id) {
     if (!base()) { await wait(); return clone(find(id)); }
-    return http(`/api/picking/tasks/${encodeURIComponent(id)}`, { method: "GET" });
+    return http(`/picking/tasks/${encodeURIComponent(id)}`, { method: "GET" });
   },
   async assignToMe(id) {
     if (!base()) {
@@ -138,7 +139,7 @@ export const pickingApi: PickingApi = {
       replace(next);
       return clone(next);
     }
-    return http(`/api/picking/tasks/${encodeURIComponent(id)}/assign`, { method: "POST", body: "{}" });
+    return http(`/picking/tasks/${encodeURIComponent(id)}/assign`, { method: "POST", body: "{}" });
   },
   async startTask(id) {
     if (!base()) {
@@ -147,7 +148,7 @@ export const pickingApi: PickingApi = {
       replace(next);
       return clone(next);
     }
-    return http(`/api/picking/tasks/${encodeURIComponent(id)}/start`, { method: "POST", body: "{}" });
+    return http(`/picking/tasks/${encodeURIComponent(id)}/start`, { method: "POST", body: "{}" });
   },
   async pickItem(taskId, itemId, quantity, barcode) {
     if (!base()) {
@@ -166,7 +167,7 @@ export const pickingApi: PickingApi = {
       replace(next);
       return clone(next);
     }
-    return http(`/api/picking/tasks/${encodeURIComponent(taskId)}/items/${encodeURIComponent(itemId)}/pick`, {
+    return http(`/picking/tasks/${encodeURIComponent(taskId)}/items/${encodeURIComponent(itemId)}/pick`, {
       method: "POST",
       body: JSON.stringify({ quantity, ...(barcode ? { barcode } : {}) }),
     });
@@ -185,9 +186,9 @@ export const pickingApi: PickingApi = {
       replace(next);
       return clone(next);
     }
-    return http(`/api/picking/tasks/${encodeURIComponent(taskId)}/items/${encodeURIComponent(itemId)}/shortage`, {
+    return http(`/picking/tasks/${encodeURIComponent(taskId)}/items/${encodeURIComponent(itemId)}/shortage`, {
       method: "POST",
-      body: JSON.stringify({ resolution, ...(substituteProductId ? { substituteProductId } : {}), ...(note ? { note } : {}) }),
+      body: JSON.stringify({ resolution, ...(substituteProductId ? { substituteProductId: Number(substituteProductId) } : {}), ...(note ? { note } : {}) }),
     });
   },
   async searchProducts(query) {
@@ -207,6 +208,6 @@ export const pickingApi: PickingApi = {
       replace(next);
       return clone(next);
     }
-    return http(`/api/picking/tasks/${encodeURIComponent(id)}/complete`, { method: "POST", body: "{}" });
+    return http(`/picking/tasks/${encodeURIComponent(id)}/complete`, { method: "POST", body: "{}" });
   },
 };

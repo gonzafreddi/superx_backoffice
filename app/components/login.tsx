@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { login as loginRequest, AuthApiError } from "@/app/lib/auth-api";
 
@@ -8,6 +8,7 @@ type Login = typeof loginRequest;
 
 export function Login({ signIn = loginRequest }: { signIn?: Login }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +20,8 @@ export function Login({ signIn = loginRequest }: { signIn?: Login }) {
     setPending(true);
     try {
       await signIn(email.trim(), password);
-      router.replace("/tablero");
+      const next = searchParams.get("next");
+      router.replace(next && next.startsWith("/") ? next : "/tablero");
     } catch (cause) {
       setError(cause instanceof AuthApiError ? cause.message : "No pudimos iniciar sesión. Revisá tu conexión.");
     } finally {

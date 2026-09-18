@@ -1,3 +1,41 @@
+# (sin card) — Wiring de picking y reparto (flujo completo punta a punta)
+
+Continuación de la sesión anterior (el usuario se iba a dormir y pidió seguir para dejar todo probable de punta a punta). Conecta los 2 dominios que habían quedado explícitamente afuera por falta de login: **picking** (`/picking`) y **reparto** (`/reparto`).
+
+## Login reutilizado, no duplicado
+
+Ambas rutas ya tenían un estado `"auth"` previsto en su código (`LoadState = "loading"|"ready"|"error"|"auth"`, disparado cuando el adaptador devuelve `code:"unauthenticated"`) pero solo mostraban un mensaje estático sin ninguna forma de ingresar. Se agregó un link `<Link href="/login?next=/picking">`/`/reparto` reutilizando el mismo `/login` y `auth-api.ts` de `AdminShell` — no se construyó un login nuevo. `login.tsx` ahora lee `?next=` (con `Suspense` en `/login/page.tsx`, requisito de Next para `useSearchParams`) y redirige ahí en vez de siempre a `/tablero`.
+
+## picking-api.ts
+
+Ya tenía una rama HTTP real (no era 100% mock, a diferencia de lo que se documentó ayer por error tras un chequeo superficial) pero con dos bugs: prefijo `/api/` de más (correcto: `/picking/tasks`, sin prefijo) y `credentials:"include"` en vez de `Authorization: Bearer`. Corregido; se mantuvo intacta toda la lógica de fixture existente. Los campos del backend real (`orderNumber`, `priority`, `slotDate`, `slotStart`, `assignedPickerId`, y cada `PickingTaskItem` con `productName`/`unitCode`/`quantityRequired`/`quantityPicked`/`locationCode`/`locationSortOrder`) ya coincidían case-por-caso con el contrato — mínimo trabajo de adaptación.
+
+## driver-api.ts (reescrito completo, antes 100% mock)
+
+- `GET /delivery-assignments` se auto-escopea al repartidor autenticado (no hace falta query param), pero **no trae los datos del pedido** (cliente, dirección, total) — se hace un `GET /orders/:id` por cada asignación para completar la vista.
+- Las mutaciones (`start`/`deliver`/`incident`) viven en `/orders/:id/assignment/*`, indexadas por **order id**, no por assignment id — el adaptador resuelve `orderId` con un `getDelivery(assignmentId)` antes de cada acción.
+- **Hallazgo de arquitectura real, no corregido (fuera de alcance esta sesión)**: `Driver.id` no tiene ninguna columna que lo vincule al `User.id` de auth — el código de scoping (`DeliveryAssignmentsService.listAssignments`) simplemente asume que coinciden por convención, sin garantía de esquema. Para el repartidor de prueba de esta sesión se insertó la fila de `Driver` directo por SQL con el mismo id que su usuario (`INSERT INTO drivers (id, ...) VALUES (<user_id>, ...)` + `setval` de la secuencia) porque no hay forma de elegir el id vía `POST /drivers`. **Si se crea un segundo repartidor sin este cuidado, su panel de reparto no va a mostrarle sus entregas** — es una limitación real del backend, no del wiring.
+
+## Verificación: flujo completo punta a punta, real, contra el backend corriendo
+
+Cliente pide → admin confirma → picker arma y completa la tarea → admin marca el checklist de empaque (READY) → admin asigna repartidor → repartidor inicia → repartidor entrega. Cada paso se probó vía curl replicando exactamente cada llamada de `picking-api.ts`/`driver-api.ts`/`order-api.ts`, verificando que el pedido avanza correctamente por todos los estados:
+
+```
+CREATED → CONFIRMED → PICKING → PACKED → READY → OUT_FOR_DELIVERY → DELIVERED
+```
+
+Cuentas de prueba nuevas: `picker1@superx.local` / `picker-pass-123` (rol picker), `driver1@superx.local` / `driver-pass-123` (rol driver, `Driver.id=4` alineado a mano). Pedido de prueba: id `3` (`PX000003`), ya en `DELIVERED`.
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | PASS — 38 tests sin cambios |
+| Flujo completo vía curl (10+ llamadas: registro de picker/driver, crear tarea, asignar/iniciar/pickear/completar, checklist READY, asignar repartidor, iniciar/entregar) | PASS — el pedido terminó en `DELIVERED` con el historial completo de 7 eventos |
+
+## Pendiente actualizado
+
+- Tablero de métricas (`/tablero`): sigue sin ningún endpoint real de KPIs — único dominio que queda 100% fixture.
+- La convención `Driver.id === User.id` (arriba) debería resolverse con una migración real (agregar `user_id` a `drivers`) antes de dar de alta un segundo repartidor de verdad.
+
 # (sin card) — Wiring al backend real (login + 5 dominios de AdminShell)
 
 Pedido explícito del usuario, sin card de Trello (Trello estuvo caído toda la sesión). Alcance acordado con el usuario tras encontrar que cada dominio era más profundo de lo previsto: **login + productos, precios, inventario, pedidos y entregas** (los 5 dominios de `AdminShell`). Quedan deliberadamente fuera de esta pasada: **picking y reparto** (rutas standalone sin login, necesitarían su propio flujo de auth) y **tablero/métricas** (no existe ningún endpoint real de KPIs en el backend — sigue siendo fixture, no hay nada que conectar).
