@@ -117,6 +117,15 @@ export const productApi: ProductApi = {
     const brand = payload as RawBrand;
     return { id: brand.id, name: brand.name };
   },
+  async createCategory(input) {
+    const name = input.name.trim();
+    if (!name) throw new Error("Ingresá el nombre de la categoría.");
+    const url = baseUrl();
+    if (!url) { await wait(); const category = { id: crypto.randomUUID(), name }; categories.push(category); return category; }
+    const payload = await fetchJson(`${url.replace(/\/$/, "")}/categories`, { method: "POST", body: JSON.stringify({ name }) });
+    const category = payload as RawCategory;
+    return { id: category.id, name: category.name };
+  },
   async createProduct(input) {
     const url = baseUrl();
     if (!url) { await wait(); const number = products.length + 1; const product: Product = { ...input, id: `prd-${String(number).padStart(3, "0")}`, sku: `SUP-${String(number).padStart(4, "0")}`, updatedAt: new Date().toISOString() }; products = [product, ...products]; return product; }

@@ -1,3 +1,17 @@
+# (sin card) — Alta rápida de categoría desde la ficha de producto
+
+## Implemented
+
+- Mismo patrón que la marca: el select de "Categoría" en `/productos/nuevo` y `/productos/[id]` tiene ahora "+ Crear categoría nueva…", que abre una fila inline para tipear el nombre, crea la categoría vía `POST /categories` (`productApi.createCategory`, nuevo en el contrato) y la selecciona automáticamente.
+- `product-contract.ts`/`product-api.ts`: `createCategory` real (POST /categories) + fixture, mismo shape que `createBrand`.
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | PASS — 41 tests |
+| `curl` contra `next dev` real | `/productos/nuevo` → 200 |
+
 # (sin card) — Ficha de producto tipo Odoo, en pantalla propia, con alta rápida de marca
 
 ## Implemented
