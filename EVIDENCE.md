@@ -1,3 +1,21 @@
+# (sin card) — Ficha de producto tipo Odoo, en pantalla propia, con alta rápida de marca
+
+## Implemented
+
+- Crear/editar un producto era un modal sobre la lista, con los mismos campos limitados de siempre y sin forma de crear una marca sin salir del formulario. El usuario pidió una pantalla aparte "parecida a Odoo" que además permita crear marca desde ahí.
+- Rutas nuevas: `/productos/nuevo` (alta) y `/productos/[id]` (ficha/edición) via `product-detail.tsx`. `/productos` quedó como lista pura (sin panel lateral ni modal), cada fila navega a su ficha.
+- Ficha: nombre editable como título grande, pill de estado, bloque "hero" con foto (URL) a la izquierda y campos clave (categoría/marca/unidad/código de barras) a la derecha, sección de "Descripción" (campo nuevo, ya soportado por el backend pero no expuesto hasta ahora), y acciones al pie (guardar, activar/desactivar, eliminar).
+- Marca: el select de "Marca" tiene una opción "+ Crear marca nueva…" que abre una fila inline; crea la marca vía `POST /brands` (`productApi.createBrand`, nuevo en el contrato) y la selecciona automáticamente, sin recargar la página.
+- `product-contract.ts`/`product-api.ts`: se agregó `description` a `Product`/`ProductInput` (mapeado al `description` real del backend) y `createBrand` (real + fixture). No se tocó `product-rules.js` (la validación de `barcode`/`categoryId`/`brandId` sigue igual, con test intacto).
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | PASS — 41 tests; build genera `/productos`, `/productos/nuevo` y `/productos/[id]` |
+| `curl` contra `next dev` real | `/productos`, `/productos/nuevo`, `/productos/1` (producto real con descripción ya existente en el backend) → 200 |
+| Creación de marca contra backend real | No verificado con un login admin real end-to-end en esta pasada (el ajuste de rol de una cuenta de prueba vía SQL directo quedó bloqueado por el modo automático); el código reusa el mismo `fetchJson` con Bearer ya probado en products/locations/prices en esta sesión |
+
 # (sin card) — Navegación por pantallas: Depósitos → Ubicaciones → Detalle
 
 ## Implemented

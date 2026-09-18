@@ -5,9 +5,9 @@ const categories: Category[] = [{ id: "beverages", name: "Bebidas" }, { id: "pan
 const brands: Brand[] = [{ id: "superx", name: "SuperX" }, { id: "natura", name: "Natura" }, { id: "campo", name: "El Campo" }];
 const units: Unit[] = [{ id: "unidad", code: "UN", name: "Unidad" }, { id: "kg", code: "KG", name: "Kilogramo" }, { id: "litro", code: "L", name: "Litro" }];
 let products: Product[] = [
-  { id: "prd-001", name: "Agua mineral sin gas 1,5 L", sku: "SUP-0001", barcode: "7791234567890", categoryId: "beverages", brandId: "superx", unit: "unidad", imageUrl: "", active: true, updatedAt: "2026-09-04T12:00:00.000Z" },
-  { id: "prd-002", name: "Yerba mate tradicional 500 g", sku: "CAM-0002", barcode: "7791234567891", categoryId: "pantry", brandId: "campo", unit: "unidad", imageUrl: "", active: true, updatedAt: "2026-09-03T15:30:00.000Z" },
-  { id: "prd-003", name: "Jugo de naranja 1 L", sku: "NAT-0003", barcode: "7791234567892", categoryId: "beverages", brandId: "natura", unit: "litro", imageUrl: "", active: false, updatedAt: "2026-08-30T09:10:00.000Z" },
+  { id: "prd-001", name: "Agua mineral sin gas 1,5 L", description: "", sku: "SUP-0001", barcode: "7791234567890", categoryId: "beverages", brandId: "superx", unit: "unidad", imageUrl: "", active: true, updatedAt: "2026-09-04T12:00:00.000Z" },
+  { id: "prd-002", name: "Yerba mate tradicional 500 g", description: "", sku: "CAM-0002", barcode: "7791234567891", categoryId: "pantry", brandId: "campo", unit: "unidad", imageUrl: "", active: true, updatedAt: "2026-09-03T15:30:00.000Z" },
+  { id: "prd-003", name: "Jugo de naranja 1 L", description: "", sku: "NAT-0003", barcode: "7791234567892", categoryId: "beverages", brandId: "natura", unit: "litro", imageUrl: "", active: false, updatedAt: "2026-08-30T09:10:00.000Z" },
 ];
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 const missing = () => new Error("El producto ya no está disponible. Actualizá el listado e intentá nuevamente.");
@@ -19,7 +19,7 @@ type RawBrand = { id: string; name: string };
 type RawUnit = { id: string; code: string; name: string };
 type RawImage = { url?: unknown; altText?: unknown; isPrimary?: unknown };
 type RawBarcode = { value?: unknown };
-type RawProduct = { id: string; name: string; slug: string; categoryId: string; brandId: string | null; unitId: string; isActive: boolean; updatedAt: string; images?: RawImage[]; barcodes?: RawBarcode[] };
+type RawProduct = { id: string; name: string; description?: string; slug: string; categoryId: string; brandId: string | null; unitId: string; isActive: boolean; updatedAt: string; images?: RawImage[]; barcodes?: RawBarcode[] };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
   const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
@@ -36,6 +36,7 @@ function adaptProduct(raw: RawProduct, unitById: Map<string, RawUnit>): Product 
   return {
     id: raw.id,
     name: raw.name,
+    description: raw.description ?? "",
     sku: raw.slug.toUpperCase(),
     barcode: raw.barcodes?.[0]?.value ? String(raw.barcodes[0].value) : "",
     categoryId: raw.categoryId,
@@ -51,6 +52,7 @@ function buildCreateBody(input: ProductInput, unitId: string) {
   // CreateProductDto rejects isActive — products are always created active.
   return {
     name: input.name,
+    description: input.description?.trim() || undefined,
     categoryId: Number(input.categoryId),
     brandId: input.brandId ? Number(input.brandId) : undefined,
     unitId: Number(unitId),
@@ -105,6 +107,15 @@ export const productApi: ProductApi = {
     if (!url) { await wait(); return units; }
     const payload = await fetchJson(`${url.replace(/\/$/, "")}/units?includeInactive=true`);
     return Array.isArray(payload) ? (payload as RawUnit[]).map((item) => ({ id: item.id, code: item.code, name: item.name })) : [];
+  },
+  async createBrand(input) {
+    const name = input.name.trim();
+    if (!name) throw new Error("Ingresá el nombre de la marca.");
+    const url = baseUrl();
+    if (!url) { await wait(); const brand = { id: crypto.randomUUID(), name }; brands.push(brand); return brand; }
+    const payload = await fetchJson(`${url.replace(/\/$/, "")}/brands`, { method: "POST", body: JSON.stringify({ name }) });
+    const brand = payload as RawBrand;
+    return { id: brand.id, name: brand.name };
   },
   async createProduct(input) {
     const url = baseUrl();
