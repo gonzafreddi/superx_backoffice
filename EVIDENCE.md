@@ -1,3 +1,23 @@
+# (sin card) — Ubicaciones de depósito
+
+## Implemented
+
+- Incorporé `/ubicaciones` al backoffice, junto a Inventario, con selector de depósito, listado/detalle de ubicaciones y formulario reutilizable para alta y edición.
+- Agregué la asignación de producto a ubicación por depósito: búsqueda de productos, lectura de asignación (incluido el estado normal sin asignar), reemplazo y eliminación.
+- Sumé contrato, adaptador con HTTP bearer y fixtures, reglas puras con tests y guía operativa.
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck` | PASS |
+| `pnpm lint` | PASS |
+| `pnpm test` | PASS — 41 tests |
+| `pnpm build` | PASS — `/ubicaciones` se prerenderiza |
+| Flujo completo vía curl contra el backend real corriendo | PASS — crear ubicación, editarla (`PATCH /picking/locations/:id`), buscar producto, asignarlo (`PUT /products/:id/location`, incluye el 409 real "The location is not active" cuando la ubicación está inactiva y el 400 real cuando el producto lo está), confirmar la asignación (`GET /warehouses/:id/products/:id/location`), y quitarla (`DELETE`, 204 → 404 al reconsultar) |
+
+Hecho con codex (segundo intento — el primero tardó en aparecer el commit real por un problema de backgrounding del lado de la orquestación, no de codex). Revisé el código a mano y repetí cada llamada del adaptador contra el backend real antes de aceptar el resultado.
+
 # (sin card) — Sistema visual empresarial para el backoffice
 
 ## Implemented
