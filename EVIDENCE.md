@@ -1,3 +1,18 @@
+# (sin card) — Navegación por pantallas: Depósitos → Ubicaciones → Detalle
+
+## Implemented
+
+- La pantalla de Ubicaciones era una sola vista con selector de depósito + lista + panel lateral (todo sin cambiar de URL). El usuario pidió explícitamente 3 pantallas separadas navegables: entrar a un depósito para ver sus ubicaciones, y entrar a una ubicación para ver el detalle completo con sus productos.
+- Rutas nuevas: `/ubicaciones` (lista de depósitos), `/ubicaciones/[warehouseId]` (ubicaciones del depósito, con alta/edición), `/ubicaciones/[warehouseId]/[locationId]` (detalle: código/pasillo/rack/nivel, contenido completo y asignar/reasignar producto directamente a esa ubicación). Cada pantalla tiene link de "volver" a la anterior.
+- `location-manager.tsx` (monolítico) se eliminó; se dividió en `warehouse-list.tsx`, `location-list.tsx`, `location-detail.tsx` y un `location-ui.tsx` compartido (íconos, diálogo de alta/edición, selector de rol). Contrato y API (`location-contract.ts`, `location-api.ts`) no cambiaron.
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | PASS — 41 tests, build genera `/ubicaciones`, `/ubicaciones/[warehouseId]` y `/ubicaciones/[warehouseId]/[locationId]` |
+| `curl` contra `next dev` real | `/ubicaciones`, `/ubicaciones/1`, `/ubicaciones/1/999` → 200 (el caso de ubicación inexistente lo maneja el estado "no disponible", no un crash) |
+
 # (sin card) — Ver el contenido de cada ubicación
 
 ## Implemented
