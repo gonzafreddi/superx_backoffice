@@ -518,3 +518,26 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 - `pnpm lint`: PASS con un warning preexistente/de dependencia de efecto en el formulario de factura.
 - `pnpm test`: PASS — 67 tests.
 - `pnpm build`: PASS — incluye `/facturas`, `/facturas/nueva`, `/facturas/[id]` y `/pagos`.
+
+# Evidencia — Proveedores y cuenta corriente (2026-09-19)
+
+## Implementado
+
+- El listado de proveedores incorpora saldo abierto, vencido y filtro **Con deuda**. Los balances se cargan en bloque con `GET /suppliers/balances?supplierIds=`, sin N+1.
+- La ficha incorpora Resumen por moneda, Compras, Facturas, Pagos, Cuenta corriente con período, Datos e Historial. Los montos y el saldo acumulado se muestran tal como los entrega la API.
+- El formulario soporta razón social, nombre comercial, condición/plazo de pago y CUIT normalizado/validado por módulo 11. Los inactivos advierten que no pueden utilizarse en nuevas órdenes.
+- Registrar pago reutiliza el flujo existente de `/pagos` con el proveedor preseleccionado; Nueva factura enlaza a `/facturas/nueva?supplierId=`.
+- Se amplió el contrato/adaptador `supplier-*` para account, movements, balances y events; se agregaron pruebas puras y `docs/supplier-operations.md`.
+
+## Decisiones
+
+- `name` se presenta como nombre comercial y `legalName` como razón social, de acuerdo con los campos reales del backend.
+- En modo fixture, los datos financieros se muestran en cero/vacíos; no se inventan documentos ni saldos financieros.
+- La navegación de Proveedores ya existía en `admin-shell.tsx`, por lo que no se modificó para evitar un cambio ajeno a la tarjeta.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 69 tests (con warnings preexistentes de módulos JS sin `type: module`).
+- `pnpm build`: PASS — incluye `/proveedores` y `/proveedores/[supplierId]`.
