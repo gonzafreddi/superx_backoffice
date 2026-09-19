@@ -1,5 +1,40 @@
 # (sin card) — Código de barras opcional + campo Nombre visible en la ficha de producto
 
+# Proveedores y presentaciones de compra — 2026-09-19
+
+## Implemented
+
+- Se incorporaron `/proveedores` y `/proveedores/[supplierId]`: directorio con búsqueda con debounce, filtro de estado, alta, ficha editable y tabla de presentaciones de compra.
+- El dominio tiene contrato tipado, adaptador Bearer con fixtures mutables, validaciones JS puras y autorización real admin-only desde `getStoredUser()`.
+- La búsqueda de producto para una presentación reutiliza `GET /products?q=`; la navegación incorpora Proveedores.
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | PASS — 49 tests; build genera `/proveedores` y `/proveedores/[supplierId]` |
+
+# Gestión de precios
+
+## Implemented
+
+- Gestión modular de precios con métricas, filtros remotos, tabla ordenable, detalle sticky, promociones, reglas, historial y edición/programación con margen en vivo.
+- Adaptador del contrato nuevo de `/prices`, reglas puras y fixtures temporales cuando falta URL de API.
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck && pnpm lint && pnpm test && pnpm build` | PASS — 46 tests; build genera `/precios` |
+
+# (sin card) — Detalle operativo de ubicación
+
+## Implemented
+
+- Rediseño modular del detalle: datos, ocupación, métricas, stock paginado, operaciones y trazabilidad.
+- Adaptador conectado a los endpoints de ubicación/stock/movimientos; QR local generado con `qrcode`.
+- Reglas puras para ocupación, alta, transferencia y ajuste, cubiertas por tests.
+
 ## Implemented
 
 - El código de barras era obligatorio, con formato "solo 8-14 dígitos" y chequeo de duplicado en el frontend — más estricto que el backend real (`BarcodeInputDto`: opcional, alfanumérico + guiones, hasta 64 caracteres; la unicidad la enforce la constraint `unique` de la tabla `barcodes` en Postgres, no el frontend). Se sacaron las 3 validaciones de `validateProduct` y el filtro de solo-dígitos del input; el campo quedó libre y sin asterisco de obligatorio.
@@ -295,6 +330,26 @@ Sin backend configurado (`NEXT_PUBLIC_SUPERX_API_BASE_URL` sin definir, caso por
 - `deliveryProgress` (`PENDING`/`EN_CAMINO`/`ENTREGADO`/`INCIDENCIA`) es un concepto de esta pantalla, separado del `status` de `DeliveryAssignment` del backend (`ACTIVE`/`REASSIGNED`/`CANCELLED`/`COMPLETED`) — no hay que confundirlos ni intentar mapearlos 1:1 cuando se conecte al backend real, son ejes distintos (uno es "de quién es la asignación", el otro es "en qué paso operativo está la entrega").
 - El "orden sugerido manual" es sólo un campo `sortOrder` ordenable; no hay ruteo, geolocalización ni optimización de recorrido — explícitamente fuera de alcance de esta tarjeta.
 
+# Evidencia — detalle de ubicación (2026-09-19)
+
+## Implementado
+
+- Actualizados `app/components/location-detail.tsx`, `app/components/locations/location-panels.tsx`, `app/components/locations/location-modals.tsx`, `app/components/location-ui.tsx`, `app/lib/location-api.ts`, `app/lib/location-contract.ts`, `app/lib/location-rules.js`, `app/globals.css`, `tests/location-rules.test.mjs` y `docs/ubicaciones-operations.md`.
+- Nuevos componentes operativos: `LocationPermissionNotice`, `LocationStatsCards`, `LocationOccupancyCard`, `LocationMovementsCard`, `LocationCodeModal`, `MovementTypeBadge` y `RemoveProductDialog`; el editor compartido se extendió con estado y capacidad.
+- El detalle incorpora picker de rol, banner cerrable, menú de acciones coherente, QR con copiar/imprimir, búsqueda debounced, tarjetas, ocupación y diseños responsive para tablet/móvil.
+- Se consumen `GET` de detalle/stock/movimientos/listado de ubicaciones, `POST` de alta/transferencia/ajuste, `PATCH /picking/locations/:id` y el nuevo `DELETE /warehouses/:warehouseId/locations/:locationId/stock/:productId`. `AdjustLocationStockDto` frontend incluye el `reason` obligatorio.
+
+## Decisiones técnicas
+
+- El selector de producto reutiliza `GET /products` a través de `locationApi.searchProducts`: muestra los campos de stock global que devuelve la búsqueda y consulta la asignación existente con `getProductLocation`, sin crear endpoints adicionales.
+- La transferencia carga ubicaciones del mismo depósito, filtra la actual/inactiva/bloqueada y conserva el payload hasta la confirmación.
+- El fixture ahora conserva stock y movimientos mutables, para que alta, transferencia, ajuste, vaciado y baja sean verificables sin backend.
+- Vaciar ubicación se confirma y ejecuta ajustes `set: 0`, motivo `OTHER` y nota de auditoría por cada ítem cargado; no existe un endpoint paralelo de vaciado.
+
+## Verificación
+
+- `pnpm typecheck`, `pnpm lint` y `pnpm test`: PASS (46 tests). Se agregó la cobertura de la regla de motivo obligatorio para ajustes.
+
 # Evidencia — PK-005: faltantes y sustituciones
 
 ## Implementado
@@ -331,3 +386,48 @@ Sin backend configurado (`NEXT_PUBLIC_SUPERX_API_BASE_URL` sin definir, el caso 
 5. Confirmá que **Finalizar picking** se habilita recién cuando todas las líneas (pickeadas o con faltante resuelto) dejan de estar pendientes.
 
 Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía `GET /orders/:id`) que el `discountTotal`/`grandTotal` bajan tras una resolución **Quitar del pedido** o **Consultar al cliente**, y que quedan sin cambios tras **Reemplazar por similar**.
+
+# Evidencia — vista de stock por producto en depósitos (2026-09-19)
+
+## Implementado
+
+- En `/ubicaciones/[warehouseId]` agregué el selector local **Por ubicación / Por producto**. La nueva vista consulta el stock real del depósito, permite buscar por nombre, `slug` o código de barras con debounce de 350 ms, y muestra cada ubicación de un producto como una fila separada.
+- `location-contract.ts` y `location-api.ts` incorporan `WarehouseStockItem` y `GET /warehouses/:warehouseId/stock`; los fixtures derivan las filas de las ubicaciones y el stock mutable existente, incluyendo un mismo producto en dos ubicaciones para reflejar el caso operativo.
+- La tabla enlaza cada código a su detalle, conserva la paginación del inventario de ubicación y cubre carga, error/reintento y ambos estados vacíos.
+
+## Decisiones técnicas
+
+- La vista se aisló en `app/components/locations/warehouse-stock-view.tsx` para no agrandar ni alterar la lista por ubicación existente.
+- El listado de asignaciones de picking sigue separado del stock: esta tabla usa exclusivamente el endpoint de stock del depósito.
+
+## Verificación
+
+- `pnpm typecheck && pnpm lint && pnpm test && pnpm build`: PASS (46 tests).
+
+# Evidencia — rediseño del listado de ubicaciones (2026-09-19)
+
+## Implementado
+
+- Actualizados `app/components/location-list.tsx`, `app/components/location-ui.tsx`, `app/lib/location-contract.ts`, `app/lib/location-api.ts`, `app/globals.css` y `docs/ubicaciones-operations.md`; creado `app/components/locations/location-list-view.tsx`.
+- La vista **Por ubicación** ahora incluye métricas calculadas, banner operativo, búsqueda, filtros dinámicos de pasillo/rack, selector de orden y vistas lista/cuadrícula responsive. `LocationsStats`, `LocationsListView`, `LocationsFilters`, `LocationsViewToggle`, filas/tarjetas, badges, preview de producto, anillo de ocupación y menú de acciones quedan separados del contenedor de carga/formulario.
+- El contrato de listado incorpora `stock` agregado por ubicación. El adaptador usa ceros y producto principal nulo cuando el backend todavía no lo entrega; los fixtures calculan los mismos agregados desde el stock mutable, sin fetch por fila ni carga de catálogos completos.
+
+## Decisiones técnicas
+
+- El preview muestra un ícono de caja, no una imagen inventada; donde la maqueta dice SKU se muestra `primaryProduct.slug`.
+- El filtro Estado combina Activas, Vacías, Ocupadas y Bloqueadas en cliente. Pasillo y rack se derivan de las ubicaciones cargadas.
+- **Ver código** reutiliza `LocationCodeModal`. **Mover stock** y **Ajustar stock** navegan al detalle para seleccionar producto; **Bloquear**/**Desactivar** abren el editor compartido con estado preseleccionado. El menú omite Eliminar porque el backend no expone esa operación.
+- La pestaña **Por producto** (`warehouse-stock-view.tsx`) no fue modificada.
+# Evidencia — órdenes de compra (2026-09-19)
+
+## Implementado
+
+- Nuevas rutas `/compras`, `/compras/nueva`, `/compras/[id]` y `/compras/[id]/editar`, con listado filtrable, formulario de líneas y documento de detalle.
+- Nuevo contrato y adaptador `purchase-order-*`: Bearer, adaptadores de respuesta, fixtures mutables, búsqueda pública de productos y presentaciones por proveedor.
+- El detalle muestra estados, cabecera, líneas, total e historial; permite editar borradores, confirmar con validación explícita y cancelar en los estados permitidos.
+- La navegación incluye la entrada **Compras** sin modificar el resto del shell existente.
+
+## Verificación
+
+- Agregado `tests/purchase-order-rules.test.mjs` para preview y validaciones de formulario.
+- `pnpm typecheck && pnpm lint && pnpm test && pnpm build`: PASS.
