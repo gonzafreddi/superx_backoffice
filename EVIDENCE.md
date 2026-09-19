@@ -497,3 +497,24 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 - `pnpm lint`: PASS.
 - `pnpm test`: PASS — 61 tests.
 - `pnpm build`: PASS — `/tesoreria` se prerenderiza y `/tesoreria/[id]` compila como ruta dinámica.
+
+# Evidencia — Facturas de proveedor y pagos (2026-09-19)
+
+## Implementado
+
+- Nuevas rutas `/facturas`, `/facturas/nueva`, `/facturas/[id]` y `/pagos`, con acceso limitado al rol real `admin`.
+- Nuevos contratos, adaptadores bearer y reglas puras para facturas, cuentas por pagar y pagos. Los importes transportados por API se mantienen como strings; los cálculos de asignación usan centavos con `BigInt`.
+- El alta de factura permite OC opcional, vencimiento sugerido por plazo del proveedor, preview puramente orientativo y confirmación explícita de varianza que devuelve el backend. El detalle permite editar campos admitidos, anular sin pagos y navegar a registrar pago.
+- Pagos muestra documentos abiertos y pagos registrados; el modal distribuye por vencimiento, valida excesos y expone remanente como anticipo. Se incorporaron Facturas y Pagos a la navegación y el botón Facturar de OC abre el alta precompletada.
+
+## Decisiones
+
+- El saldo, total y estado de pago se muestran exclusivamente desde las respuestas de `payables`; el preview de alta no se envía al backend.
+- En modo sin URL de API, los listados de payables quedan vacíos en lugar de inventar comprobantes financieros.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS con un warning preexistente/de dependencia de efecto en el formulario de factura.
+- `pnpm test`: PASS — 67 tests.
+- `pnpm build`: PASS — incluye `/facturas`, `/facturas/nueva`, `/facturas/[id]` y `/pagos`.

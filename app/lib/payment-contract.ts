@@ -1,0 +1,10 @@
+import type { SupplierInvoiceSummary } from "./invoice-contract";
+export type PaymentStatus = "CONFIRMED" | "REVERSED";
+export type PaymentMethod = "CASH" | "TRANSFER" | "CHECK" | "CARD" | "DIGITAL" | "OTHER";
+export type PaymentAllocation = { id: string; paymentId: string; targetType: "SUPPLIER_INVOICE"; targetId: string; amount: string; createdAt?: string };
+export type Payment = { id: string; supplierId: string | null; treasuryAccountId: string; method: PaymentMethod; amount: string; currency: string; paidAt: string; reference: string | null; notes: string | null; status: PaymentStatus; reversalReason: string | null; createdAt: string; allocations: PaymentAllocation[] };
+export type PaymentEvent = { id: string; type: "CREATED" | "REVERSED"; actorUserId: string; note: string | null; createdAt: string };
+export type PaymentFilters = { supplierId?: string; treasuryAccountId?: string; status?: PaymentStatus | ""; method?: PaymentMethod | ""; from?: string; to?: string; q?: string; page?: number; pageSize?: number };
+export type OpenPayable = SupplierInvoiceSummary;
+export type CreatePaymentDto = { supplierId: string; treasuryAccountId: string; method: PaymentMethod; amount: string; paidAt?: string; reference?: string; notes?: string; idempotencyKey: string; allocations: Array<{ targetType: "SUPPLIER_INVOICE"; targetId: string; amount: string }> };
+export type PaymentApi = { list(filters?: PaymentFilters): Promise<{ items: Payment[]; total: number; page: number; pageSize: number }>; get(id: string): Promise<Payment>; create(input: CreatePaymentDto): Promise<Payment>; reverse(id: string, reason: string): Promise<Payment>; events(id: string): Promise<PaymentEvent[]>; open(supplierId?: string): Promise<{ items: OpenPayable[] }> };
