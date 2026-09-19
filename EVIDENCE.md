@@ -476,3 +476,24 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 
 - La barra de recepción no se deriva de las líneas ni de la etiqueta: el backend actual no entrega progreso numérico en el summary, por lo que sólo se muestra si aparece el campo opcional `receiptProgress`.
 - Cambiar las unidades pide una confirmación separada antes de enviar el PATCH; el backend sigue siendo la autoridad para bloquear con 409 una presentación ya usada.
+
+# Evidencia — Tesorería (2026-09-19)
+
+## Implementado
+
+- Nuevas rutas `/tesoreria` y `/tesoreria/[id]`, con cuentas, saldos por moneda del servidor, alta/edición/activación y libro filtrable/paginado.
+- Nuevo dominio `treasury-*`: contrato tipado, adapter bearer contra `/treasury` y fixture mutable sin URL configurada; las reglas puras validan dinero en centavos, transferencias, etiquetas, reversibilidad e idempotencia.
+- El libro registra movimientos manuales, transferencias y reversas con motivo obligatorio. Usa `runningBalance` y `openingBalanceForPeriod` entregados por el backend; una transferencia se revierte atómicamente por `/treasury/transfers/:id/reverse`.
+- La interfaz está limitada al rol real `admin`, expone fecha de apertura y aclara que el saldo sólo cambia por movimientos. Se agregó Tesorería a la navegación y la guía `docs/tesoreria-operations.md`.
+
+## Decisiones
+
+- Los importes se transportan como strings decimales y las reglas puras usan centavos; no se enviaron saldos o totales calculados al backend. El fixture sólo reconstruye su estado para permitir probar el flujo sin API.
+- La acción Revertir se ofrece para movimientos no revertidos; cuando tiene `transferId` invoca la reversa de la transferencia para mantener sus dos patas consistentes.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 61 tests.
+- `pnpm build`: PASS — `/tesoreria` se prerenderiza y `/tesoreria/[id]` compila como ruta dinámica.
