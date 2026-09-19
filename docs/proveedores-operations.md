@@ -15,3 +15,6 @@ El módulo consulta el usuario almacenado por el inicio de sesión y sólo habil
 
 - Reglas cubiertas en `tests/supplier-rules.test.mjs`: nombre de proveedor requerido, condición de pago válida, producto/nombre requeridos y unidades enteras positivas para una presentación.
 - Verificar manualmente contra backend: alta con CUIT único, edición de proveedor, búsqueda de producto y alta/edición de presentación; un CUIT o combinación producto-proveedor-presentación duplicados deben recibir el mensaje del backend.
+# Presentaciones de compra
+
+Las presentaciones pertenecen al contexto producto/proveedor y guardan nombre, unidades por pack, código de proveedor, código de barras, predeterminada y estado. No se eliminan: se desactivan. Las órdenes conservan un snapshot, por lo que un cambio posterior no las altera; si una presentación ya fue usada, el backend rechaza cambios de unidades y se debe crear una nueva y desactivar la anterior.

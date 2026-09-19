@@ -36,6 +36,7 @@ export type SupplierApi = {
   createSupplier(input: CreateSupplierDto): Promise<Supplier>;
   updateSupplier(id: string, input: UpdateSupplierDto): Promise<Supplier>;
   searchProducts(query: string): Promise<SupplierProduct[]>;
+  listPackagings(productId: string): Promise<PurchasePackaging[]>;
   createPackaging(productId: string, input: CreatePurchasePackagingDto): Promise<PurchasePackaging>;
   updatePackaging(id: string, input: UpdatePurchasePackagingDto): Promise<PurchasePackaging>;
 };

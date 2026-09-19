@@ -15,3 +15,10 @@ La interfaz consulta el usuario guardado por inicio de sesión y sólo habilita 
 
 - `tests/purchase-order-rules.test.mjs` cubre packs a unidades, redondeo de costo unitario y validaciones de proveedor, depósito, líneas y cantidades positivas.
 - Verificar manualmente con backend: crear con una presentación del proveedor, crear con carga manual, editar una orden en borrador, confirmar y cancelar. El backend es la fuente de verdad de totales y transiciones.
+# Órdenes de compra y recepciones
+
+- Una orden se crea como borrador; al confirmarla ya no se cambian líneas. La edición confirmada queda limitada a referencia, fecha esperada y notas según el backend.
+- La recepción se realiza en `/compras/:id/recibir`, siempre en packs y contra una ubicación activa del depósito de la orden. Las unidades mostradas usan el snapshot `unitsPerPack` de la línea.
+- La recepción parcial actualiza pedido, recibido y pendiente por línea. Un exceso requiere autorización explícita y motivo de al menos cinco caracteres; el backend es la autoridad final ante carreras de concurrencia.
+- Cada intento reutiliza una `idempotencyKey` hasta que se completa o se abandona el formulario, para evitar doble ingreso por reintentos.
+- Una orden confirmada puede cerrarse. Si queda pendiente, el operador debe indicar motivo. No se puede cancelar si existen recepciones.

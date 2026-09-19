@@ -431,3 +431,48 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 
 - Agregado `tests/purchase-order-rules.test.mjs` para preview y validaciones de formulario.
 - `pnpm typecheck && pnpm lint && pnpm test && pnpm build`: PASS.
+
+# Evidencia — compras: recepciones y presentaciones (2026-09-19)
+
+## Implementado
+
+- Se amplió el contrato y adaptador de órdenes de compra para moneda, número, desglose de totales devuelto por el servidor, filtros de recepción/fecha/búsqueda, eventos, cierre y recepciones. El adapter usa `GET /purchase-packagings/options` para las opciones de una línea y no envía totales al backend.
+- Nueva ruta `/compras/[id]/recibir`: carga ubicaciones con el adapter existente, recibe en packs, muestra unidades derivadas del snapshot, pendiente/recibido/pedido, exige autorización + motivo para exceso y reutiliza una `idempotencyKey` por intento.
+- El detalle muestra progreso total, cantidades por línea, totales oficiales, historial de recepciones, acciones de recibir/cerrar/cancelar, y la acción Facturar deshabilitada como "Próximamente".
+- La vista de proveedor expone productos/presentaciones con equivalencia, código de proveedor, barcode, predeterminada y estado; conserva su editor existente para alta, edición y activación/desactivación.
+- Agregados tests puros para equivalencia, preview, pendiente/exceso, progreso, motivo e idempotencia; actualizada la documentación operativa de compras y proveedores.
+
+## Decisiones
+
+- Se eligió una ruta dedicada de recepción, no un diálogo, para conservar un enlace profundo, navegación atrás predecible y reintentos seguros de un formulario operativo.
+- El preview local es sólo orientativo; se pisa con el detalle/totales que devuelve el servidor tras guardar. La confirmación de exceso sigue siendo responsabilidad final del backend ante concurrencia.
+- No se inventaron campos de facturación: el botón queda explícitamente deshabilitado.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 54 tests.
+- `pnpm build`: PASS — incluye `/compras/[id]/recibir` como ruta dinámica.
+
+# Evidencia — presentaciones desde producto y filtros de OC (2026-09-19)
+
+## Implementado
+
+- La ficha de producto renombra su pestaña a **Presentaciones de compra** y muestra las presentaciones reales del producto: proveedor (o Genérica), pack, equivalencia, códigos, default, estado y acciones de alta, edición y activación/desactivación. Para productos nuevos, informa que primero hay que guardarlos.
+- Se agregó `PackagingManager` como tabla/editor único para la ficha de producto y la ficha de proveedor. El formulario muestra unidad base y equivalencia al instante, selector de proveedor, validaciones inline, carga/error/vacío y confirmación explícita antes de cambiar `unitsPerPack`; deja claro que las OC existentes conservan su snapshot y el 409 del backend se conserva como mensaje de error.
+- `supplierApi` incorpora el listado autenticado `GET /products/:productId/purchase-packagings`, reutilizando su Bearer y sus operaciones existentes de alta/edición. La lógica pura vive en `packaging-rules.js` y tiene cobertura propia.
+- El listado de OC ahora filtra por estado de recepción y fechas desde/hasta, conserva la paginación que informa el endpoint y renderiza una barra de recepción sólo cuando el summary incluye explícitamente `receiptProgress`; si no, mantiene sólo la etiqueta de estado.
+
+## Verificación ejecutada
+
+- `node --test tests/packaging-rules.test.mjs`: PASS — 3 tests nuevos.
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 57 tests.
+- `pnpm build`: PASS — `/compras`, `/productos/[id]` y `/proveedores/[supplierId]` compilan correctamente.
+
+## Decisiones
+
+- La barra de recepción no se deriva de las líneas ni de la etiqueta: el backend actual no entrega progreso numérico en el summary, por lo que sólo se muestra si aparece el campo opcional `receiptProgress`.
+- Cambiar las unidades pide una confirmación separada antes de enviar el PATCH; el backend sigue siendo la autoridad para bloquear con 409 una presentación ya usada.
