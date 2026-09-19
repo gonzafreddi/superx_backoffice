@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { ListSkeleton } from "@/app/components/list-skeleton";
 import { metricsApi } from "@/app/lib/metrics-api";
 import type { KpiSnapshot, MetricsPreset, MetricsRange } from "@/app/lib/metrics-contract";
@@ -15,6 +16,9 @@ const presets: Array<{ key: MetricsPreset; label: string }> = [{ key: "today", l
 
 function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return <article className="kpi-card"><span>{label}</span><strong>{value}</strong>{hint && <small>{hint}</small>}</article>;
+}
+function AttentionItem({ tone, title, detail, href, action }: { tone: "critical" | "warning" | "ready"; title: string; detail: string; href: string; action: string }) {
+  return <Link className={`attention-item attention-${tone}`} href={href}><span className="attention-dot" aria-hidden="true" /><span><strong>{title}</strong><small>{detail}</small></span><b>{action} <span aria-hidden="true">→</span></b></Link>;
 }
 
 export function KpiDashboard() {
@@ -64,7 +68,7 @@ export function KpiDashboard() {
 
   return <section className="workspace" id="tablero">
     <header className="topbar">
-      <div><p className="eyebrow">DIRECCIÓN / TABLERO</p><h1>KPIs operativos</h1><p className="subtitle">Métricas definidas y calculadas por el backend. Elegí un rango; el frontend no recalcula nada.</p></div>
+      <div><p className="eyebrow">OPERACIÓN / TABLERO</p><h1>Centro de control</h1><p className="subtitle">Una lectura rápida del turno para decidir qué mover primero.</p></div>
       <div className="top-actions"><label className="role-picker">Rol activo<select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>{Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
     </header>
 
@@ -88,6 +92,8 @@ export function KpiDashboard() {
       <div className="state"><strong>Todavía no hay datos suficientes</strong><span>No hubo pedidos en este rango. Ampliá el período o volvé cuando haya actividad; las métricas aparecen automáticamente.</span></div>
     ) : (
       <>
+        <section className="shift-strip" aria-label="Resumen del turno"><div><span>VENTANA ANALIZADA</span><strong>{rangeDays(range)} {rangeDays(range) === 1 ? "día" : "días"}</strong></div><div><span>ÚLTIMA ACTUALIZACIÓN</span><strong>{dateTime.format(new Date(snapshot.generatedAt))}</strong></div><div className="shift-health"><span>ESTADO OPERATIVO</span><strong><i aria-hidden="true" /> Requiere seguimiento</strong></div></section>
+        <section className="attention-panel" aria-labelledby="attention-title"><header><div><p className="eyebrow">PRIORIDADES DEL TURNO</p><h2 id="attention-title">Qué atender ahora</h2></div><span>{snapshot.stockouts + snapshot.cancellations.count} señales detectadas</span></header><div className="attention-list"><AttentionItem tone="critical" title={`${snapshot.stockouts} productos sin stock`} detail="Revisá reposición, sustitutos y ubicación de picking." href="/inventario" action="Ver inventario" /><AttentionItem tone="warning" title={`${snapshot.cancellations.count} cancelaciones en el período`} detail={`${percent(snapshot.cancellations.rate)} de los pedidos; identificá el motivo antes del próximo corte.`} href="/pedidos" action="Ver pedidos" /><AttentionItem tone="ready" title={`Fill rate de ${percent(snapshot.fillRate ?? 0)}`} detail={snapshot.operationalTimes ? `Picking promedio: ${snapshot.operationalTimes.pickingMinutes} min · Entrega: ${snapshot.operationalTimes.deliveryMinutes} min.` : "Sin tiempos operativos aún."} href="/entregas" action="Ver entregas" /></div></section>
         <section className="kpi-grid" aria-label="Indicadores">
           <Kpi label="Pedidos" value={String(snapshot.orderCount)} hint={`${(snapshot.orderCount / rangeDays(range)).toFixed(1)} por día en promedio`} />
           {visibility.financial && <Kpi label="GMV" value={money.format(snapshot.gmv)} hint={`${snapshot.currency}`} />}

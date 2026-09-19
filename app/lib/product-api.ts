@@ -1,13 +1,13 @@
 import { authHeaders } from "@/app/lib/auth-api";
-import type { Brand, Category, Product, ProductApi, ProductInput, Unit } from "./product-contract";
+import type { Brand, Category, Product, ProductApi, ProductFilters, ProductInput, ProductPage, Unit } from "./product-contract";
 
 const categories: Category[] = [{ id: "beverages", name: "Bebidas" }, { id: "pantry", name: "Almacén" }, { id: "fresh", name: "Frescos" }];
 const brands: Brand[] = [{ id: "superx", name: "SuperX" }, { id: "natura", name: "Natura" }, { id: "campo", name: "El Campo" }];
 const units: Unit[] = [{ id: "unidad", code: "UN", name: "Unidad" }, { id: "kg", code: "KG", name: "Kilogramo" }, { id: "litro", code: "L", name: "Litro" }];
 let products: Product[] = [
-  { id: "prd-001", name: "Agua mineral sin gas 1,5 L", description: "", sku: "SUP-0001", barcode: "7791234567890", categoryId: "beverages", brandId: "superx", unit: "unidad", imageUrl: "", active: true, updatedAt: "2026-09-04T12:00:00.000Z" },
-  { id: "prd-002", name: "Yerba mate tradicional 500 g", description: "", sku: "CAM-0002", barcode: "7791234567891", categoryId: "pantry", brandId: "campo", unit: "unidad", imageUrl: "", active: true, updatedAt: "2026-09-03T15:30:00.000Z" },
-  { id: "prd-003", name: "Jugo de naranja 1 L", description: "", sku: "NAT-0003", barcode: "7791234567892", categoryId: "beverages", brandId: "natura", unit: "litro", imageUrl: "", active: false, updatedAt: "2026-08-30T09:10:00.000Z" },
+  { id: "prd-001", slug: "agua-mineral-sin-gas-1-5-l", name: "Agua mineral sin gas 1,5 L", description: "", sku: "SUP-0001", barcode: "7791234567890", categoryId: "beverages", categoryName: "Bebidas", brandId: "superx", brandName: "SuperX", unit: "UN", imageUrl: "", active: true, updatedAt: "2026-09-04T12:00:00.000Z", availableStock: 48, price: 1250 },
+  { id: "prd-002", slug: "yerba-mate-tradicional-500-g", name: "Yerba mate tradicional 500 g", description: "", sku: "CAM-0002", barcode: "7791234567891", categoryId: "pantry", categoryName: "Almacén", brandId: "campo", brandName: "El Campo", unit: "UN", imageUrl: "", active: true, updatedAt: "2026-09-03T15:30:00.000Z", availableStock: 8, price: 3400 },
+  { id: "prd-003", slug: "jugo-de-naranja-1-l", name: "Jugo de naranja 1 L", description: "", sku: "NAT-0003", barcode: "7791234567892", categoryId: "beverages", categoryName: "Bebidas", brandId: "natura", brandName: "Natura", unit: "L", imageUrl: "", active: false, updatedAt: "2026-08-30T09:10:00.000Z", availableStock: 0, price: 2150 },
 ];
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 const missing = () => new Error("El producto ya no está disponible. Actualizá el listado e intentá nuevamente.");
@@ -19,7 +19,8 @@ type RawBrand = { id: string; name: string };
 type RawUnit = { id: string; code: string; name: string };
 type RawImage = { url?: unknown; altText?: unknown; isPrimary?: unknown };
 type RawBarcode = { value?: unknown };
-type RawProduct = { id: string; name: string; description?: string; slug: string; categoryId: string; brandId: string | null; unitId: string; isActive: boolean; updatedAt: string; images?: RawImage[]; barcodes?: RawBarcode[] };
+type RawProduct = { id: string; name: string; description?: string; slug: string; categoryId: string; brandId: string | null; unitId: string; isActive: boolean; updatedAt: string; availableStock?: number; category?: { name?: unknown }; brand?: { name?: unknown } | null; unit?: { code?: unknown }; images?: RawImage[]; barcodes?: RawBarcode[] };
+type RawResolvedPrice = { productId: string; amount: string };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
   const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
@@ -35,16 +36,20 @@ function adaptProduct(raw: RawProduct, unitById: Map<string, RawUnit>): Product 
   const unit = unitById.get(raw.unitId);
   return {
     id: raw.id,
+    slug: raw.slug,
     name: raw.name,
     description: raw.description ?? "",
     sku: raw.slug.toUpperCase(),
     barcode: raw.barcodes?.[0]?.value ? String(raw.barcodes[0].value) : "",
     categoryId: raw.categoryId,
+    categoryName: typeof raw.category?.name === "string" ? raw.category.name : "Sin categoría",
     brandId: raw.brandId ?? "",
-    unit: unit?.code ?? "",
+    brandName: typeof raw.brand?.name === "string" ? raw.brand.name : "Sin marca",
+    unit: typeof raw.unit?.code === "string" ? raw.unit.code : unit?.code ?? "",
     imageUrl: raw.images?.[0]?.url ? String(raw.images[0].url) : "",
     active: raw.isActive,
     updatedAt: raw.updatedAt,
+    availableStock: typeof raw.availableStock === "number" ? raw.availableStock : undefined,
   };
 }
 
@@ -72,23 +77,38 @@ async function unsupportedDelete(): Promise<never> {
 
 export const productApi: ProductApi = {
   async listProducts(filters = {}) {
+    return (await this.listProductPage({ ...filters, pageSize: 100 })).items;
+  },
+  async listProductPage(filters: ProductFilters = {}): Promise<ProductPage> {
     const url = baseUrl();
-    if (!url) { await wait(); const query = filters.query?.toLocaleLowerCase("es-AR").trim() ?? ""; return products.filter((p) => (!query || [p.name, p.sku, p.barcode].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.categoryId || p.categoryId === filters.categoryId) && (!filters.brandId || p.brandId === filters.brandId) && (!filters.status || filters.status === "all" || (filters.status === "active" ? p.active : !p.active))); }
+    if (!url) { await wait(); const query = filters.query?.toLocaleLowerCase("es-AR").trim() ?? ""; let items = products.filter((p) => (!query || [p.name, p.sku, p.barcode].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.categoryId || p.categoryId === filters.categoryId) && (!filters.brandId || p.brandId === filters.brandId) && (!filters.status || filters.status === "all" || (filters.status === "active" ? p.active : !p.active)) && (!filters.stock || filters.stock === "all" || (filters.stock === "in_stock" ? (p.availableStock ?? 0) > 0 : (p.availableStock ?? 0) === 0))); const pageSize = filters.pageSize ?? 25; const page = filters.page ?? 1; if (filters.sort === "name_desc") items = [...items].sort((a, b) => b.name.localeCompare(a.name, "es-AR")); if (filters.sort === "newest") items = [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pageSize }; }
     const root = url.replace(/\/$/, "");
-    const params = new URLSearchParams({ pageSize: "100", includeInactive: "true" });
+    const params = new URLSearchParams({ pageSize: String(filters.pageSize ?? 25), page: String(filters.page ?? 1), includeInactive: "true", sort: filters.sort ?? "name_asc" });
     if (filters.query?.trim()) params.set("q", filters.query.trim());
     if (filters.categoryId) params.set("categoryId", filters.categoryId);
+    if (filters.brandId) params.set("brandId", filters.brandId);
+    if (filters.stock === "in_stock") params.set("inStock", "true");
+    if (filters.stock === "out_of_stock") params.set("inStock", "false");
     const [productsPayload, unitsList] = await Promise.all([
       fetchJson(`${root}/products?${params}`),
       this.listUnits(),
     ]);
-    const body = productsPayload as { items?: unknown };
+    const body = productsPayload as { items?: unknown; total?: unknown; page?: unknown; pageSize?: unknown };
     const items = Array.isArray(body.items) ? (body.items as RawProduct[]) : [];
     const unitById = new Map(unitsList.map((unit) => [unit.id, { id: unit.id, code: unit.code, name: unit.name }]));
     let list = items.map((item) => adaptProduct(item, unitById));
-    if (filters.brandId) list = list.filter((p) => p.brandId === filters.brandId);
     if (filters.status && filters.status !== "all") list = list.filter((p) => (filters.status === "active" ? p.active : !p.active));
-    return list;
+    if (filters.stock === "out_of_stock") list = list.filter((p) => (p.availableStock ?? 0) === 0);
+    const resolved = list.length ? await fetchJson(`${root}/product-prices?productIds=${list.map((item) => item.id).join(",")}`).catch(() => []) : [];
+    const priceById = new Map((Array.isArray(resolved) ? resolved as RawResolvedPrice[] : []).map((price) => [price.productId, Number(price.amount)]));
+    return { items: list.map((item) => ({ ...item, price: priceById.get(item.id) })), total: typeof body.total === "number" ? body.total : list.length, page: typeof body.page === "number" ? body.page : (filters.page ?? 1), pageSize: typeof body.pageSize === "number" ? body.pageSize : (filters.pageSize ?? 25) };
+  },
+  async getProduct(slug) {
+    const url = baseUrl();
+    if (!url) { await wait(); const found = products.find((item) => item.slug === slug || item.id === slug); if (!found) throw missing(); return found; }
+    const root = url.replace(/\/$/, "");
+    const [payload, unitsList] = await Promise.all([fetchJson(`${root}/products/${encodeURIComponent(slug)}?includeInactive=true`), this.listUnits()]);
+    return adaptProduct(payload as RawProduct, new Map(unitsList.map((unit) => [unit.id, unit])));
   },
   async listCategories() {
     const url = baseUrl();
@@ -128,7 +148,7 @@ export const productApi: ProductApi = {
   },
   async createProduct(input) {
     const url = baseUrl();
-    if (!url) { await wait(); const number = products.length + 1; const product: Product = { ...input, id: `prd-${String(number).padStart(3, "0")}`, sku: `SUP-${String(number).padStart(4, "0")}`, updatedAt: new Date().toISOString() }; products = [product, ...products]; return product; }
+    if (!url) { await wait(); const number = products.length + 1; const category = categories.find((item) => item.id === input.categoryId); const brand = brands.find((item) => item.id === input.brandId); const product: Product = { ...input, id: `prd-${String(number).padStart(3, "0")}`, slug: input.name.toLocaleLowerCase("es-AR").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""), sku: `SUP-${String(number).padStart(4, "0")}`, categoryName: category?.name ?? "Sin categoría", brandName: brand?.name ?? "Sin marca", updatedAt: new Date().toISOString(), availableStock: 0 }; products = [product, ...products]; return product; }
     const unitsList = await this.listUnits();
     const unit = unitsList.find((candidate) => candidate.code === input.unit);
     if (!unit) throw new Error("Seleccioná una unidad de venta válida.");

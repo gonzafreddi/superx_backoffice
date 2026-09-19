@@ -1,0 +1,3 @@
+import { InventoryIcon } from "./inventory-ui";
+export type InventoryView = "grid" | "list";
+export function InventoryViewToggle({ view, onChange }: { view: InventoryView; onChange: (view: InventoryView) => void }) { return <div className="inventory-view-toggle" aria-label="Vista de inventario"><button className={view === "grid" ? "active" : ""} aria-pressed={view === "grid"} onClick={() => onChange("grid")}><InventoryIcon name="grid" /> Cuadrícula</button><button className={view === "list" ? "active" : ""} aria-pressed={view === "list"} onClick={() => onChange("list")}><InventoryIcon name="list" /> Lista</button></div>; }

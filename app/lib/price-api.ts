@@ -1,97 +1,20 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { authHeaders } from "@/app/lib/auth-api";
-import type { Price, PriceApi, PriceChange, PriceFilters, PriceUpdateInput } from "./price-contract";
-
-const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
-let prices: Price[] = [
-  { productId: "prd-001", productName: "Agua mineral sin gas 1,5 L", sku: "SUP-0001", category: "Bebidas", active: true, amount: 1250, currency: "ARS", updatedAt: "2026-09-04T12:00:00.000Z", updatedBy: "María González", history: [{ id: "pch-003", previousAmount: 1100, amount: 1250, changedAt: "2026-09-04T12:00:00.000Z", changedBy: "María González", reason: "Ajuste de lista septiembre" }, { id: "pch-001", previousAmount: null, amount: 1100, changedAt: "2026-08-01T09:00:00.000Z", changedBy: "Juan Fernández" }] },
-  { productId: "prd-002", productName: "Yerba mate tradicional 500 g", sku: "CAM-0002", category: "Almacén", active: true, amount: 3400, currency: "ARS", updatedAt: "2026-09-03T15:30:00.000Z", updatedBy: "María González", history: [{ id: "pch-004", previousAmount: 3100, amount: 3400, changedAt: "2026-09-03T15:30:00.000Z", changedBy: "María González", reason: "Actualización proveedor" }] },
-  { productId: "prd-003", productName: "Jugo de naranja 1 L", sku: "NAT-0003", category: "Bebidas", active: false, amount: 2150, currency: "ARS", updatedAt: "2026-08-30T09:10:00.000Z", updatedBy: "Juan Fernández", history: [{ id: "pch-005", previousAmount: 2000, amount: 2150, changedAt: "2026-08-30T09:10:00.000Z", changedBy: "Juan Fernández" }] },
-];
-function missing() { return new Error("Uno de los productos ya no está disponible. Actualizá el listado e intentá nuevamente."); }
-
-function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; }
-const DEFAULT_PRICE_LIST_NAME = "Lista general";
-
-type RawProduct = { id: string; name: string; slug: string; isActive: boolean; categoryId: string; category?: { name?: unknown } | null };
-type RawResolvedPrice = { productId: string; amount: string; currency: string; priceListId: string; priceListName: string; validFrom: string };
-type RawPriceList = { id: string; name: string; cityId: string | null; warehouseId: string | null };
-type RawProductPrice = { id: string; productId: string; amount: string };
-
-async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
-  const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
-  const payload: unknown = await response.json().catch(() => undefined);
-  if (!response.ok) {
-    const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";
-    throw new Error(response.status === 401 || response.status === 403 ? "No tenés permiso para hacer esto. Iniciá sesión con una cuenta de administración." : message);
-  }
-  return payload;
-}
-
-/**
- * The backend has no single admin-managed price list — prices resolve by
- * scope/priority across however many lists exist. The backoffice's flat
- * "one price per product" screen manages a single global list it creates
- * on first use, named "Lista general" (no city/warehouse scope).
- */
-async function resolveDefaultPriceListId(root: string): Promise<string> {
-  const payload = await fetchJson(`${root}/price-lists?includeInactive=true`);
-  const lists = Array.isArray(payload) ? (payload as RawPriceList[]) : [];
-  const existing = lists.find((list) => list.name === DEFAULT_PRICE_LIST_NAME && !list.cityId && !list.warehouseId);
-  if (existing) return existing.id;
-  const created = (await fetchJson(`${root}/price-lists`, { method: "POST", body: JSON.stringify({ name: DEFAULT_PRICE_LIST_NAME }) })) as RawPriceList;
-  return created.id;
-}
-
+import type { Price, PriceApi, PriceChangeLog, PriceDetail, PriceFilters, PricePage, PriceRule, PriceStats } from "./price-contract";
+const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 120)); const base = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL?.replace(/\/$/, ""); const calc = (cost: number | null, price: number | null) => cost !== null && price !== null && price !== 0 ? ((price - cost) / price) * 100 : null;
+let rows: Price[] = [{ productId: "prd-001", name: "Agua mineral sin gas 1,5 L", slug: "agua-mineral-sin-gas-1-5-l", categoryId: "beverages", categoryName: "Bebidas", brandId: "superx", brandName: "SuperX", imageUrl: "", cost: 830, price: 1250, previousPrice: 1100, margin: 33.6, promo: null, status: "active" }, { productId: "prd-002", name: "Yerba mate tradicional 500 g", slug: "yerba-mate-tradicional-500-g", categoryId: "pantry", categoryName: "Almacén", brandId: "campo", brandName: "El Campo", imageUrl: "", cost: 2450, price: 3400, previousPrice: 3100, margin: 27.9, promo: { promoLabel: "10% off", promoDiscountType: "PERCENTAGE", promoDiscountValue: 10 }, status: "in_promo" }, { productId: "prd-003", name: "Jugo de naranja 1 L", slug: "jugo-de-naranja-1-l", categoryId: "beverages", categoryName: "Bebidas", brandId: "natura", brandName: "Natura", imageUrl: "", cost: 1800, price: null, previousPrice: null, margin: null, promo: null, status: "no_price" }];
+const changes: PriceChangeLog[] = []; const rules: PriceRule[] = [{ id: "global", categoryId: null, minMarginPercent: 15, roundingIncrement: 10, isActive: true }];
+async function json(url: string, init: RequestInit = {}) { const res = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } }); const data: unknown = await res.json().catch(() => undefined); if (!res.ok) { const message = data && typeof data === "object" && typeof (data as { message?: unknown }).message === "string" ? (data as { message: string }).message : "No pudimos completar la operación."; throw new Error(res.status === 401 || res.status === 403 ? "No tenés permiso para hacer esto. Iniciá sesión con una cuenta de administración." : message); } return data; }
+function adapt(raw: any): Price { const price = raw.price == null ? null : Number(raw.price); return { productId: String(raw.productId), name: raw.name, slug: raw.slug, categoryId: String(raw.categoryId ?? ""), categoryName: raw.categoryName ?? "Sin categoría", brandId: String(raw.brandId ?? ""), brandName: raw.brandName ?? "Sin marca", imageUrl: raw.imageUrl ?? "", cost: raw.cost == null ? null : Number(raw.cost), price, previousPrice: raw.previousPrice == null ? null : Number(raw.previousPrice), margin: raw.margin == null ? null : Number(raw.margin), promo: raw.promo ?? (raw.promoLabel ? { promoId: raw.promoId, promoLabel: raw.promoLabel, promoDiscountType: raw.promoDiscountType, promoDiscountValue: raw.promoDiscountValue } : null), status: raw.status, updatedAt: raw.updatedAt, amount: price ?? 0 }; }
+function fixturePage(f: PriceFilters): PricePage { let a = [...rows]; const q = f.search?.trim().toLocaleLowerCase("es-AR"); if (q) a = a.filter(x => `${x.name} ${x.slug}`.toLocaleLowerCase("es-AR").includes(q)); if (f.categoryId) a = a.filter(x => x.categoryId === f.categoryId); if (f.brandId) a = a.filter(x => x.brandId === f.brandId); if (f.status && f.status !== "all") a = a.filter(x => x.status === f.status); const k = f.sortBy ?? "name"; a.sort((x, y) => String(k === "name" ? x.name : x[k] ?? "").localeCompare(String(k === "name" ? y.name : y[k] ?? ""), "es", { numeric: true })); if (f.sortOrder === "desc") a.reverse(); const page = f.page ?? 1, pageSize = f.pageSize ?? 25; return { items: a.slice((page - 1) * pageSize, page * pageSize), total: a.length, page, pageSize }; }
 export const priceApi: PriceApi = {
-  async listPrices(filters: PriceFilters = {}) {
-    const url = baseUrl();
-    if (!url) { await wait(); const query = filters.query?.trim().toLocaleLowerCase("es-AR") ?? ""; return prices.filter((price) => (!query || [price.productName, price.sku].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.category || price.category === filters.category) && (!filters.status || filters.status === "all" || (filters.status === "active" ? price.active : !price.active))); }
-    const root = url.replace(/\/$/, "");
-    const params = new URLSearchParams({ pageSize: "100", includeInactive: "true" });
-    if (filters.query?.trim()) params.set("q", filters.query.trim());
-    const productsPayload = (await fetchJson(`${root}/products?${params}`)) as { items?: unknown };
-    const items = Array.isArray(productsPayload.items) ? (productsPayload.items as RawProduct[]) : [];
-    if (items.length === 0) return [];
-    const priceMap = new Map<string, RawResolvedPrice>();
-    const resolved = (await fetchJson(`${root}/product-prices?productIds=${items.map((item) => item.id).join(",")}`)) as RawResolvedPrice[];
-    for (const entry of resolved) priceMap.set(entry.productId, entry);
-    let list: Price[] = items.map((item) => {
-      const resolvedPrice = priceMap.get(item.id);
-      const history: PriceChange[] = resolvedPrice
-        ? [{ id: `${resolvedPrice.priceListId}-${item.id}`, previousAmount: null, amount: Number(resolvedPrice.amount), changedAt: resolvedPrice.validFrom, changedBy: `Lista: ${resolvedPrice.priceListName}` }]
-        : [];
-      return {
-        productId: item.id,
-        productName: item.name,
-        sku: item.slug.toUpperCase(),
-        category: typeof item.category?.name === "string" ? item.category.name : "Sin categoría",
-        active: item.isActive,
-        amount: resolvedPrice ? Number(resolvedPrice.amount) : 0,
-        currency: "ARS",
-        updatedAt: resolvedPrice?.validFrom ?? new Date(0).toISOString(),
-        updatedBy: resolvedPrice ? resolvedPrice.priceListName : "Sin precio cargado",
-        history,
-      };
-    });
-    if (filters.category) list = list.filter((price) => price.category === filters.category);
-    if (filters.status && filters.status !== "all") list = list.filter((price) => (filters.status === "active" ? price.active : !price.active));
-    return list;
-  },
-  async updatePrices(input: PriceUpdateInput) {
-    const url = baseUrl();
-    if (!url) { await wait(); if (!input.productIds.length || !Number.isFinite(input.amount) || input.amount < 0) throw new Error("El precio informado no es válido."); if (input.productIds.some((id) => !prices.some((price) => price.productId === id))) throw missing(); const changedAt = new Date().toISOString(); const changed = new Map<string, Price>(); prices = prices.map((price) => { if (!input.productIds.includes(price.productId)) return price; const next: Price = { ...price, amount: input.amount, updatedAt: changedAt, updatedBy: input.changedBy, history: [{ id: `pch-${crypto.randomUUID()}`, previousAmount: price.amount, amount: input.amount, changedAt, changedBy: input.changedBy, ...(input.reason?.trim() ? { reason: input.reason.trim() } : {}) }, ...price.history] }; changed.set(next.productId, next); return next; }); return input.productIds.map((id) => changed.get(id) as Price); }
-    const root = url.replace(/\/$/, "");
-    const listId = await resolveDefaultPriceListId(root);
-    const existingPayload = (await fetchJson(`${root}/price-lists/${listId}/prices`)) as RawProductPrice[];
-    const existingByProduct = new Map(existingPayload.map((row) => [row.productId, row]));
-    for (const productId of input.productIds) {
-      const existing = existingByProduct.get(productId);
-      if (existing) {
-        await fetchJson(`${root}/prices/${existing.id}`, { method: "PATCH", body: JSON.stringify({ amount: input.amount }) });
-      } else {
-        await fetchJson(`${root}/price-lists/${listId}/prices`, { method: "POST", body: JSON.stringify({ productId: Number(productId), amount: input.amount }) });
-      }
-    }
-    return priceApi.listPrices().then((all) => all.filter((price) => input.productIds.includes(price.productId)));
-  },
+ async listPrices(f = {}) { return (await this.listPricePage({ ...f, pageSize: 100 })).items; },
+ async listPricePage(f = {}) { const root = base(); if (!root) { await wait(); return fixturePage(f); } const p = new URLSearchParams({ page: String(f.page ?? 1), limit: String(f.pageSize ?? 25), sortBy: f.sortBy ?? "name", sortOrder: f.sortOrder ?? "asc" }); if (f.search) p.set("search", f.search); if (f.categoryId) p.set("categoryId", f.categoryId); if (f.brandId) p.set("brandId", f.brandId); if (f.status) p.set("status", f.status); const body = await json(`${root}/prices?${p}`) as any; return { items: Array.isArray(body.items) ? body.items.map(adapt) : [], total: Number(body.total ?? 0), page: Number(body.page ?? 1), pageSize: Number(body.limit ?? f.pageSize ?? 25) }; },
+ async getStats() { const root = base(); if (root) return json(`${root}/prices/stats`) as Promise<PriceStats>; await wait(); const priced = rows.filter(x => x.price !== null); return { pricedProducts: priced.length, totalProducts: rows.length, activePromos: rows.filter(x => x.promo).length, promoPercentage: 33.3, averageMargin: priced.reduce((n, x) => n + (x.margin ?? 0), 0) / priced.length, marginDelta: 0, pendingChanges: rows.filter(x => x.status === "pending").length }; },
+ async getPriceDetail(id) { const root = base(); if (root) { const raw = await json(`${root}/prices/${encodeURIComponent(id)}`) as any; return { ...adapt(raw), product: raw.product, priceRule: raw.priceRule ?? null, history: raw.history ?? [] }; } await wait(); const price = rows.find(x => x.productId === id); if (!price) throw new Error("El producto ya no está disponible."); return { ...price, priceRule: rules.find(x => !x.categoryId || x.categoryId === price.categoryId) ?? null, history: changes.filter(x => x.productId === id) } as PriceDetail; },
+ async updatePrice(id, input) { const root = base(); if (root) return json(`${root}/prices/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) }) as Promise<{ productId: string; cost: number | null; price: number | null; warnings: string[] }>; await wait(); const old = rows.find(x => x.productId === id); if (!old) throw new Error("El producto ya no está disponible."); const cost = input.cost ?? old.cost, price = input.amount ?? old.price, next = { ...old, cost, price, previousPrice: input.amount === undefined ? old.previousPrice : old.price, margin: calc(cost, price), status: input.effectiveFrom ? "pending" as const : price === null ? "no_price" as const : "active" as const }; rows = rows.map(x => x.productId === id ? next : x); changes.unshift({ id: crypto.randomUUID(), productId: id, changeType: "PRICE", oldCost: old.cost, newCost: cost, oldPrice: old.price, newPrice: price, oldMargin: old.margin, newMargin: next.margin, note: input.reason, createdAt: new Date().toISOString() }); return { productId: id, cost, price, warnings: price !== null && cost !== null && price <= cost ? ["El precio de venta es igual o menor al costo."] : [] }; },
+ async getPriceHistory(id, page = 1, limit = 10) { const root = base(); if (root) return json(`${root}/prices/${encodeURIComponent(id)}/history?page=${page}&limit=${limit}`) as Promise<{ items: PriceChangeLog[]; page: number; limit: number; total: number }>; await wait(); const all = changes.filter(x => x.productId === id); return { items: all.slice((page - 1) * limit, page * limit), page, limit, total: all.length }; },
+ async applyRules(categoryId) { const root = base(); if (root) return json(`${root}/prices/apply-rules`, { method: "POST", body: JSON.stringify(categoryId ? { categoryId } : {}) }) as Promise<{ updatedCount: number; skippedCount: number }>; await wait(); return { updatedCount: rows.filter(x => !categoryId || x.categoryId === categoryId).length, skippedCount: 0 }; },
+ async bulkUpdate(ids, input) { const root = base(); if (root) return json(`${root}/prices/bulk-update`, { method: "POST", body: JSON.stringify({ productIds: ids.map(Number), ...input }) }) as Promise<{ productId: string; status: "updated" | "error"; message?: string }[]>; return Promise.all(ids.map(async productId => { try { await this.updatePrice(productId, input); return { productId, status: "updated" as const }; } catch (e) { return { productId, status: "error" as const, message: e instanceof Error ? e.message : "Error" }; } })); },
+ async listPriceRules() { const root = base(); if (root) return json(`${root}/price-rules`) as Promise<PriceRule[]>; await wait(); return rules; }, async createPriceRule(input) { const root = base(); if (root) return json(`${root}/price-rules`, { method: "POST", body: JSON.stringify(input) }) as Promise<PriceRule>; const value = { ...input, id: crypto.randomUUID() }; rules.push(value); return value; }, async updatePriceRule(id, input) { const root = base(); if (root) return json(`${root}/price-rules/${id}`, { method: "PATCH", body: JSON.stringify(input) }) as Promise<PriceRule>; const item = rules.find(x => x.id === id); if (!item) throw new Error("La regla no existe."); Object.assign(item, input); return item; },
 };

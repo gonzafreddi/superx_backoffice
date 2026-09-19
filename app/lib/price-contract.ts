@@ -1,7 +1,13 @@
-export type PriceCurrency = "ARS";
-export type PriceChange = { id: string; previousAmount: number | null; amount: number; changedAt: string; changedBy: string; reason?: string };
-export type Price = { productId: string; productName: string; sku: string; category: string; active: boolean; amount: number; currency: PriceCurrency; updatedAt: string; updatedBy: string; history: PriceChange[] };
-export type PriceFilters = { query?: string; category?: string; status?: "all" | "active" | "inactive" };
-export type PriceUpdateInput = { productIds: string[]; amount: number; changedBy: string; reason?: string };
-/** Contrato objetivo de BE-007: GET /api/prices y PUT /api/prices. */
-export type PriceApi = { listPrices(filters?: PriceFilters): Promise<Price[]>; updatePrices(input: PriceUpdateInput): Promise<Price[]> };
+export type PriceStatus = "active" | "in_promo" | "pending" | "no_price" | "inactive";
+export type PriceSortBy = "name" | "cost" | "price" | "margin" | "status";
+export type Promo = { promoId?: string | number; promoLabel?: string; promoDiscountType?: string; promoDiscountValue?: number; startsAt?: string; endsAt?: string };
+export type Price = { productId: string; name: string; slug: string; categoryId: string; categoryName: string; brandId: string; brandName: string; imageUrl: string; cost: number | null; price: number | null; previousPrice: number | null; margin: number | null; promo: Promo | null; status: PriceStatus; updatedAt?: string; /** @deprecated Compatibilidad temporal para consumidores previos; usar `price`. */ amount?: number };
+export type PriceFilters = { search?: string; categoryId?: string; brandId?: string; status?: PriceStatus | "all"; page?: number; pageSize?: number; sortBy?: PriceSortBy; sortOrder?: "asc" | "desc" };
+export type PricePage = { items: Price[]; total: number; page: number; pageSize: number };
+export type PriceStats = { pricedProducts: number; totalProducts: number; activePromos: number; promoPercentage: number; averageMargin: number; marginDelta: number; pendingChanges: number };
+export type PriceChangeLog = { id: string; productId: string; changeType: "COST" | "PRICE" | "PROMOTION" | "RULE_APPLIED" | "BULK_UPDATE"; oldCost: number | null; newCost: number | null; oldPrice: number | null; newPrice: number | null; oldMargin: number | null; newMargin: number | null; note?: string | null; actorUserId?: string | null; createdAt: string };
+export type PriceRule = { id: string; categoryId?: string | null; minMarginPercent?: number | null; roundingIncrement?: number | null; isActive: boolean; categoryName?: string };
+export type PriceDetail = Price & { product?: unknown; priceRule: PriceRule | null; history: PriceChangeLog[] };
+export type PriceUpdateInput = { cost?: number; amount?: number; reason?: string; effectiveFrom?: string };
+export type PriceRuleInput = Omit<PriceRule, "id" | "categoryName">;
+export type PriceApi = { listPrices(filters?: PriceFilters): Promise<Price[]>; listPricePage(filters?: PriceFilters): Promise<PricePage>; getStats(): Promise<PriceStats>; getPriceDetail(productId: string): Promise<PriceDetail>; updatePrice(productId: string, input: PriceUpdateInput): Promise<{ productId: string; cost: number | null; price: number | null; warnings: string[] }>; getPriceHistory(productId: string, page?: number, limit?: number): Promise<{ items: PriceChangeLog[]; page: number; limit: number; total: number }>; applyRules(categoryId?: string): Promise<{ updatedCount: number; skippedCount: number }>; bulkUpdate(productIds: string[], input: PriceUpdateInput): Promise<{ productId: string; status: "updated" | "error"; message?: string }[]>; listPriceRules(): Promise<PriceRule[]>; createPriceRule(input: PriceRuleInput): Promise<PriceRule>; updatePriceRule(id: string, input: Partial<PriceRuleInput>): Promise<PriceRule> };

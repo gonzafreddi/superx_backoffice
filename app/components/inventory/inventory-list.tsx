@@ -1,0 +1,8 @@
+import type { InventoryItem, Warehouse } from "@/app/lib/inventory-contract";
+import { getInventoryStatus } from "@/app/lib/inventory-rules";
+import { InventoryIcon, StockStatusBadge } from "./inventory-ui";
+
+export function InventoryList({ items, warehouses, selectedId, onSelect }: { items: InventoryItem[]; warehouses: Warehouse[]; selectedId: string | null; onSelect: (id: string) => void }) {
+  const warehouseName = (id: string) => warehouses.find((warehouse) => warehouse.id === id)?.name ?? "Depósito no disponible";
+  return <div className="inventory-list-wrap"><table className="inventory-list"><thead><tr><th>Producto</th><th>Depósito</th><th>Disponible</th><th>Mínimo</th><th>Estado</th><th><span className="sr-only">Ver detalle</span></th></tr></thead><tbody>{items.map((item) => <tr key={item.id} className={item.id === selectedId ? "selected" : ""}><td><button className="inventory-list-product" onClick={() => onSelect(item.id)}><span className="inventory-list-mark"><InventoryIcon name="boxes" /></span><span><strong>{item.productName}</strong><small>{item.sku}</small></span></button></td><td><button onClick={() => onSelect(item.id)}>{warehouseName(item.warehouseId)}</button></td><td><button className="inventory-list-number" onClick={() => onSelect(item.id)}>{item.onHand}</button></td><td><button onClick={() => onSelect(item.id)}>{item.minimum}</button></td><td><button onClick={() => onSelect(item.id)}><StockStatusBadge status={getInventoryStatus(item)} /></button></td><td><button className="row-open" aria-label={`Ver detalle de ${item.productName}`} onClick={() => onSelect(item.id)}><InventoryIcon name="chevron" /></button></td></tr>)}</tbody></table></div>;
+}
