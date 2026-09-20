@@ -472,6 +472,28 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 
 - Pendiente de ejecutar al cierre de esta tarjeta.
 
+# Evidencia — Inversiones y activos (2026-09-20)
+
+## Implementado
+
+- Rutas `/inversiones` y `/inversiones/[id]`, visibles sólo al rol real `admin`, con listado paginado, filtros, períodos rápidos, resumen por categoría y ficha de activo.
+- Dominio `asset-*` con contrato, adapter Bearer para los endpoints reales, fixtures vacíos para importes oficiales y reglas puras cubiertas por tests. Los montos se mantienen como strings y las comparaciones críticas usan centavos `BigInt`.
+- El alta usa `POST /assets`; **Pagar ahora** forma parte del mismo payload con clave de idempotencia para conservar la atomicidad que ofrece el backend. La ficha permite pagos posteriores a `POST /payments` con `targetType: ASSET`, cambios de estado con motivo obligatorio al disponer y cambios de ubicación.
+- Se amplió el contrato de pagos para representar imputaciones `ASSET` y se añadió la entrada quirúrgica **Inversiones** a la navegación. Se agregó `docs/inversiones-operations.md`.
+
+## Decisiones
+
+- El selector de cuenta conserva los saldos negativos tal como llegan de tesorería y filtra por moneda activa; no bloquea descubierto porque el backend lo admite.
+- El estado de pago ofrece únicamente `UNPAID`, `PARTIALLY_PAID` y `PAID`; no presenta vencido para activos.
+- La ficha expone el bloqueo de costo/moneda fuera de planificación o con pagos, de acuerdo con el 409 del backend; la API queda preparada para los campos editables restantes mediante `PATCH`.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 75 tests (con avisos preexistentes de módulos JS sin `type: module`).
+- `pnpm build`: PASS — incluye `/inversiones` y `/inversiones/[id]`.
+
 # Evidencia — presentaciones desde producto y filtros de OC (2026-09-19)
 
 ## Implementado

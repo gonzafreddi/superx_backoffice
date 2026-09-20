@@ -1,0 +1,4 @@
+import test from "node:test"; import assert from "node:assert/strict"; import { availableAssetTransitions,canTransitionAsset,categoryBars,paymentStatusForAsset,validateAssetInput } from "../app/lib/asset-rules.js";
+test("matriz de estados de activos",()=>{assert.equal(canTransitionAsset("PLANNED","ACQUIRED"),true);assert.equal(canTransitionAsset("ACQUIRED","PLANNED"),false);assert.deepEqual(availableAssetTransitions("IN_USE"),["DISPOSED"])});
+test("valida alta y pagos sin float",()=>{assert.deepEqual(validateAssetInput({name:"Servidor",category:"Tecnología",acquisitionDate:"2026-09-20",cost:"1.01",attachments:[]}),[]);assert.equal(paymentStatusForAsset("1.00","0.01"),"PARTIALLY_PAID");assert.equal(paymentStatusForAsset("1.00","1.00"),"PAID")});
+test("barras usan totales entregados",()=>{const bars=categoryBars([{category:"A",total:"10.00"},{category:"B",total:"5.00"}]);assert.equal(bars[0].percent,100);assert.equal(bars[1].percent,50)});
