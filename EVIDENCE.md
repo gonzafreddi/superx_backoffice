@@ -1,3 +1,24 @@
+# Evidencia — Dashboard administrativo (2026-09-20)
+
+## Implementado
+
+- Nueva ruta `/administracion`, protegida por el usuario real de `getStoredUser()` y restringida a `admin` como los endpoints del backend.
+- Dominio `dashboard-*`: contrato tipado, adaptador Bearer para los siete endpoints de `/admin-dashboard`, fixtures financieros vacíos sin URL de API y reglas puras para rangos locales, rutas de documentos y comparación decimal por centavos.
+- Filtros de período, proveedor y moneda; KPIs, cuentas por pagar, OC pendientes, proveedores, gastos por categoría, inversiones, cuentas de tesorería y flujo diario. Cada bloque conserva su estado de carga/error/vacío y se puede reintentar individualmente.
+- Navegación quirúrgica de **Administración**, tests de reglas y `docs/administracion-dashboard.md`.
+
+## Decisiones
+
+- `invoiced` se etiqueta como **Facturado** porque es el KPI provisto por el backend para facturas de proveedor.
+- `/treasury` entrega saldos oficiales por cuenta pero no un total consolidado. La UI no los suma localmente: la tarjeta **Saldo tesorería** muestra `—` y lo explica; las cuentas conservan los saldos devueltos por servidor, incluidos negativos.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 80 tests (con avisos preexistentes de módulos JS sin `type: module`).
+- `pnpm build`: PASS — incluye `/administracion`.
+
 # (sin card) — Código de barras opcional + campo Nombre visible en la ficha de producto
 
 # Proveedores y presentaciones de compra — 2026-09-19

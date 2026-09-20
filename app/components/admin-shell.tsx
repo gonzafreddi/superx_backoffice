@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { getAccessToken, getStoredUser, logout } from "@/app/lib/auth-api";
 
 const items = [
-  { href: "/tablero", label: "Tablero", icon: "chart" }, { href: "/productos", label: "Productos", icon: "box" },
+  { href: "/administracion", label: "Administración", icon: "admin" }, { href: "/tablero", label: "Tablero", icon: "chart" }, { href: "/productos", label: "Productos", icon: "box" },
   { href: "/precios", label: "Precios", icon: "tag" }, { href: "/inventario", label: "Inventario", icon: "shelves" }, { href: "/inversiones", label: "Inversiones", icon: "asset" },
   { href: "/ubicaciones", label: "Ubicaciones", icon: "pin" }, { href: "/proveedores", label: "Proveedores", icon: "supplier" }, { href: "/compras", label: "Compras", icon: "purchase" }, { href: "/facturas", label: "Facturas", icon: "invoice" }, { href: "/pagos", label: "Pagos", icon: "payment" }, { href: "/gastos", label: "Gastos", icon: "expense" }, { href: "/tesoreria", label: "Tesorería", icon: "treasury" }, { href: "/pedidos", label: "Pedidos", icon: "receipt" }, { href: "/entregas", label: "Entregas", icon: "truck" },
 ];
@@ -14,6 +14,7 @@ const items = [
 function NavIcon({ name }: { name: string }) {
   const props = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   const paths: Record<string, ReactNode> = {
+    admin: <><rect {...props} x="4" y="4" width="16" height="16" /><path {...props} d="M8 16v-4M12 16V8M16 16v-6" /></>,
     invoice: <><path {...props} d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" /><path {...props} d="M9 8h6M9 12h6M9 16h4" /></>, payment: <><path {...props} d="M3 7h18v11H3z" /><path {...props} d="M3 11h18M7 15h3" /></>, expense: <><path {...props} d="M5 4h14v16H5z"/><path {...props} d="M8 8h8M8 12h8M8 16h4"/></>, asset: <><rect {...props} x="4" y="5" width="16" height="14"/><path {...props} d="M8 5V3h8v2M8 12h8M12 9v6"/></>,
     chart: <path {...props} d="M4 19V10M10 19V5M16 19v-7M22 19H2" />, box: <><path {...props} d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path {...props} d="m4 7.5 8 4.5 8-4.5M12 12v9" /></>,
     tag: <><path {...props} d="M20 13.5 13.5 20a2 2 0 0 1-2.8 0L4 13.3V4h9.3l6.7 6.7a2 2 0 0 1 0 2.8Z" /><path {...props} d="M8 8h.01" /></>, shelves: <path {...props} d="M4 4h16v16H4zM4 10h16M8 4v6M16 4v6M8 10v10M16 10v10" />,
