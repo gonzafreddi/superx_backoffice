@@ -1,0 +1,1 @@
+import type { Metadata } from "next"; import { ExpenseList } from "@/app/components/expenses/expense-list"; export const metadata: Metadata={title:"SuperX · Gastos",description:"Gestión de gastos"}; export default function ExpensesPage(){return <ExpenseList/>}

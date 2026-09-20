@@ -1,0 +1,4 @@
+import test from "node:test"; import assert from "node:assert/strict"; import { categoryBars, expenseStatusMeta, validateExpenseForm } from "../app/lib/expense-rules.js";
+test("valida alta sin convertir dinero a float",()=>{assert.deepEqual(validateExpenseForm({categoryId:"",description:"",incurredAt:"2026-09-20",amount:"1.234",payNow:false}),{categoryId:"Elegí una categoría.",description:"Indicá una descripción.",amount:"Ingresá un monto con hasta dos decimales."});assert.deepEqual(validateExpenseForm({categoryId:"1",description:"Luz",incurredAt:"2026-09-20",amount:"10.00",payNow:true,treasuryAccountId:"1"}),{});});
+test("etiqueta los estados y respeta la anulación",()=>{assert.equal(expenseStatusMeta("ACTIVE","OVERDUE").label,"Vencido");assert.equal(expenseStatusMeta("VOIDED","PAID").label,"Anulado");});
+test("normaliza barras por centavos",()=>{assert.deepEqual(categoryBars([{id:"a",total:"10.00"},{id:"b",total:"5.00"}]).map(x=>x.percent),[100,50]);});

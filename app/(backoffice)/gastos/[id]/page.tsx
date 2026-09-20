@@ -1,0 +1,1 @@
+import type { Metadata } from "next"; import { ExpenseDetailView } from "@/app/components/expenses/expense-detail"; export const metadata:Metadata={title:"SuperX · Gasto"}; export default async function ExpensePage({params}:{params:Promise<{id:string}>}){const {id}=await params;return <ExpenseDetailView id={id}/>}

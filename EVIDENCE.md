@@ -455,6 +455,23 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 - `pnpm test`: PASS — 54 tests.
 - `pnpm build`: PASS — incluye `/compras/[id]/recibir` como ruta dinámica.
 
+# Evidencia — Gastos (2026-09-20)
+
+## Implementado
+
+- Rutas `/gastos` y `/gastos/[id]`, protegidas por el rol real `admin`, con listado filtrable, paginación, resumen por período y desglose por categoría.
+- Dominio `expense-*` con contrato, adapter bearer, reglas puras y formulario de alta rápida con pago inmediato y clave de idempotencia por intento.
+- Gestión de categorías, detalle, edición de los campos permitidos, timeline y anulación bloqueada visualmente cuando hay pagos.
+
+## Decisiones
+
+- El backend no expone un endpoint de "open payables" para gastos; el detalle dirige a la pantalla de Pagos para continuar el flujo de tesorería, sin inventar un saldo o asignación local.
+- En modo sin API los gastos financieros quedan vacíos, igual que pagos y facturas, para no simular obligaciones oficiales.
+
+## Verificación ejecutada
+
+- Pendiente de ejecutar al cierre de esta tarjeta.
+
 # Evidencia — presentaciones desde producto y filtros de OC (2026-09-19)
 
 ## Implementado
