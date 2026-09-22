@@ -1,3 +1,20 @@
+# Umbral de stock bajo: wiring real + edición — 2026-09-22
+
+## Implementado
+
+- El backend agregó `stock_snapshots.reorder_threshold` (ver `superx_back` commit `1550891`) — se conecta acá: `inventory-api.ts` ya no hardcodea `minimum: 0`, mapea `snapshot.reorderThreshold` real en `listInventory`/`createMovement`. Ahora el estado "stock bajo" puede activarse de verdad.
+- Nuevo campo `InventoryItem.snapshotId` (id real del `StockSnapshot`, distinto del id compuesto `productId:warehouseId` usado por la UI) y método `InventoryApi.updateReorderThreshold(itemId, threshold)` que llama `PATCH /inventory/stock/:id`.
+- UI: en el panel de detalle de inventario, "Mínimo operativo" ahora tiene un enlace "Editar" (sólo si `canAdjust`) que abre un input numérico inline con Guardar/Cancelar y su propio error de validación — sin modal nuevo, reutilizando el patrón de edición liviana ya usado en el resto del backoffice.
+- Verificado extremo a extremo contra el backend real corriendo (`curl` con token admin): `GET /inventory/stock` devuelve `reorderThreshold`, `PATCH /inventory/stock/2 {reorderThreshold:15}` lo actualiza y el `GET` posterior lo refleja.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 80 tests.
+- `pnpm build`: PASS.
+- `curl` end-to-end contra backend real (`localhost:3000`): PASS.
+
 # Notice compartido — migración completa — 2026-09-22
 
 ## Implementado

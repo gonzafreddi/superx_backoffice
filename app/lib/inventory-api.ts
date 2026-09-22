@@ -5,10 +5,10 @@ import { getInventoryStatus } from "./inventory-rules";
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 const warehouses: Warehouse[] = [{ id: "wh-central", name: "Depósito central", code: "CENTRAL" }, { id: "wh-norte", name: "Sucursal Norte", code: "NORTE" }, { id: "wh-sur", name: "Sucursal Sur", code: "SUR" }];
 let inventory: InventoryItem[] = [
-  { id: "inv-001", productId: "prd-001", productName: "Agua mineral sin gas 1,5 L", sku: "SUP-0001", warehouseId: "wh-central", onHand: 48, minimum: 18, updatedAt: "2026-09-04T12:00:00.000Z", movements: [{ id: "mov-001", inventoryItemId: "inv-001", type: "receipt", quantity: 60, reason: "Recepción OC-1842", occurredAt: "2026-09-03T10:15:00.000Z", createdBy: "María González" }, { id: "mov-002", inventoryItemId: "inv-001", type: "sale", quantity: -12, reason: "Ventas del turno", occurredAt: "2026-09-04T11:40:00.000Z", createdBy: "Integración ventas" }] },
-  { id: "inv-002", productId: "prd-002", productName: "Yerba mate tradicional 500 g", sku: "CAM-0002", warehouseId: "wh-central", onHand: 8, minimum: 12, updatedAt: "2026-09-04T09:30:00.000Z", movements: [{ id: "mov-003", inventoryItemId: "inv-002", type: "receipt", quantity: 20, reason: "Recepción OC-1838", occurredAt: "2026-09-01T14:00:00.000Z", createdBy: "Juan Fernández" }, { id: "mov-004", inventoryItemId: "inv-002", type: "sale", quantity: -12, reason: "Ventas del turno", occurredAt: "2026-09-04T09:30:00.000Z", createdBy: "Integración ventas" }] },
-  { id: "inv-003", productId: "prd-003", productName: "Jugo de naranja 1 L", sku: "NAT-0003", warehouseId: "wh-norte", onHand: 0, minimum: 8, updatedAt: "2026-09-04T08:10:00.000Z", movements: [{ id: "mov-005", inventoryItemId: "inv-003", type: "sale", quantity: -6, reason: "Ventas del turno", occurredAt: "2026-09-04T08:10:00.000Z", createdBy: "Integración ventas" }] },
-  { id: "inv-004", productId: "prd-001", productName: "Agua mineral sin gas 1,5 L", sku: "SUP-0001", warehouseId: "wh-sur", onHand: 25, minimum: 10, updatedAt: "2026-09-03T16:00:00.000Z", movements: [{ id: "mov-006", inventoryItemId: "inv-004", type: "transfer", quantity: 25, reason: "Transferencia desde central", occurredAt: "2026-09-03T16:00:00.000Z", createdBy: "María González" }] },
+  { id: "inv-001", snapshotId: "inv-001", productId: "prd-001", productName: "Agua mineral sin gas 1,5 L", sku: "SUP-0001", warehouseId: "wh-central", onHand: 48, minimum: 18, updatedAt: "2026-09-04T12:00:00.000Z", movements: [{ id: "mov-001", inventoryItemId: "inv-001", type: "receipt", quantity: 60, reason: "Recepción OC-1842", occurredAt: "2026-09-03T10:15:00.000Z", createdBy: "María González" }, { id: "mov-002", inventoryItemId: "inv-001", type: "sale", quantity: -12, reason: "Ventas del turno", occurredAt: "2026-09-04T11:40:00.000Z", createdBy: "Integración ventas" }] },
+  { id: "inv-002", snapshotId: "inv-002", productId: "prd-002", productName: "Yerba mate tradicional 500 g", sku: "CAM-0002", warehouseId: "wh-central", onHand: 8, minimum: 12, updatedAt: "2026-09-04T09:30:00.000Z", movements: [{ id: "mov-003", inventoryItemId: "inv-002", type: "receipt", quantity: 20, reason: "Recepción OC-1838", occurredAt: "2026-09-01T14:00:00.000Z", createdBy: "Juan Fernández" }, { id: "mov-004", inventoryItemId: "inv-002", type: "sale", quantity: -12, reason: "Ventas del turno", occurredAt: "2026-09-04T09:30:00.000Z", createdBy: "Integración ventas" }] },
+  { id: "inv-003", snapshotId: "inv-003", productId: "prd-003", productName: "Jugo de naranja 1 L", sku: "NAT-0003", warehouseId: "wh-norte", onHand: 0, minimum: 8, updatedAt: "2026-09-04T08:10:00.000Z", movements: [{ id: "mov-005", inventoryItemId: "inv-003", type: "sale", quantity: -6, reason: "Ventas del turno", occurredAt: "2026-09-04T08:10:00.000Z", createdBy: "Integración ventas" }] },
+  { id: "inv-004", snapshotId: "inv-004", productId: "prd-001", productName: "Agua mineral sin gas 1,5 L", sku: "SUP-0001", warehouseId: "wh-sur", onHand: 25, minimum: 10, updatedAt: "2026-09-03T16:00:00.000Z", movements: [{ id: "mov-006", inventoryItemId: "inv-004", type: "transfer", quantity: 25, reason: "Transferencia desde central", occurredAt: "2026-09-03T16:00:00.000Z", createdBy: "María González" }] },
 ];
 const unavailable = () => new Error("La posición de stock ya no está disponible. Actualizá el listado e intentá nuevamente.");
 
@@ -17,7 +17,7 @@ const itemId = (productId: string, warehouseId: string) => `${productId}:${wareh
 const parseItemId = (id: string) => { const [productId, warehouseId] = id.split(":"); return { productId, warehouseId }; };
 
 type RawWarehouse = { id: string; name: string };
-type RawSnapshot = { id: string; productId: string; warehouseId: string; quantityOnHand: number; updatedAt: string };
+type RawSnapshot = { id: string; productId: string; warehouseId: string; quantityOnHand: number; reorderThreshold: number; updatedAt: string };
 type RawProduct = { id: string; name: string; slug: string };
 type RawMovement = { id: string; type: string; quantity: number; reference: string | null; note: string | null; actorUserId: string; createdAt: string };
 
@@ -68,13 +68,13 @@ export const inventoryApi: InventoryApi = {
       const movements = await fetchMovements(root, snapshot.productId, snapshot.warehouseId);
       const item: InventoryItem = {
         id: itemId(snapshot.productId, snapshot.warehouseId),
+        snapshotId: snapshot.id,
         productId: snapshot.productId,
         productName: product?.name ?? `Producto #${snapshot.productId}`,
         sku: product?.slug.toUpperCase() ?? snapshot.productId,
         warehouseId: snapshot.warehouseId,
         onHand: snapshot.quantityOnHand,
-        // The backend has no reorder-threshold concept yet — "low" stock status is unavailable, only "ok"/"out".
-        minimum: 0,
+        minimum: snapshot.reorderThreshold,
         updatedAt: snapshot.updatedAt,
         movements,
       };
@@ -108,13 +108,42 @@ export const inventoryApi: InventoryApi = {
     const product = productPayload as RawProduct | undefined;
     return {
       id: itemId(productId, warehouseId),
+      snapshotId: snapshot?.id ?? "",
       productId,
       productName: product?.name ?? `Producto #${productId}`,
       sku: product?.slug.toUpperCase() ?? productId,
       warehouseId,
       onHand: snapshot?.quantityOnHand ?? 0,
-      minimum: 0,
+      minimum: snapshot?.reorderThreshold ?? 0,
       updatedAt: snapshot?.updatedAt ?? new Date().toISOString(),
+      movements,
+    };
+  },
+  async updateReorderThreshold(itemId: string, threshold: number) {
+    if (!Number.isInteger(threshold) || threshold < 0) throw new Error("El umbral debe ser un número entero mayor o igual a cero.");
+    const url = baseUrl();
+    if (!url) { await wait(); const item = inventory.find((candidate) => candidate.id === itemId); if (!item) throw unavailable(); const updated: InventoryItem = { ...item, minimum: threshold }; inventory = inventory.map((candidate) => candidate.id === itemId ? updated : candidate); return updated; }
+    const root = url.replace(/\/$/, "");
+    const { productId, warehouseId } = parseItemId(itemId);
+    const [snapshotPayload, productPayload, movements] = await Promise.all([
+      fetchJson(`${root}/inventory/stock?productId=${productId}&warehouseId=${warehouseId}`),
+      fetchJson(`${root}/products/${productId}`).catch(() => undefined),
+      fetchMovements(root, productId, warehouseId),
+    ]);
+    const snapshot = (Array.isArray(snapshotPayload) ? snapshotPayload as RawSnapshot[] : [])[0];
+    if (!snapshot) throw unavailable();
+    const updatedSnapshot = (await fetchJson(`${root}/inventory/stock/${snapshot.id}`, { method: "PATCH", body: JSON.stringify({ reorderThreshold: threshold }) })) as RawSnapshot;
+    const product = productPayload as RawProduct | undefined;
+    return {
+      id: itemId,
+      snapshotId: updatedSnapshot.id,
+      productId,
+      productName: product?.name ?? `Producto #${productId}`,
+      sku: product?.slug.toUpperCase() ?? productId,
+      warehouseId,
+      onHand: updatedSnapshot.quantityOnHand,
+      minimum: updatedSnapshot.reorderThreshold,
+      updatedAt: updatedSnapshot.updatedAt,
       movements,
     };
   },
