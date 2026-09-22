@@ -1,3 +1,17 @@
+# Controles funcionales de imagen y estado de producto — 2026-09-22
+
+## Implementado
+
+- Se eliminó de la pestaña general el control de carga de archivos deshabilitado. La URL técnica opcional permanece como único mecanismo para definir `imageUrl` y la vista previa no se modificó.
+- El menú de más acciones de la ficha ahora ofrece **Desactivar producto** o **Activar producto** según el estado actual. La mutación se ejecuta en `product-detail.tsx` mediante `productApi.setProductStatus`, actualiza el badge de la cabecera y muestra el aviso existente de éxito o error.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 80 tests (con los avisos preexistentes de módulos JS sin `type: module`).
+- `pnpm build`: PASS.
+
 # Extracción de badges de estado — 2026-09-22
 
 ## Implementado
