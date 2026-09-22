@@ -1,3 +1,16 @@
+# Búsqueda real en el command palette — 2026-09-22
+
+## Implementado
+
+- `admin-shell.tsx`: el input ⌘K ahora filtra en vivo por texto libre sobre `label`/`href` (case-insensitive, sin librería nueva). Antes solo repetía la lista completa de navegación sin filtrar. Estado vacío honesto ("No encontramos secciones para…") en vez de una lista sin resultados. Se limpia el query al abrir/cerrar (`openCommand`/`closeCommand`).
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS.
+- `pnpm build`: PASS.
+
 # Sidebar agrupada por secciones — 2026-09-22
 
 ## Implementado

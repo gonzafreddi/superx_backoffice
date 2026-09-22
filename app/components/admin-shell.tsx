@@ -38,6 +38,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const openCommand = () => { setCommandQuery(""); setCommandOpen(true); };
+  const closeCommand = () => { setCommandOpen(false); setCommandQuery(""); };
+  const normalizedQuery = commandQuery.trim().toLocaleLowerCase("es-AR");
+  const filteredItems = normalizedQuery ? items.filter((item) => item.label.toLocaleLowerCase("es-AR").includes(normalizedQuery) || item.href.toLocaleLowerCase("es-AR").includes(normalizedQuery)) : items;
 
   useEffect(() => {
     window.setTimeout(() => {
@@ -50,7 +55,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       router.replace("/login");
     }, 0);
   }, [router]);
-  useEffect(() => { const onKeyDown = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setCommandOpen(true); } if (event.key === "Escape") setCommandOpen(false); }; window.addEventListener("keydown", onKeyDown); return () => window.removeEventListener("keydown", onKeyDown); }, []);
+  useEffect(() => { const onKeyDown = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); openCommand(); } if (event.key === "Escape") closeCommand(); }; window.addEventListener("keydown", onKeyDown); return () => window.removeEventListener("keydown", onKeyDown); }, []);
 
   if (!ready) return null;
 
@@ -61,7 +66,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <Link className="brandmark" href="/inventario" aria-label="SuperX backoffice">
         <span>SX</span><strong>superx</strong>
       </Link>
-      <button type="button" className="command-trigger" onClick={() => setCommandOpen(true)} aria-label="Abrir navegación rápida"><span>Ir a…</span><kbd>⌘ K</kbd></button>
+      <button type="button" className="command-trigger" onClick={openCommand} aria-label="Abrir navegación rápida"><span>Ir a…</span><kbd>⌘ K</kbd></button>
       <nav>{navGroups.map((group) => <div key={group.label} className="nav-group"><p className="nav-section-label">{group.label}</p>{group.items.map((item) => <Link key={item.href} className={`nav-item ${pathname === item.href ? "active" : ""}`} href={item.href} aria-current={pathname === item.href ? "page" : undefined}>
         <span className="nav-icon"><NavIcon name={item.icon} /></span>{item.label}
       </Link>)}</div>)}</nav>
@@ -72,6 +77,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </div>
     </aside>
     {children}
-    {commandOpen && <div className="command-backdrop" role="presentation" onMouseDown={() => setCommandOpen(false)}><section className="command-menu" role="dialog" aria-modal="true" aria-label="Navegación rápida" onMouseDown={(event) => event.stopPropagation()}><header><span>ACCESO RÁPIDO</span><button type="button" onClick={() => setCommandOpen(false)} aria-label="Cerrar navegación rápida">Esc</button></header><p>Elegí el área que querés gestionar.</p><nav>{items.map((item) => <Link key={item.href} href={item.href} className="command-link" onClick={() => setCommandOpen(false)}><span className="nav-icon"><NavIcon name={item.icon} /></span><strong>{item.label}</strong><small>{item.href.replace("/", "")}</small></Link>)}</nav></section></div>}
+    {commandOpen && <div className="command-backdrop" role="presentation" onMouseDown={closeCommand}><section className="command-menu" role="dialog" aria-modal="true" aria-label="Navegación rápida" onMouseDown={(event) => event.stopPropagation()}><header><span>ACCESO RÁPIDO</span><button type="button" onClick={closeCommand} aria-label="Cerrar navegación rápida">Esc</button></header><label className="command-search"><span className="sr-only">Buscar sección</span><input autoFocus value={commandQuery} onChange={(event) => setCommandQuery(event.target.value)} placeholder="Buscar productos, compras, pedidos…" /></label><nav>{filteredItems.length ? filteredItems.map((item) => <Link key={item.href} href={item.href} className="command-link" onClick={closeCommand}><span className="nav-icon"><NavIcon name={item.icon} /></span><strong>{item.label}</strong><small>{item.href.replace("/", "")}</small></Link>) : <p className="command-empty">No encontramos secciones para “{commandQuery}”.</p>}</nav></section></div>}
   </div>;
 }
