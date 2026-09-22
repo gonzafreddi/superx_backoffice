@@ -1,5 +1,7 @@
 "use client";
 
+import { Notice } from "@/app/components/ui/notice";
+
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ListSkeleton } from "@/app/components/list-skeleton";
 import { roles } from "@/app/components/location-ui";
@@ -170,7 +172,7 @@ export function DeliveryManager() {
         {permissions.create && <button className="button primary" onClick={() => openZoneDialog("zone-new")}><Icon name="plus" /> Nueva zona</button>}
       </div>
     </header>
-    {notice && <div className={`notice ${notice.kind}`} role="status"><span>{notice.kind === "success" ? "Listo" : "No se pudo completar"}</span>{notice.text}<button aria-label="Cerrar mensaje" onClick={() => setNotice(null)}><Icon name="close" /></button></div>}
+    {notice && <Notice kind={notice.kind} label={notice.kind === "success" ? "Listo" : "No se pudo completar"} onDismiss={() => setNotice(null)} dismissLabel="Cerrar mensaje" closeContent={<Icon name="close" />}>{notice.text}</Notice>}
     <div className="permission-note">Estás operando como <strong>{roles[role]}</strong>. {permissions.editZone ? "Podés editar zonas y franjas." : permissions.editSlot ? "Podés ajustar franjas y capacidad; sólo administración edita zonas." : "Sólo podés consultar la configuración de entregas."}</div>
     <section className="catalog-grid order-grid">
       <div className="list-panel">

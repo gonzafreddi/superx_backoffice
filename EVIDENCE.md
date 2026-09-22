@@ -1,3 +1,22 @@
+# Notice compartido — migración completa — 2026-09-22
+
+## Implementado
+
+- Se agregó `app/components/ui/notice.tsx`: primitiva para los avisos existentes `.notice success`/`.notice error`, con `kind`, `role`, `label` opcional, `onDismiss`/`dismissLabel`/`closeContent` opcionales. Conserva clases, rol y comportamiento existentes — cero cambio visual.
+- Migradas 25 pantallas al componente compartido, en dos formas: la mayoría con el patrón `{error && <div className="notice error" role="alert">{error}[botón ×]</div>}` (`suppliers/supplier-list.tsx`, `suppliers/supplier-form.tsx`, `invoices/invoice-manager.tsx`, `invoices/invoice-detail.tsx`, `invoices/invoice-form.tsx`, `assets/asset-manager.tsx`, `assets/asset-detail.tsx`, `purchase-orders/purchase-order-list.tsx`, `purchase-orders/purchase-order-detail.tsx`, `purchase-orders/purchase-order-form.tsx`, `purchase-orders/purchase-order-receipt.tsx`, `expenses/expense-list.tsx`, `expenses/expense-detail.tsx`, `treasury/treasury-manager.tsx`, `treasury/treasury-ledger.tsx`, `payments/payment-manager.tsx`, `purchasing/packaging-manager.tsx`, `location-detail.tsx`); y la variante tipada `{kind, text}` con ícono SVG de cierre en vez de × (`order-manager.tsx`, `delivery-manager.tsx`, `inventory-manager.tsx`, `location-list.tsx` — el ícono se pasa vía la prop `closeContent`, sin cambiar su apariencia). `login.tsx` usa la prop `label` para su rótulo "No se pudo continuar". `suppliers/supplier-detail.tsx` migró solo su aviso de error dinámico. `product-detail.tsx` ya estaba migrado de una sesión previa.
+
+## Omitido tras verificación
+
+- `products/product-operation-tabs.tsx` y el aviso estático de `suppliers/supplier-detail.tsx` ("Este proveedor no puede usarse en nuevas órdenes"): son banners de contexto siempre-visibles, no feedback posterior a una acción — no encajan en el contrato de `Notice`.
+- `prices/price-workspace.tsx` y `kpi-dashboard.tsx`: usan la variante `.notice warning`, fuera del contrato `success|error` de `Notice`. No se amplió el componente para no arrastrar una tercera variante sin un caso de uso real que la motive todavía.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 80 tests.
+- `pnpm build`: PASS.
+
 # Ficha de producto: quitar campos siempre deshabilitados — 2026-09-22
 
 ## Implementado

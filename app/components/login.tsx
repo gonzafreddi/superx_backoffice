@@ -1,5 +1,7 @@
 "use client";
 
+import { Notice } from "@/app/components/ui/notice";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { login as loginRequest, AuthApiError } from "@/app/lib/auth-api";
@@ -33,7 +35,7 @@ export function Login({ signIn = loginRequest }: { signIn?: Login }) {
     <main className="login-shell">
       <section className="login-card">
         <div className="brandmark"><span>SX</span><strong>superx backoffice</strong></div>
-        {error && <div className="notice error" role="alert"><span>No se pudo continuar</span>{error}</div>}
+        {error && <Notice kind="error" role="alert" label="No se pudo continuar">{error}</Notice>}
         <form onSubmit={submit} noValidate>
           <label className="field">
             <span>Email</span>
