@@ -1,3 +1,19 @@
+# Tablero: conectado al endpoint real de métricas — 2026-09-22
+
+## Implementado
+
+- El backend agregó `GET /metrics/overview?from=&to=` (ver `superx_back` commit `e0a8a2a`) — `metrics-api.ts` ya no es 100% mock: sigue el mismo patrón de adapter que el resto del backoffice (fixture sólo si `NEXT_PUBLIC_SUPERX_API_BASE_URL` no está configurada, bearer auth vía `authHeaders()` si lo está). Sin cambios en `metrics-rules.js` ni en `KpiSnapshot` — el backend ya devuelve exactamente esa forma.
+- El aviso "Datos de demostración" de `/tablero` (agregado antes en esta misma sesión) ahora sólo se muestra en modo fixture (`!NEXT_PUBLIC_SUPERX_API_BASE_URL`) — cuando está conectado al backend real, las cifras son reales y el aviso ya no corresponde.
+- Verificado end-to-end con `curl` contra el backend real: la misma URL/query string que construye el adapter (`/metrics/overview?from=...&to=...`) responde con el `KpiSnapshot` esperado.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 80 tests.
+- `pnpm build`: PASS.
+- `curl` end-to-end contra backend real (`localhost:3000`): PASS.
+
 # Umbral de stock bajo: wiring real + edición — 2026-09-22
 
 ## Implementado

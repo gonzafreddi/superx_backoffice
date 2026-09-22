@@ -1,5 +1,8 @@
+import { authHeaders } from "@/app/lib/auth-api";
 import type { KpiSnapshot, MetricsApi, MetricsRange } from "./metrics-contract";
 import { rangeDays, validateRange } from "./metrics-rules";
+
+function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; }
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 
@@ -33,12 +36,19 @@ function seeded(range: MetricsRange): KpiSnapshot | null {
   };
 }
 
-/** Mock TEMPORAL: reemplazar por GET /api/metrics/overview. Todas las cifras las define y calcula el backend. */
 export const metricsApi: MetricsApi = {
   async getOverview(range: MetricsRange) {
-    await wait();
     const message = Object.values(validateRange(range))[0] as string | undefined;
     if (message) throw new Error(message);
-    return seeded(range);
+    const url = baseUrl();
+    if (!url) { await wait(); return seeded(range); }
+    const root = url.replace(/\/$/, "");
+    const response = await fetch(`${root}/metrics/overview?from=${range.from}&to=${range.to}`, { headers: { Accept: "application/json", ...authHeaders() } });
+    const payload: unknown = await response.json().catch(() => undefined);
+    if (!response.ok) {
+      const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";
+      throw new Error(response.status === 401 || response.status === 403 ? "No tenés permiso para hacer esto. Iniciá sesión con una cuenta de administración." : message);
+    }
+    return payload as KpiSnapshot;
   },
 };
