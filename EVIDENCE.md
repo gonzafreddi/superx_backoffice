@@ -1,3 +1,23 @@
+# Extracción de badges de estado — 2026-09-22
+
+## Implementado
+
+- Se agregó `app/components/ui/status-badge.tsx`, una primitiva tipada con `tone` (`success`, `warning`, `danger`, `neutral`, `info`) y `label`. Reutiliza literalmente las combinaciones existentes `.status active`, `.status inactive` y `.status order-cancelled`; no se modificó `app/globals.css`.
+- Se migraron `app/components/invoices/invoice-manager.tsx`, `app/components/invoices/invoice-detail.tsx`, `app/components/treasury/treasury-ui.tsx` y `app/components/purchase-orders/purchase-order-ui.tsx`. Las etiquetas y decisiones de dominio siguen en sus componentes/reglas; el HTML resultante conserva las mismas clases y el mismo elemento `span`.
+
+## Omitido tras verificación
+
+- `supplier-list.tsx`, `asset-manager.tsx`, `price-workspace.tsx`, `location-list-view.tsx` y `warehouses-page.tsx` usan badges visuales de dominio con clases propias (`location-*`, `asset-*`, `price-*`, `location-visual-status-*`, `warehouse-status-*`). Enrutarlos por esta primitiva de dos props cambiaría las clases renderizadas.
+- `inventory-detail-panel.tsx`, `inventory-grid.tsx` e `inventory-list.tsx` ya consumen `StockStatusBadge` de `inventory-ui.tsx`; este último usa el componente visual específico `inventory-status-*` y se mantuvo intacto.
+- `purchase-order-list.tsx` y `purchase-order-detail.tsx` ya importan los badges de `purchase-order-ui.tsx`, ahora migrados. `order-manager.tsx` renderiza botones/chips de estado `order-*` (no spans equivalentes), por lo que se dejó intacto para conservar elemento, interacción y clases.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 80 tests (con los avisos preexistentes de módulos JS sin `type: module`).
+- `pnpm build`: PASS.
+
 # Evidencia — Dashboard administrativo (2026-09-20)
 
 ## Implementado
