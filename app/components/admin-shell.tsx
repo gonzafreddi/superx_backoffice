@@ -5,11 +5,21 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { getAccessToken, getStoredUser, logout } from "@/app/lib/auth-api";
 
-const items = [
-  { href: "/administracion", label: "Administración", icon: "admin" }, { href: "/tablero", label: "Tablero", icon: "chart" }, { href: "/productos", label: "Productos", icon: "box" },
-  { href: "/precios", label: "Precios", icon: "tag" }, { href: "/inventario", label: "Inventario", icon: "shelves" }, { href: "/inversiones", label: "Inversiones", icon: "asset" },
-  { href: "/ubicaciones", label: "Ubicaciones", icon: "pin" }, { href: "/proveedores", label: "Proveedores", icon: "supplier" }, { href: "/compras", label: "Compras", icon: "purchase" }, { href: "/facturas", label: "Facturas", icon: "invoice" }, { href: "/pagos", label: "Pagos", icon: "payment" }, { href: "/gastos", label: "Gastos", icon: "expense" }, { href: "/tesoreria", label: "Tesorería", icon: "treasury" }, { href: "/pedidos", label: "Pedidos", icon: "receipt" }, { href: "/entregas", label: "Entregas", icon: "truck" },
+const navGroups = [
+  { label: "Operación", items: [
+    { href: "/administracion", label: "Administración", icon: "admin" }, { href: "/tablero", label: "Tablero", icon: "chart" }, { href: "/pedidos", label: "Pedidos", icon: "receipt" }, { href: "/entregas", label: "Entregas", icon: "truck" },
+  ] },
+  { label: "Catálogo", items: [
+    { href: "/productos", label: "Productos", icon: "box" }, { href: "/precios", label: "Precios", icon: "tag" }, { href: "/inventario", label: "Inventario", icon: "shelves" }, { href: "/ubicaciones", label: "Ubicaciones", icon: "pin" },
+  ] },
+  { label: "Compras y proveedores", items: [
+    { href: "/proveedores", label: "Proveedores", icon: "supplier" }, { href: "/compras", label: "Compras", icon: "purchase" }, { href: "/facturas", label: "Facturas", icon: "invoice" }, { href: "/pagos", label: "Pagos", icon: "payment" },
+  ] },
+  { label: "Finanzas", items: [
+    { href: "/gastos", label: "Gastos", icon: "expense" }, { href: "/inversiones", label: "Inversiones", icon: "asset" }, { href: "/tesoreria", label: "Tesorería", icon: "treasury" },
+  ] },
 ];
+const items = navGroups.flatMap((group) => group.items);
 
 function NavIcon({ name }: { name: string }) {
   const props = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -52,9 +62,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <span>SX</span><strong>superx</strong>
       </Link>
       <button type="button" className="command-trigger" onClick={() => setCommandOpen(true)} aria-label="Abrir navegación rápida"><span>Ir a…</span><kbd>⌘ K</kbd></button>
-      <nav>{items.map((item) => <Link key={item.href} className={`nav-item ${pathname === item.href ? "active" : ""}`} href={item.href} aria-current={pathname === item.href ? "page" : undefined}>
+      <nav>{navGroups.map((group) => <div key={group.label} className="nav-group"><p className="nav-section-label">{group.label}</p>{group.items.map((item) => <Link key={item.href} className={`nav-item ${pathname === item.href ? "active" : ""}`} href={item.href} aria-current={pathname === item.href ? "page" : undefined}>
         <span className="nav-icon"><NavIcon name={item.icon} /></span>{item.label}
-      </Link>)}</nav>
+      </Link>)}</div>)}</nav>
       <div className="sidebar-footer">
         Backoffice<br /><small>SuperX</small>
         {user && <><br /><small>{user.email}</small></>}

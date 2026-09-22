@@ -1,3 +1,17 @@
+# Sidebar agrupada por secciones — 2026-09-22
+
+## Implementado
+
+- `admin-shell.tsx`: los 15 ítems planos de navegación ahora están agrupados en 4 secciones (Operación, Catálogo, Compras y proveedores, Finanzas) con un rótulo pequeño por sección. Mismos `<Link>`, mismas rutas, mismos íconos — cero cambios de navegación, solo jerarquía visual. El command palette (⌘K) sigue mostrando la lista plana (`items = navGroups.flatMap(...)`) sin cambios, ya que su búsqueda real es un ítem separado del plan.
+- Rótulos ocultos en los breakpoints donde la sidebar se colapsa a solo íconos (≤820px) o pasa a fila horizontal (≤620px, `.nav-group{display:contents}` para que los links sigan siendo hijos directos del flex).
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS.
+- `pnpm build`: PASS.
+
 # Tablero: aviso de datos de demostración — 2026-09-22
 
 ## Implementado
