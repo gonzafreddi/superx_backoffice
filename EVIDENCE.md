@@ -11,6 +11,20 @@
 - `pnpm test`: PASS.
 - `pnpm build`: PASS.
 
+# Paginación de tablas extraída — 2026-09-22
+
+## Implementado
+
+- Se agregó `app/components/ui/table-pagination.tsx`, un helper pequeño que conserva el footer `.product-pagination`, el cálculo del límite de página y los botones Anterior/Siguiente. Sólo parametriza el resumen, las clases ya existentes de los botones y sus callbacks; no abstrae tablas, columnas ni filas.
+- Se migraron `app/components/purchase-orders/purchase-order-list.tsx` y `app/components/expenses/expense-list.tsx`, que comparten el footer de dos botones para paginación remota. Se mantienen sus textos, clases (`button ghost` y `button secondary`), tipo de botón y actualizaciones de estado originales.
+
+## Omitido tras verificación
+
+- `product-manager.tsx` usa el mismo nombre de clase, pero intercala el indicador de página dentro del grupo de botones y muestra otro resumen; incorporarlo requeriría ampliar el helper más allá del footer duplicado.
+- `invoice-manager.tsx` no tiene paginación ni filas navegables.
+- Las filas navegables de `purchase-order-list.tsx` y `supplier-list.tsx` no son verbatim: la de proveedores previene el comportamiento por defecto al teclado y la de órdenes no; se dejaron intactas para conservar su interacción.
+- `location-list-view.tsx` y `warehouses-page.tsx` aplican una interacción parecida en elementos `article`, con callbacks y propagación propios, no en filas de tabla equivalentes.
+
 # Sidebar agrupada por secciones — 2026-09-22
 
 ## Implementado
