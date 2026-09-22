@@ -1,3 +1,16 @@
+# Ficha de producto: quitar campos siempre deshabilitados — 2026-09-22
+
+## Implementado
+
+- `product-general-tab.tsx`: se quitaron los campos "Subcategoría", "Contenido / presentación" y "Unidad contenido" — estaban permanentemente `disabled` sin dato real detrás ("Disponible al ampliar categorías"), ocupando espacio de formulario sin función. Se conserva "SKU interno" (informativo, honesto: siempre dice "Se genera automáticamente").
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS.
+- `pnpm build`: PASS.
+
 # Búsqueda real en el command palette — 2026-09-22
 
 ## Implementado
