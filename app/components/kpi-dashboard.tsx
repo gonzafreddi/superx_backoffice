@@ -75,6 +75,8 @@ export function KpiDashboard() {
       <div className="top-actions"><span className="status active">{roles[role]}</span></div>
     </header>
 
+    <div className="notice warning tablero-demo-notice" role="status"><span>Datos de demostración</span>Este tablero todavía no está conectado a un endpoint real de métricas: las cifras se generan localmente para previsualizar el diseño y no reflejan la operación real.</div>
+
     <div className="permission-note">Estás operando como <strong>{roles[role]}</strong>. {visibility.financial ? "Ves todos los KPIs, incluidos GMV y ticket promedio." : "Los KPIs financieros (GMV y ticket promedio) están reservados a operador y administración."}</div>
 
     <section className="kpi-controls" aria-label="Rango de fechas">

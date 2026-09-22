@@ -1,3 +1,17 @@
+# Tablero: aviso de datos de demostración — 2026-09-22
+
+## Implementado
+
+- `kpi-dashboard.tsx` (`/tablero`) ahora muestra un aviso visible ("Datos de demostración") junto al header, antes del `permission-note`, indicando que las cifras se generan localmente porque no existe endpoint real de métricas (`metrics-api.ts` sigue siendo 100% mock, sin tocar). Evita que un operador confunda estas cifras con datos reales, sin borrar la pantalla ni requerir backend nuevo.
+- Reutiliza la clase `.notice.warning` ya existente; se agregó `.notice.tablero-demo-notice{margin-bottom:16px}` en `globals.css` porque `.notice.warning` traía `margin:0` pensado para su uso original inline en el formulario de precios.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 80 tests.
+- `pnpm build`: PASS — incluye `/tablero`.
+
 # Roles reales en pantallas operativas — 2026-09-22
 
 ## Implementado
