@@ -1,3 +1,11 @@
+# Roles reales en pantallas operativas — 2026-09-22
+
+## Implementado
+
+- Se eliminó la simulación manual de roles en `order-manager.tsx`, `delivery-manager.tsx`, `inventory-manager.tsx` (con `inventory/inventory-page-header.tsx`), `prices/price-workspace.tsx` y `kpi-dashboard.tsx`.
+- Al montar cada pantalla, el rol real de `getStoredUser()` se mapea como `admin` → `admin`; cualquier otro valor, usuario ausente o nulo → `viewer`. El estado inicial también es `viewer`, por lo que el modo fixture sin sesión queda en solo lectura de forma segura.
+- Las reglas de permisos y los mapas de actores para auditoría permanecen sin cambios; las cabeceras sólo muestran el rol resuelto de manera no interactiva.
+
 # Controles funcionales de imagen y estado de producto — 2026-09-22
 
 ## Implementado
@@ -635,3 +643,4 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 - `pnpm lint`: PASS.
 - `pnpm test`: PASS — 69 tests (con warnings preexistentes de módulos JS sin `type: module`).
 - `pnpm build`: PASS — incluye `/proveedores` y `/proveedores/[supplierId]`.
+# Controles funcionales de imagen y estado de producto — 2026-09-22

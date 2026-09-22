@@ -3,12 +3,13 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ListSkeleton } from "@/app/components/list-skeleton";
+import { roles } from "@/app/components/location-ui";
+import { getStoredUser } from "@/app/lib/auth-api";
 import { metricsApi } from "@/app/lib/metrics-api";
 import type { KpiSnapshot, MetricsPreset, MetricsRange } from "@/app/lib/metrics-contract";
 import type { UserRole } from "@/app/lib/product-contract";
 import { describeDataCoverage, getMetricsVisibility, presetRange, rangeDays, validateRange } from "@/app/lib/metrics-rules";
 
-const roles: Record<UserRole, string> = { viewer: "Consulta", operator: "Operador", admin: "Administración" };
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const dateTime = new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" });
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
@@ -23,7 +24,7 @@ function AttentionItem({ tone, title, detail, href, action }: { tone: "critical"
 
 export function KpiDashboard() {
   const today = new Date().toISOString().slice(0, 10);
-  const [role, setRole] = useState<UserRole>("admin");
+  const [role, setRole] = useState<UserRole>("viewer");
   const [range, setRange] = useState<MetricsRange>(() => presetRange("7d", { today }));
   const [draft, setDraft] = useState<MetricsRange>(range);
   const [snapshot, setSnapshot] = useState<KpiSnapshot | null>(null);
@@ -52,6 +53,8 @@ export function KpiDashboard() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load(range);
   }, [range]);
+  useEffect(() => { const user = getStoredUser(); // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRole(user?.role === "admin" ? "admin" : "viewer"); }, []);
   useEffect(() => { if (formError) errorRef.current?.focus(); }, [formError]);
 
   const applyPreset = (preset: MetricsPreset) => { const next = presetRange(preset, { today }); setDraft(next); setFormError(""); setRange(next); };
@@ -69,7 +72,7 @@ export function KpiDashboard() {
   return <section className="workspace" id="tablero">
     <header className="topbar">
       <div><p className="eyebrow">OPERACIÓN / TABLERO</p><h1>Centro de control</h1><p className="subtitle">Una lectura rápida del turno para decidir qué mover primero.</p></div>
-      <div className="top-actions"><label className="role-picker">Rol activo<select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>{Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
+      <div className="top-actions"><span className="status active">{roles[role]}</span></div>
     </header>
 
     <div className="permission-note">Estás operando como <strong>{roles[role]}</strong>. {visibility.financial ? "Ves todos los KPIs, incluidos GMV y ticket promedio." : "Los KPIs financieros (GMV y ticket promedio) están reservados a operador y administración."}</div>

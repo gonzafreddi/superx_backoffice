@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ListSkeleton } from "@/app/components/list-skeleton";
+import { roles } from "@/app/components/location-ui";
+import { getStoredUser } from "@/app/lib/auth-api";
 import { deliveryApi } from "@/app/lib/delivery-api";
 import type { DeliverySlot, DeliveryZone, SlotUpsertInput, ZoneUpdateInput } from "@/app/lib/delivery-contract";
 import type { UserRole } from "@/app/lib/product-contract";
@@ -9,7 +11,6 @@ import { getDeliveryPermissions, slotOccupancy, summarizeCheckoutImpact, validat
 
 type Notice = { kind: "success" | "error"; text: string } | null;
 type Dialog = { kind: "zone-new" | "zone-edit" } | { kind: "slot-new" } | { kind: "slot-edit"; slot: DeliverySlot } | null;
-const roles: Record<UserRole, string> = { viewer: "Consulta", operator: "Operador", admin: "Administración" };
 const actors: Record<UserRole, string> = { viewer: "Usuario de consulta", operator: "Operador actual", admin: "Administración actual" };
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const dateTime = new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" });
@@ -35,7 +36,7 @@ export function DeliveryManager() {
   const [zones, setZones] = useState<DeliveryZone[]>([]);
   const [slots, setSlots] = useState<DeliverySlot[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [role, setRole] = useState<UserRole>("admin");
+  const [role, setRole] = useState<UserRole>("viewer");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -69,6 +70,8 @@ export function DeliveryManager() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, []);
+  useEffect(() => { const user = getStoredUser(); // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRole(user?.role === "admin" ? "admin" : "viewer"); }, []);
   useEffect(() => { if (formError) errorRef.current?.focus(); }, [formError]);
   useEffect(() => {
     let active = true;
@@ -163,7 +166,7 @@ export function DeliveryManager() {
     <header className="topbar">
       <div><p className="eyebrow">LOGÍSTICA / ENTREGAS</p><h1>Zonas y franjas</h1><p className="subtitle">Ajustá cobertura, costo de envío, umbral de envío gratis y capacidad de franjas. Los cambios impactan el checkout sin deploy.</p></div>
       <div className="top-actions">
-        <label className="role-picker">Rol activo<select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>{Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <span className="status active">{roles[role]}</span>
         {permissions.create && <button className="button primary" onClick={() => openZoneDialog("zone-new")}><Icon name="plus" /> Nueva zona</button>}
       </div>
     </header>
