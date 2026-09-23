@@ -1,3 +1,29 @@
+# 2026-09-23 — Compras ETAPA 2: editor de orden de compra
+
+- Se reemplazó el formulario vertical por un editor ERP denso con toolbar sticky, contexto de proveedor, encabezado de pago/vencimiento, resumen de cargos y totales, grilla de líneas desacoplada y acciones de guardar, confirmar, duplicar y eliminar.
+- Se adaptaron contrato y API para contexto de compra, cargos, condición/plazo/vencimiento, duplicado y borrado; las reglas ahora resumen totales y validan packs enteros, descuentos, IVA y fechas.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 83 tests.
+- `pnpm build`: PASS.
+- `curl http://localhost:3200/compras/nueva`: 200.
+
+## Revisión (Claude)
+
+- **Bug global de layout**: `.workspace{margin:auto}` dentro del shell flex centraba verticalmente toda página corta (≈150px vacíos a 1366×768, ≈300px a 1920×1080, en todo el backoffice). Se fijó `margin:0 auto`; verificado con capturas de `/compras`, `/productos`, `/proveedores`.
+- A 1366 la grilla (11 columnas) quedaba cortada al lado del panel de totales: debajo de 1500px el resumen pasa a barra sticky horizontal bajo la grilla; columnas con anchos fijos, números alineados a la derecha.
+- Al abrir un borrador existente, el contexto del proveedor pisaba plazo/condición/vencimiento guardados; ahora sólo precarga en órdenes nuevas.
+- `today()` usaba fecha UTC (de noche en Argentina daba el día siguiente); ahora fecha local.
+- `updateLine` usaba el estado capturado: la carga asíncrona de presentaciones podía pisar ediciones de otras líneas; ahora es funcional.
+- Vencimiento: vaciar el plazo limpia el vencimiento (antes quedaba = fecha de orden); el vencimiento se envía siempre explícito.
+- La advertencia de líneas duplicadas se sacó del objeto de errores (`duplicateLineWarnings`, no bloquea); tests nuevos de validación, advertencias y totales multi-línea verificados a mano contra el redondeo del backend.
+- Duplicar ahora muestra qué productos inactivos se omitieron; el diálogo de confirmación usa formato moneda; `SearchSelect` cierra al perder foco, restaura el nombre elegido y expone `aria-activedescendant`; tipo `ReturnType` renombrado (sombreaba el builtin); los componentes nuevos quedaron formateados.
+- Flujo real en navegador (Playwright contra dev + backend real): Ctrl+S guarda → `/compras/2/editar`, plazo 15 días conservado al reabrir, vencimiento 2026-10-08, total $ 4.500,00; eliminar borrador vuelve a `/compras`; confirmar muestra diálogo y queda "Confirmada / Sin recibir"; editar confirmada deja líneas en solo lectura sin botón confirmar; duplicar crea OC-000004 sin referencia. Datos de prueba limpiados.
+- Re-verificado: typecheck/lint PASS, `pnpm test` 86 PASS, `pnpm build` PASS, dev `/compras/nueva` 200.
+
 # Tablero: conectado al endpoint real de métricas — 2026-09-22
 
 ## Implementado

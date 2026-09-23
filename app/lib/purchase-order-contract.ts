@@ -18,11 +18,12 @@ export type PurchaseOrderSummary = {
   id: string; number: string | null; supplierId: string; warehouseId: string; status: PurchaseOrderStatus; receiptStatus: ReceiptStatus;
   orderDate: string | null; expectedDate: string | null; reference: string | null; notes: string | null; createdAt: string; updatedAt: string; currency: string;
   subtotal: number; discountTotal: number; taxTotal: number; total: number; itemCount: number; supplier: PurchaseOrderSupplier; warehouse: PurchaseOrderWarehouse;
+  paymentCondition: "CASH" | "CREDIT" | "TRANSFER" | "OTHER"; paymentTermDays: number | null; dueDate: string | null; freightAmount: number; otherChargesAmount: number;
   receiptProgress?: { received: number; total: number };
 };
-export type PurchaseOrder = PurchaseOrderSummary & { items: PurchaseOrderItem[]; events: PurchaseOrderEvent[]; receiptCount?: number };
+export type PurchaseOrder = PurchaseOrderSummary & { items: PurchaseOrderItem[]; events: PurchaseOrderEvent[]; receiptCount?: number; updatedByUserId?: string | null; confirmedByUserId?: string | null; createdByUser?: { id: string; name: string | null; email: string } | null };
 export type PurchaseOrderItemInput = { productId: string; packagingId?: string; packagingName?: string; unitsPerPack?: number; packageQuantity: number; costPerPackage: number; discountAmount?: number; taxRate?: number };
-export type CreatePurchaseOrderDto = { supplierId: string; warehouseId: string; currency?: string; expectedDate?: string; reference?: string; notes?: string; items: PurchaseOrderItemInput[] };
+export type CreatePurchaseOrderDto = { supplierId: string; warehouseId: string; currency?: string; orderDate?: string; expectedDate?: string; paymentCondition?: "CASH" | "CREDIT" | "TRANSFER" | "OTHER"; paymentTermDays?: number | null; dueDate?: string | null; freightAmount?: string; otherChargesAmount?: string; reference?: string; notes?: string; items: PurchaseOrderItemInput[] };
 export type UpdatePurchaseOrderDto = Partial<CreatePurchaseOrderDto>;
 export type PaginatedPurchaseOrders = { items: PurchaseOrderSummary[]; total: number; page: number; pageSize: number };
 export type PurchaseOrderFilters = { supplierId?: string; warehouseId?: string; status?: PurchaseOrderStatus | ""; receiptStatus?: ReceiptStatus | ""; from?: string; to?: string; q?: string; page?: number; pageSize?: number };
@@ -35,6 +36,9 @@ export type PurchaseOrderApi = {
   create(input: CreatePurchaseOrderDto): Promise<PurchaseOrder>;
   update(id: string, input: UpdatePurchaseOrderDto): Promise<PurchaseOrder>;
   confirm(id: string): Promise<PurchaseOrder>;
+  duplicate(id: string): Promise<{ order: PurchaseOrder; skipped: Array<{ productId: string; productName: string; reason: string }> }>;
+  delete(id: string): Promise<void>;
+  supplierContext(id: string): Promise<PurchaseOrderSupplierContext>;
   cancel(id: string): Promise<PurchaseOrder>;
   close(id: string, reason?: string): Promise<PurchaseOrder>;
   events(id: string): Promise<PurchaseOrderEvent[]>;
@@ -43,3 +47,4 @@ export type PurchaseOrderApi = {
   searchProducts(query: string): Promise<PurchaseOrderProduct[]>;
   listPackagings(productId: string, supplierId: string): Promise<PurchaseOrderPackaging[]>;
 };
+export type PurchaseOrderSupplierContext = { supplierId: string; paymentCondition: "CASH" | "CREDIT" | "TRANSFER" | "OTHER"; paymentTermDays: number | null; balance: string; overdueBalance: string; lastOrder: { id: string; number: string | null; orderDate: string; total: string; status: PurchaseOrderStatus } | null; openOrdersCount: number; averageLeadTimeDays: number | null; productCount: number };

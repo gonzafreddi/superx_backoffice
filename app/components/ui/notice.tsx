@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 type NoticeProps = {
-  kind: "success" | "error";
+  kind: "success" | "error" | "info";
   role?: "status" | "alert";
   label?: ReactNode;
   children: ReactNode;

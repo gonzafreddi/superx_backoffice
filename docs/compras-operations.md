@@ -17,6 +17,12 @@ La interfaz consulta el usuario guardado por inicio de sesión y sólo habilita 
 - Verificar manualmente con backend: crear con una presentación del proveedor, crear con carga manual, editar una orden en borrador, confirmar y cancelar. El backend es la fuente de verdad de totales y transiciones.
 # Órdenes de compra y recepciones
 
+## Editor de OC
+
+El editor permite cargar proveedor, depósito, fecha de orden y entrega, condición y plazo de pago, vencimiento, referencia, notas, flete y otros cargos. Al elegir proveedor muestra su contexto de deuda, últimas compras y plazo habitual; el plazo completa el vencimiento hasta que éste se modifica manualmente. Las líneas admiten presentación manual o del proveedor, packs enteros, descuento en pesos e IVA por línea.
+
+`Ctrl+S` / `Cmd+S` guarda el borrador. La barra superior permite confirmar (sin movimiento de stock hasta la recepción), duplicar o eliminar un borrador y descartar cambios. En una OC confirmada sólo quedan editables entrega esperada, referencia y notas.
+
 - Una orden se crea como borrador; al confirmarla ya no se cambian líneas. La edición confirmada queda limitada a referencia, fecha esperada y notas según el backend.
 - La recepción se realiza en `/compras/:id/recibir`, siempre en packs y contra una ubicación activa del depósito de la orden. Las unidades mostradas usan el snapshot `unitsPerPack` de la línea.
 - La recepción parcial actualiza pedido, recibido y pendiente por línea. Un exceso requiere autorización explícita y motivo de al menos cinco caracteres; el backend es la autoridad final ante carreras de concurrencia.
