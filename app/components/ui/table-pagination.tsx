@@ -4,7 +4,7 @@ type TablePaginationProps = {
   page: number;
   pageSize: number;
   total: number;
-  label: ReactNode;
+  label?: ReactNode;
   onPrev: () => void;
   onNext: () => void;
   buttonClassName: string;

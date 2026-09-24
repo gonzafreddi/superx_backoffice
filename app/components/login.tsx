@@ -21,9 +21,10 @@ export function Login({ signIn = loginRequest }: { signIn?: Login }) {
     setError(null);
     setPending(true);
     try {
-      await signIn(email.trim(), password);
+      const user = await signIn(email.trim(), password);
       const next = searchParams.get("next");
-      router.replace(next && next.startsWith("/") ? next : "/tablero");
+      const roleHome: Record<string, string> = { warehouse: "/deposito", picker: "/picking", driver: "/reparto", admin: "/tablero" };
+      router.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : roleHome[user.role] ?? "/tablero");
     } catch (cause) {
       setError(cause instanceof AuthApiError ? cause.message : "No pudimos iniciar sesión. Revisá tu conexión.");
     } finally {

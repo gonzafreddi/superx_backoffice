@@ -1,4 +1,6 @@
 export type AdminUser = { id: string; email: string; role: string; name: string | null };
+export type ManagedUser = AdminUser & { createdAt: string };
+export type UserRole = "customer" | "admin" | "picker" | "driver" | "warehouse";
 
 export class AuthApiError extends Error {
   constructor(message: string, readonly status?: number) {
@@ -134,4 +136,27 @@ export async function login(email: string, password: string, signal?: AbortSigna
   persist(TOKEN_KEY, payload.accessToken);
   persist(USER_KEY, JSON.stringify(user));
   return user;
+}
+
+function authMessage(payload: unknown): string {
+  const message = payload && typeof payload === "object" ? (payload as { message?: unknown }).message : undefined;
+  return typeof message === "string" ? message : Array.isArray(message) ? message.filter((part): part is string => typeof part === "string").join(" ") : "No pudimos completar la operación.";
+}
+
+export async function listUsers(filters: { q?: string; role?: UserRole | ""; page?: number; pageSize?: number } = {}): Promise<{ items: ManagedUser[]; total: number; page: number; pageSize: number }> {
+  if (!baseUrl()) return { items: [{ id: "fixture-admin", email: "admin@superx.local", name: "Administración", role: "admin", createdAt: new Date().toISOString() }, { id: "fixture-warehouse", email: "deposito@superx.local", name: "Equipo Depósito", role: "warehouse", createdAt: new Date().toISOString() }], total: 2, page: 1, pageSize: 20 };
+  const params = new URLSearchParams({ page: String(filters.page ?? 1), pageSize: String(filters.pageSize ?? 50) });
+  if (filters.q) params.set("q", filters.q); if (filters.role) params.set("role", filters.role);
+  const response = await fetch(`${baseUrl()!.replace(/\/$/, "")}/api/auth/users?${params}`, { headers: { Accept: "application/json", ...authHeaders() } });
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) throw new AuthApiError(response.status === 403 ? "No tenés permiso para gestionar usuarios." : authMessage(payload), response.status);
+  return payload as { items: ManagedUser[]; total: number; page: number; pageSize: number };
+}
+
+export async function updateUserRole(id: string, role: UserRole): Promise<ManagedUser> {
+  if (!baseUrl()) return { id, email: id === "fixture-admin" ? "admin@superx.local" : "deposito@superx.local", name: null, role, createdAt: new Date().toISOString() };
+  const response = await fetch(`${baseUrl()!.replace(/\/$/, "")}/api/auth/users/${encodeURIComponent(id)}/role`, { method: "PATCH", headers: { Accept: "application/json", "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ role }) });
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) throw new AuthApiError(authMessage(payload), response.status);
+  return payload as ManagedUser;
 }

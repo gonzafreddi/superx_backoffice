@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { getAccessToken, getStoredUser, logout } from "@/app/lib/auth-api";
+import { receivingApi } from "@/app/lib/receiving-api";
 
 const navGroups = [
   { label: "Operación", items: [
@@ -13,11 +14,12 @@ const navGroups = [
     { href: "/productos", label: "Productos", icon: "box" }, { href: "/precios", label: "Precios", icon: "tag" }, { href: "/inventario", label: "Inventario", icon: "shelves" }, { href: "/ubicaciones", label: "Ubicaciones", icon: "pin" },
   ] },
   { label: "Compras y proveedores", items: [
-    { href: "/proveedores", label: "Proveedores", icon: "supplier" }, { href: "/compras", label: "Compras", icon: "purchase" }, { href: "/facturas", label: "Facturas", icon: "invoice" }, { href: "/pagos", label: "Pagos", icon: "payment" },
+    { href: "/proveedores", label: "Proveedores", icon: "supplier" }, { href: "/compras", label: "Compras", icon: "purchase" }, { href: "/deposito", label: "Por recibir", icon: "warehouse" }, { href: "/facturas", label: "Facturas", icon: "invoice" }, { href: "/pagos", label: "Pagos", icon: "payment" },
   ] },
   { label: "Finanzas", items: [
     { href: "/gastos", label: "Gastos", icon: "expense" }, { href: "/inversiones", label: "Inversiones", icon: "asset" }, { href: "/tesoreria", label: "Tesorería", icon: "treasury" },
   ] },
+  { label: "Administración", items: [{ href: "/usuarios", label: "Usuarios", icon: "users" }] },
 ];
 const items = navGroups.flatMap((group) => group.items);
 
@@ -29,6 +31,7 @@ function NavIcon({ name }: { name: string }) {
     chart: <path {...props} d="M4 19V10M10 19V5M16 19v-7M22 19H2" />, box: <><path {...props} d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path {...props} d="m4 7.5 8 4.5 8-4.5M12 12v9" /></>,
     tag: <><path {...props} d="M20 13.5 13.5 20a2 2 0 0 1-2.8 0L4 13.3V4h9.3l6.7 6.7a2 2 0 0 1 0 2.8Z" /><path {...props} d="M8 8h.01" /></>, shelves: <path {...props} d="M4 4h16v16H4zM4 10h16M8 4v6M16 4v6M8 10v10M16 10v10" />,
     pin: <><path {...props} d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" /><circle {...props} cx="12" cy="10" r="2.5" /></>, supplier: <><path {...props} d="M4 7h16v13H4zM8 7V4h8v3M8 12h8M8 16h5" /></>, purchase: <><path {...props} d="M4 5h16v15H4z" /><path {...props} d="M8 3v4M16 3v4M7 11h10M7 15h6" /></>, treasury: <><path {...props} d="M4 7h16v13H4zM7 7V4h10v3M8 12h8M8 16h3M14 16h2" /></>, receipt: <><path {...props} d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" /><path {...props} d="M9 8h6M9 12h6" /></>, truck: <><path {...props} d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" /><circle {...props} cx="7" cy="18" r="2" /><circle {...props} cx="18" cy="18" r="2" /></>,
+    warehouse: <><path {...props} d="M3 10 12 4l9 6v10H3V10Z"/><path {...props} d="M7 13h10v7M9 13v7M15 13v7"/></>, users: <><circle {...props} cx="9" cy="8" r="3"/><path {...props} d="M3 20c0-4 2-6 6-6s6 2 6 6M16 5a3 3 0 0 1 0 6M17 14c3 .4 4 2.4 4 6"/></>,
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -39,6 +42,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
+  const [pendingReceipts, setPendingReceipts] = useState<number | null>(null);
   const openCommand = () => { setCommandQuery(""); setCommandOpen(true); };
   const closeCommand = () => { setCommandOpen(false); setCommandQuery(""); };
   const normalizedQuery = commandQuery.trim().toLocaleLowerCase("es-AR");
@@ -56,10 +60,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
     }, 0);
   }, [router]);
   useEffect(() => { const onKeyDown = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); openCommand(); } if (event.key === "Escape") closeCommand(); }; window.addEventListener("keydown", onKeyDown); return () => window.removeEventListener("keydown", onKeyDown); }, []);
+  useEffect(() => { if (!ready) return; let active = true; void receivingApi.list({ status: "pending", pageSize: 1 }).then((result) => { if (active) setPendingReceipts(result.total); }).catch(() => undefined); return () => { active = false; }; }, [pathname, ready]);
 
   if (!ready) return null;
 
   const user = getStoredUser();
+  if (process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL && user?.role === "warehouse") return <main className="access-denied-shell"><section className="access-denied-card"><p className="eyebrow">ACCESO LIMITADO</p><h1>No tenés acceso a esta sección</h1><p>Tu cuenta está configurada para el área de Depósito.</p><Link className="button primary" href="/deposito">Ir a Depósito</Link><button className="button ghost" onClick={() => { logout(); router.replace("/login"); }}>Cambiar de cuenta</button></section></main>;
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const activeItem = items.find((item) => isActive(item.href));
   const userInitial = user?.email?.charAt(0).toUpperCase() ?? "S";
@@ -74,7 +80,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <nav className="side-module-nav" aria-label="Navegación principal">{navGroups.map((group) => <section key={group.label} className="side-nav-group" aria-labelledby={`nav-${group.label.replaceAll(" ", "-")}`}>
         <h2 id={`nav-${group.label.replaceAll(" ", "-")}`}>{group.label}</h2>
         {group.items.map((item) => <Link key={item.href} className={`side-nav-link ${isActive(item.href) ? "active" : ""}`} href={item.href} aria-current={isActive(item.href) ? "page" : undefined} title={item.label}>
-          <span className="nav-icon"><NavIcon name={item.icon} /></span><span>{item.label}</span>
+          <span className="nav-icon"><NavIcon name={item.icon} /></span><span>{item.label}</span>{item.href === "/deposito" && pendingReceipts !== null && <b className="side-count" aria-label={`${pendingReceipts} recepciones pendientes`}>{pendingReceipts}</b>}
         </Link>)}
       </section>)}</nav>
       <div className="side-nav-actions">
