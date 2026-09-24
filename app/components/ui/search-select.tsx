@@ -1,35 +1,35 @@
 "use client";
-/* eslint-disable jsx-a11y/role-has-required-aria-props */
+/* eslint-disable jsx-a11y/role-has-required-aria-props, react-hooks/set-state-in-effect */
 
-import { useId, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useRef, useState } from "react";
 
-export function SearchSelect<T extends { id: string; name: string }>({
-  value,
-  options,
-  onChange,
-  onSearch,
-  placeholder = "Buscar…",
-  disabled = false,
-}: {
+type SearchSelectProps<T extends { id: string; name: string }> = {
   value: string;
   options: T[];
   onChange: (value: string) => void;
   onSearch?: (query: string) => void;
   placeholder?: string;
   disabled?: boolean;
-}) {
+  onCreate?: (query: string) => void;
+  createLabel?: (query: string) => string;
+};
+
+function SearchSelectInner<T extends { id: string; name: string }>({ value, options, onChange, onSearch, placeholder = "Buscar…", disabled = false, onCreate, createLabel }: SearchSelectProps<T>, forwardedRef: React.ForwardedRef<HTMLInputElement>) {
   const [query, setQuery] = useState(options.find((option) => option.id === value)?.name ?? "");
   const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState(false);
   const [active, setActive] = useState(0);
   const listId = useId();
   const timer = useRef<number | null>(null);
   const selectedName = options.find((option) => option.id === value)?.name ?? "";
+  useEffect(() => { setQuery(selectedName); }, [selectedName]);
   const optionId = (index: number) => `${listId}-option-${index}`;
-  const visible = options.filter((option) =>
-    option.name.toLocaleLowerCase("es-AR").includes(query.toLocaleLowerCase("es-AR")),
-  );
+  const needle = typed ? query.trim().toLocaleLowerCase("es-AR") : "";
+  const visible = options.filter((option) => option.name.toLocaleLowerCase("es-AR").includes(needle));
+  const exactMatch = options.some((option) => option.name.trim().toLocaleLowerCase("es-AR") === query.trim().toLocaleLowerCase("es-AR"));
   const search = (next: string) => {
     setQuery(next);
+    setTyped(true);
     setOpen(true);
     setActive(0);
     if (timer.current) window.clearTimeout(timer.current);
@@ -38,6 +38,7 @@ export function SearchSelect<T extends { id: string; name: string }>({
   return (
     <div className="poe-search-select">
       <input
+        ref={forwardedRef}
         role="combobox"
         aria-autocomplete="list"
         aria-controls={listId}
@@ -47,9 +48,10 @@ export function SearchSelect<T extends { id: string; name: string }>({
         value={query}
         placeholder={placeholder}
         onChange={(event) => search(event.target.value)}
-        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
         onBlur={() => {
           setOpen(false);
+          setTyped(false);
           setQuery(selectedName);
         }}
         onKeyDown={(event) => {
@@ -65,8 +67,13 @@ export function SearchSelect<T extends { id: string; name: string }>({
           if (event.key === "Enter" && visible[active]) {
             event.preventDefault();
             onChange(visible[active].id);
-            setQuery(visible[active].name);
+            setQuery(visible[active].name); setTyped(false);
             setOpen(false);
+          }
+          if (event.key === "Enter" && !visible[active] && onCreate) {
+            event.preventDefault();
+            setOpen(false);
+            onCreate(query.trim());
           }
           if (event.key === "Escape") {
             setOpen(false);
@@ -87,7 +94,7 @@ export function SearchSelect<T extends { id: string; name: string }>({
                 onMouseDown={(event) => {
                   event.preventDefault();
                   onChange(option.id);
-                  setQuery(option.name);
+                  setQuery(option.name); setTyped(false);
                   setOpen(false);
                 }}
               >
@@ -99,8 +106,11 @@ export function SearchSelect<T extends { id: string; name: string }>({
               Sin resultados
             </li>
           )}
+          {onCreate && !(typed && exactMatch) && <li role="option" className="poe-create-option" onMouseDown={(event) => { event.preventDefault(); setOpen(false); onCreate(typed ? query.trim() : ""); }}>＋ {createLabel?.(typed ? query.trim() : "") ?? "Crear nuevo"}</li>}
         </ul>
       )}
     </div>
   );
 }
+
+export const SearchSelect = forwardRef(SearchSelectInner) as <T extends { id: string; name: string }>(props: SearchSelectProps<T> & { ref?: React.ForwardedRef<HTMLInputElement> }) => React.ReactElement;

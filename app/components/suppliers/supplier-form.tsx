@@ -11,8 +11,8 @@ export const emptySupplierForm: SupplierFormValues = { name: "", legalName: "", 
 export const supplierToForm = (supplier?: Supplier | null): SupplierFormValues => supplier ? { name: supplier.name, legalName: supplier.legalName ?? "", taxId: supplier.taxId ?? "", contactName: supplier.contactName ?? "", phone: supplier.phone ?? "", email: supplier.email ?? "", address: supplier.address ?? "", paymentTermDays: supplier.paymentTermDays?.toString() ?? "", paymentCondition: supplier.paymentCondition, status: supplier.status, notes: supplier.notes ?? "" } : emptySupplierForm;
 export const formToInput = (form: SupplierFormValues): SupplierInput => ({ ...form, paymentTermDays: form.paymentTermDays === "" ? null : Number(form.paymentTermDays), status: form.status as SupplierStatus });
 
-export function SupplierDialog({ supplier, pending, onClose, onSubmit }: { supplier?: Supplier | null; pending: boolean; onClose: () => void; onSubmit: (input: SupplierInput) => void }) {
-  const [form, setForm] = useState<SupplierFormValues>(() => supplierToForm(supplier)); const [errors, setErrors] = useState<Record<string, string>>({}); const [errorTick, setErrorTick] = useState(0); const errorRef = useRef<HTMLDivElement>(null);
+export function SupplierDialog({ supplier, initialName = "", pending, onClose, onSubmit }: { supplier?: Supplier | null; initialName?: string; pending: boolean; onClose: () => void; onSubmit: (input: SupplierInput) => void }) {
+  const [form, setForm] = useState<SupplierFormValues>(() => ({ ...supplierToForm(supplier), ...(!supplier && initialName ? { name: initialName } : {}) })); const [errors, setErrors] = useState<Record<string, string>>({}); const [errorTick, setErrorTick] = useState(0); const errorRef = useRef<HTMLDivElement>(null);
   // Only move focus to the error summary right after a failed submit, not on every
   // keystroke — `change()` below also touches `errors` (to clear a field's message
   // as the user retypes it), which would otherwise steal focus back mid-typing.

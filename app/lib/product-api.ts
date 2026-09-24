@@ -26,7 +26,8 @@ async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> 
   const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
   const payload: unknown = await response.json().catch(() => undefined);
   if (!response.ok) {
-    const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";
+    const rawMessage = payload && typeof payload === "object" ? (payload as { message?: unknown }).message : undefined;
+    const message = typeof rawMessage === "string" ? rawMessage : Array.isArray(rawMessage) ? rawMessage.filter((item): item is string => typeof item === "string").join(" ") : "No pudimos completar la operación.";
     throw new Error(response.status === 401 || response.status === 403 ? "No tenés permiso para hacer esto. Iniciá sesión con una cuenta de administración." : message);
   }
   return payload;
@@ -81,7 +82,7 @@ export const productApi: ProductApi = {
   },
   async listProductPage(filters: ProductFilters = {}): Promise<ProductPage> {
     const url = baseUrl();
-    if (!url) { await wait(); const query = filters.query?.toLocaleLowerCase("es-AR").trim() ?? ""; let items = products.filter((p) => (!query || [p.name, p.sku, p.barcode].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.categoryId || p.categoryId === filters.categoryId) && (!filters.brandId || p.brandId === filters.brandId) && (!filters.status || filters.status === "all" || (filters.status === "active" ? p.active : !p.active)) && (!filters.stock || filters.stock === "all" || (filters.stock === "in_stock" ? (p.availableStock ?? 0) > 0 : (p.availableStock ?? 0) === 0))); const pageSize = filters.pageSize ?? 25; const page = filters.page ?? 1; if (filters.sort === "name_desc") items = [...items].sort((a, b) => b.name.localeCompare(a.name, "es-AR")); if (filters.sort === "newest") items = [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pageSize }; }
+    if (!url) { await wait(); const query = filters.query?.toLocaleLowerCase("es-AR").trim() ?? ""; let items = products.filter((p) => (!query || [p.name, p.sku, p.barcode].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.categoryId || p.categoryId === filters.categoryId) && (!filters.brandId || p.brandId === filters.brandId) && (!filters.status || filters.status === "all" || (filters.status === "active" ? p.active : !p.active)) && (!filters.stock || filters.stock === "all" || (filters.stock === "in_stock" ? (p.availableStock ?? 0) > 0 : (p.availableStock ?? 0) === 0))); const pageSize = filters.pageSize ?? 25; const page = filters.page ?? 1; if (filters.sort === "name_asc") items = [...items].sort((a, b) => a.name.localeCompare(b.name, "es-AR")); if (filters.sort === "name_desc") items = [...items].sort((a, b) => b.name.localeCompare(a.name, "es-AR")); if (filters.sort === "newest") items = [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); if (filters.sort === "oldest") items = [...items].sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)); return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pageSize }; }
     const root = url.replace(/\/$/, "");
     const params = new URLSearchParams({ pageSize: String(filters.pageSize ?? 25), page: String(filters.page ?? 1), includeInactive: "true", sort: filters.sort ?? "name_asc" });
     if (filters.query?.trim()) params.set("q", filters.query.trim());
@@ -89,6 +90,7 @@ export const productApi: ProductApi = {
     if (filters.brandId) params.set("brandId", filters.brandId);
     if (filters.stock === "in_stock") params.set("inStock", "true");
     if (filters.stock === "out_of_stock") params.set("inStock", "false");
+    if (!filters.stock || filters.stock === "all") params.set("includeStock", "true");
     const [productsPayload, unitsList] = await Promise.all([
       fetchJson(`${root}/products?${params}`),
       this.listUnits(),

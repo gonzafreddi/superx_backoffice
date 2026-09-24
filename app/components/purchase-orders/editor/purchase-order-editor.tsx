@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Notice } from "@/app/components/ui/notice";
 import { SearchSelect } from "@/app/components/ui/search-select";
+import { ProductQuickCreateDialog } from "@/app/components/products/product-quick-create-dialog";
+import { SupplierDialog } from "@/app/components/suppliers/supplier-form";
 import { getStoredUser } from "@/app/lib/auth-api";
 import { locationApi } from "@/app/lib/location-api";
 import { purchaseOrderApi } from "@/app/lib/purchase-order-api";
@@ -126,6 +128,8 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
     [dialog, setDialog] = useState<"confirm" | "delete" | "discard" | null>(null),
     [packagingNotice, setPackagingNotice] = useState(false),
     [duplicateSkipped, setDuplicateSkipped] = useState<string[]>([]);
+  const [supplierDialog, setSupplierDialog] = useState<string | null>(null), [supplierPending, setSupplierPending] = useState(false), [quickProduct, setQuickProduct] = useState<{ index: number; query: string } | null>(null), [focusPacks, setFocusPacks] = useState<{ index: number; token: number } | null>(null);
+  const supplierTrigger = useRef<HTMLInputElement | HTMLButtonElement | null>(null), productTrigger = useRef<HTMLInputElement | null>(null);
   const timers = useRef<Record<number, number>>({});
   const dirty = isDirty(initial, form);
   const readOnly = order?.status === "CONFIRMED";
@@ -144,7 +148,7 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
         setSuppliers(supplierResult.items.map(({ id, name }) => ({ id, name })));
         const active = warehouseResult.filter((item) => item.isActive !== false).map(({ id, name }) => ({ id, name }));
         setWarehouses(active);
-        const next = loaded ? fromOrder(loaded) : { ...blank(), warehouseId: active.length === 1 ? active[0].id : "" };
+        const next = loaded ? fromOrder(loaded) : { ...blank(), warehouseId: (warehouseResult.find((item) => item.isPrimary && item.isActive !== false && item.status === "ACTIVE") ?? (active.length === 1 ? active[0] : null))?.id ?? "" };
         setOrder(loaded);
         setForm(next);
         setInitial(next);
@@ -417,7 +421,8 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
             <div className="poe-fields">
             <label>
               Proveedor *
-              <SearchSelect
+              <div className="poe-supplier-field"><SearchSelect
+                ref={(element) => { if (element) supplierTrigger.current = element; }}
                 value={form.supplierId}
                 options={suppliers}
                 disabled={readOnly}
@@ -431,7 +436,9 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
                   );
                   setPackagingNotice(clear);
                 }}
-              />
+                onCreate={(query) => setSupplierDialog(query)}
+                createLabel={(query) => query ? `Crear proveedor «${query}»` : "Nuevo proveedor"}
+              /><button type="button" className="button ghost poe-new-supplier" disabled={readOnly} onClick={(event) => { supplierTrigger.current = event.currentTarget; setSupplierDialog(""); }} aria-label="Nuevo proveedor" title="Nuevo proveedor">＋</button></div>
             </label>
             <label>
               Depósito *
@@ -562,6 +569,8 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
                 form.lines.filter((_, current) => current !== index),
               )
             }
+            onCreateProduct={(index, query, trigger) => { productTrigger.current = trigger; setQuickProduct({ index, query }); }}
+            focusPacks={focusPacks}
           />
         </main>
         <OrderSummary
@@ -625,6 +634,10 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
           </section>
         </div>
       )}
+      {supplierDialog !== null && (
+        <SupplierDialog initialName={supplierDialog} pending={supplierPending} onClose={() => { setSupplierDialog(null); window.setTimeout(() => supplierTrigger.current?.focus(), 0); }} onSubmit={(input) => { setSupplierPending(true); setError(""); void supplierApi.createSupplier(input).then((created) => { setSuppliers((current) => [...current, { id: created.id, name: created.name }]); patch("supplierId", created.id); setSupplierDialog(null); window.setTimeout(() => supplierTrigger.current?.focus(), 0); }).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "No se pudo crear el proveedor.")).finally(() => setSupplierPending(false)); }}/>
+      )}
+      {quickProduct && <ProductQuickCreateDialog initialName={quickProduct.query} supplierId={form.supplierId} onClose={() => { setQuickProduct(null); window.setTimeout(() => productTrigger.current?.focus(), 0); }} onCreated={(product, packaging, costPerPackage) => { const index = quickProduct.index; updateLine(index, { product: { id: product.id, name: product.name, slug: product.slug }, query: product.name, results: [], packagingId: packaging?.id ?? "", packagingName: packaging?.name ?? "", unitsPerPack: packaging ? String(packaging.unitsPerPack) : "", costPerPackage: packaging ? (costPerPackage ?? "") : "", packagings: packaging ? [{ id: packaging.id, name: packaging.name, unitsPerPack: packaging.unitsPerPack, isDefault: true, isActive: true, equivalence: `1 ${packaging.name} = ${packaging.unitsPerPack} unidades` }] : [] }); setQuickProduct(null); setFocusPacks({ index, token: Date.now() }); }} />}
     </section>
   );
 }

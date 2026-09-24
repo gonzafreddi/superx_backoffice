@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { money } from "../purchase-order-ui";
 import { previewPurchaseOrderLine } from "@/app/lib/purchase-order-rules";
 import type { Line } from "./types";
@@ -12,6 +13,8 @@ export function OrderLines({
   onSelectPackaging,
   onAdd,
   onRemove,
+  onCreateProduct,
+  focusPacks,
 }: {
   lines: Line[];
   errors: Record<string, string>;
@@ -23,7 +26,11 @@ export function OrderLines({
   onSelectPackaging: (index: number, id: string) => void;
   onAdd: () => void;
   onRemove: (index: number) => void;
+  onCreateProduct: (index: number, query: string, trigger: HTMLInputElement) => void;
+  focusPacks: { index: number; token: number } | null;
 }) {
+  const packRefs = useRef<Array<HTMLInputElement | null>>([]);
+  useEffect(() => { if (focusPacks) packRefs.current[focusPacks.index]?.focus(); }, [focusPacks]);
   return (
     <section className="poe-lines">
       <header>
@@ -64,13 +71,14 @@ export function OrderLines({
                         placeholder="Buscar producto"
                         onChange={(event) => onSearch(index, event.target.value)}
                       />
-                      {line.results.length > 0 && (
+                      {line.query.trim() && !line.product && (
                         <div className="poe-product-results">
-                          {line.results.map((product) => (
+                          {line.results.length ? line.results.map((product) => (
                             <button type="button" key={product.id} onClick={() => onSelectProduct(index, product)}>
                               {product.name}
                             </button>
-                          ))}
+                          )) : <span>Sin resultados</span>}
+                          <button type="button" className="poe-create-product" onMouseDown={(event) => { event.preventDefault(); onCreateProduct(index, line.query.trim(), event.currentTarget.closest("td")?.querySelector("input") as HTMLInputElement); }}>＋ Crear producto «{line.query.trim()}»</button>
                         </div>
                       )}
                       {errors[`item-${index}-product`] && <small>{errors[`item-${index}-product`]}</small>}
@@ -108,6 +116,7 @@ export function OrderLines({
                     </td>
                     <td>
                       <input
+                        ref={(element) => { packRefs.current[index] = element; }}
                         aria-label={`Packs línea ${index + 1}`}
                         disabled={readOnly}
                         type="number"

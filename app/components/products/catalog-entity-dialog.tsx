@@ -1,11 +1,12 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 export function CatalogEntityDialog({ kind, pending, onClose, onSubmit }: { kind: "category" | "brand" | "unit"; pending: boolean; onClose: () => void; onSubmit: (value: { name: string; code?: string }) => Promise<void> }) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  useEffect(() => { const close = (event: KeyboardEvent) => { if (event.key === "Escape") { event.stopImmediatePropagation(); onClose(); } }; window.addEventListener("keydown", close, true); return () => window.removeEventListener("keydown", close, true); }, [onClose]);
   const labels = { category: "categoría", brand: "marca", unit: "unidad de venta" } as const;
   const submit = async (event: FormEvent) => { event.preventDefault(); const cleanName = name.trim(); const cleanCode = code.trim().toUpperCase(); if (!cleanName) { setError(`Ingresá el nombre de la ${labels[kind]}.`); return; } if (kind === "unit" && !cleanCode) { setError("Ingresá un código corto para la unidad."); return; } setError(""); try { await onSubmit({ name: cleanName, ...(kind === "unit" ? { code: cleanCode } : {}) }); } catch (cause) { setError(cause instanceof Error ? cause.message : `No se pudo crear la ${labels[kind]}.`); } };
   return <div className="modal-backdrop"><section className="modal catalog-entity-modal" role="dialog" aria-modal="true" aria-labelledby="catalog-entity-title"><header><div><p className="eyebrow">CATÁLOGO / CREACIÓN RÁPIDA</p><h2 id="catalog-entity-title">Nueva {labels[kind]}</h2></div><button type="button" className="icon-button" aria-label="Cerrar" onClick={onClose}>×</button></header><form onSubmit={(event) => void submit(event)}><label className="field"><span>Nombre *</span><input autoFocus maxLength={kind === "unit" ? 60 : 120} value={name} onChange={(event) => { setName(event.target.value); setError(""); }} placeholder={kind === "category" ? "Ej. Limpieza" : kind === "brand" ? "Ej. La Serenísima" : "Ej. Paquete"} /></label>{kind === "unit" && <label className="field"><span>Código *</span><input maxLength={16} value={code} onChange={(event) => { setCode(event.target.value.toUpperCase()); setError(""); }} placeholder="Ej. PAQ" /></label>}{error && <p className="field-error" role="alert">{error}</p>}<p className="catalog-entity-help">Al crearla quedará seleccionada automáticamente en el producto.</p><footer><button type="button" className="button ghost" onClick={onClose} disabled={pending}>Cancelar</button><button className="button primary" disabled={pending}>{pending ? "Creando…" : `Crear ${labels[kind]}`}</button></footer></form></section></div>;
