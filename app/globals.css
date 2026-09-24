@@ -1107,3 +1107,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .poe-fields label .poe-search-select ul { min-width: 260px; color: var(--ink); font-size: 13px; font-weight: 400; letter-spacing: normal; text-transform: none; }
 .poe-supplier-field .poe-new-supplier { min-width: 40px; padding-inline: 0; justify-content: center; font-size: 18px; line-height: 1; }
 .poe-lines td:nth-child(3) input, .poe-lines td:nth-child(4) input { min-width: 58px; text-align: right; }
+.backoffice-main > .access-denied-card { margin: 48px auto; }
+@media (max-width: 1024px) {
+  /* The count badge is the last child, so hide the label explicitly and pin the badge on the icon. */
+  .side-nav-link > .nav-label { display: none; }
+  .side-nav-link { position: relative; }
+  .side-nav-link > .side-count { position: absolute; top: 2px; right: 2px; min-width: 16px; margin: 0; padding: 1px 4px; font-size: 9px; }
+}
+.backoffice-main > .access-denied-card { align-self: start; align-content: start; height: auto; }

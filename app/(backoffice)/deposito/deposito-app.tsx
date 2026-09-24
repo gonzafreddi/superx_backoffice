@@ -4,9 +4,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { getStoredUser, logout } from "../lib/auth-api";
-import { receivingApi, ReceivingApiError } from "../lib/receiving-api";
-import type { ReceivingDetail, ReceivingHeader, ReceivingStatus } from "../lib/receiving-contract";
+import { getStoredUser, logout } from "@/app/lib/auth-api";
+import { receivingApi, ReceivingApiError } from "@/app/lib/receiving-api";
+import type { ReceivingDetail, ReceivingHeader, ReceivingStatus } from "@/app/lib/receiving-contract";
 import {
   isLocationConflict,
   receivingErrorMessage,
@@ -16,8 +16,8 @@ import {
   receivingSummary,
   REJECTION_REASONS,
   validateReceiving,
-} from "../lib/receiving-rules.js";
-import { stableIdempotencyKey } from "../lib/purchase-order-rules.js";
+} from "@/app/lib/receiving-rules.js";
+import { stableIdempotencyKey } from "@/app/lib/purchase-order-rules.js";
 import styles from "./deposito.module.css";
 
 type LineValue = {
