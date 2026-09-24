@@ -34,10 +34,10 @@ export function EditorHeader({
   return (
     <header className="poe-header">
       <div className="poe-title">
-        <Link href={id ? `/compras/${id}` : "/compras"}>← Compras</Link>
-        <strong>{id ? (number ?? "Orden de compra") : "Nueva orden de compra"}</strong>
+        <Link className="poe-back" href={id ? `/compras/${id}` : "/compras"}>← Compras</Link>
+        <div className="poe-title-copy"><span>{id ? "Editar orden" : "Nueva orden de compra"}</span><strong>{id ? (number ?? "Orden de compra") : "Orden sin número"}</strong></div>
         <OrderStatusBadge status={status} />
-        <small>{saved}</small>
+        <small className="poe-saved" aria-live="polite">{saved || (readonly ? "Documento confirmado" : "Borrador sin confirmar")}</small>
       </div>
       <div className="poe-actions">
         <div className="location-menu">
@@ -70,6 +70,7 @@ export function EditorHeader({
         </div>
         <button className="button secondary" type="button" disabled={Boolean(pending)} onClick={onSave}>
           {pending === "save" ? "Guardando…" : readonly ? "Guardar cambios" : "Guardar borrador"}
+          {!pending && <kbd>⌘S</kbd>}
         </button>
         {!readonly && (
           <button className="button primary" type="button" disabled={Boolean(pending)} onClick={onConfirm}>

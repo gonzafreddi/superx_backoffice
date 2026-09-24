@@ -411,8 +411,10 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
         </Notice>
       )}
       <div className="poe-layout">
-        <main>
-          <div className="poe-fields">
+        <main className="poe-main">
+          <section className="poe-document">
+            <header><div><span>Datos comerciales</span><h2>Información de la orden</h2></div><small>Los campos con * son obligatorios</small></header>
+            <div className="poe-fields">
             <label>
               Proveedor *
               <SearchSelect
@@ -523,7 +525,8 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
                 onChange={(event) => patch("notes", event.target.value)}
               />
             </label>
-          </div>
+            </div>
+          </section>
           <SupplierContext
             context={context}
             loading={contextLoading}

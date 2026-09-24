@@ -17,6 +17,7 @@ export function OrderSummary({
 }) {
   return (
     <aside className="poe-summary">
+      <header><span>Resumen</span><strong>Total de la orden</strong></header>
       <div>
         <span>Subtotal</span>
         <strong>{money(summary.subtotal)}</strong>

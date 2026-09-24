@@ -11,7 +11,8 @@ test("la orden requiere proveedor, depósito, líneas y cantidades positivas", (
   const errors = validatePurchaseOrderInput({ supplierId: "", warehouseId: "", items: [] });
   assert.match(errors.supplierId, /proveedor/); assert.match(errors.warehouseId, /depósito/); assert.match(errors.items, /línea/);
   assert.match(validatePurchaseOrderInput({ supplierId: "s", warehouseId: "w", items: [{ productId: "p", packagingName: "Caja", unitsPerPack: 6, packageQuantity: 0, costPerPackage: 1 }] })["item-0-quantity"], /positiva/);
-  assert.deepEqual(validatePurchaseOrderInput({ supplierId: "s", warehouseId: "w", items: [{ productId: "p", packagingName: "Caja", unitsPerPack: 6, packageQuantity: 1, costPerPackage: 0 }] }), {});
+  assert.match(validatePurchaseOrderInput({ supplierId: "s", warehouseId: "w", items: [{ productId: "p", packagingName: "Caja", unitsPerPack: 6, packageQuantity: 1, costPerPackage: 0 }] })["item-0-cost"], /mayor que cero/);
+  assert.deepEqual(validatePurchaseOrderInput({ supplierId: "s", warehouseId: "w", items: [{ productId: "p", packagingName: "Caja", unitsPerPack: 6, packageQuantity: 1, costPerPackage: 1 }] }), {});
 });
 
 test("resume líneas, cargos e IVA calculado después del descuento", () => {

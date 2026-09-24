@@ -28,9 +28,10 @@ export function OrderLines({
     <section className="poe-lines">
       <header>
         <div>
-          <span>LÍNEAS</span>
+          <span>Productos</span>
           <h2>Productos a comprar</h2>
         </div>
+        <span className="poe-line-count">{lines.length} {lines.length === 1 ? "línea" : "líneas"}</span>
       </header>
       <div className="poe-lines-scroll">
         <table>
@@ -103,6 +104,7 @@ export function OrderLines({
                           )}
                         </>
                       )}
+                      {errors[`item-${index}-packagingName`] && <small>{errors[`item-${index}-packagingName`]}</small>}
                     </td>
                     <td>
                       <input
@@ -114,6 +116,7 @@ export function OrderLines({
                         value={line.packageQuantity}
                         onChange={(event) => onUpdate(index, { packageQuantity: event.target.value })}
                       />
+                      {errors[`item-${index}-quantity`] && <small>{errors[`item-${index}-quantity`]}</small>}
                     </td>
                     <td>
                       <input
@@ -125,6 +128,7 @@ export function OrderLines({
                         value={line.unitsPerPack}
                         onChange={(event) => onUpdate(index, { unitsPerPack: event.target.value })}
                       />
+                      {errors[`item-${index}-units`] && <small>{errors[`item-${index}-units`]}</small>}
                     </td>
                     <td className="poe-number">{preview.unitQuantity}</td>
                     <td>
@@ -137,6 +141,7 @@ export function OrderLines({
                         value={line.costPerPackage}
                         onChange={(event) => onUpdate(index, { costPerPackage: event.target.value })}
                       />
+                      {errors[`item-${index}-cost`] && <small>{errors[`item-${index}-cost`]}</small>}
                     </td>
                     <td className="poe-number">{money(preview.unitCost)}</td>
                     <td>
@@ -149,6 +154,7 @@ export function OrderLines({
                         value={line.discountAmount}
                         onChange={(event) => onUpdate(index, { discountAmount: event.target.value })}
                       />
+                      {errors[`item-${index}-discount`] && <small>{errors[`item-${index}-discount`]}</small>}
                     </td>
                     <td>
                       <select
@@ -176,6 +182,7 @@ export function OrderLines({
                           onChange={(event) => onUpdate(index, { taxRate: event.target.value })}
                         />
                       )}
+                      {errors[`item-${index}-tax`] && <small>{errors[`item-${index}-tax`]}</small>}
                     </td>
                     <td className="poe-number">
                       <strong>{money(preview.total)}</strong>

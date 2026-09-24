@@ -60,23 +60,29 @@ export function AdminShell({ children }: { children: ReactNode }) {
   if (!ready) return null;
 
   const user = getStoredUser();
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const activeItem = items.find((item) => isActive(item.href));
+  const userInitial = user?.email?.charAt(0).toUpperCase() ?? "S";
 
   return <div className="catalog-shell">
-    <aside className="sidebar" aria-label="Navegación principal">
-      <Link className="brandmark" href="/inventario" aria-label="SuperX backoffice">
-        <span>SX</span><strong>superx</strong>
+    <a className="skip-link" href="#main-content">Saltar al contenido</a>
+    <aside className="side-navigation">
+      <Link className="brandmark" href="/administracion" aria-label="SuperX backoffice">
+        <span>SX</span><strong>superx</strong><small>Backoffice</small>
       </Link>
-      <button type="button" className="command-trigger" onClick={openCommand} aria-label="Abrir navegación rápida"><span>Ir a…</span><kbd>⌘ K</kbd></button>
-      <nav>{navGroups.map((group) => <div key={group.label} className="nav-group"><p className="nav-section-label">{group.label}</p>{group.items.map((item) => <Link key={item.href} className={`nav-item ${pathname === item.href ? "active" : ""}`} href={item.href} aria-current={pathname === item.href ? "page" : undefined}>
-        <span className="nav-icon"><NavIcon name={item.icon} /></span>{item.label}
-      </Link>)}</div>)}</nav>
-      <div className="sidebar-footer">
-        Backoffice<br /><small>SuperX</small>
-        {user && <><br /><small>{user.email}</small></>}
-        <button type="button" className="nav-item" onClick={() => { logout(); router.replace("/login"); }}>Cerrar sesión</button>
+      <button type="button" className="side-command" onClick={openCommand} aria-label="Abrir navegación rápida"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg><span>Buscar</span><kbd>⌘ K</kbd></button>
+      <nav className="side-module-nav" aria-label="Navegación principal">{navGroups.map((group) => <section key={group.label} className="side-nav-group" aria-labelledby={`nav-${group.label.replaceAll(" ", "-")}`}>
+        <h2 id={`nav-${group.label.replaceAll(" ", "-")}`}>{group.label}</h2>
+        {group.items.map((item) => <Link key={item.href} className={`side-nav-link ${isActive(item.href) ? "active" : ""}`} href={item.href} aria-current={isActive(item.href) ? "page" : undefined} title={item.label}>
+          <span className="nav-icon"><NavIcon name={item.icon} /></span><span>{item.label}</span>
+        </Link>)}
+      </section>)}</nav>
+      <div className="side-nav-actions">
+        <div className="top-user" title={user?.email ?? "SuperX"}><span>{userInitial}</span><div><strong>{user?.email?.split("@")[0] ?? "SuperX"}</strong><small>{activeItem?.label ?? "Backoffice"}</small></div></div>
+        <button type="button" className="top-logout" onClick={() => { logout(); router.replace("/login"); }} aria-label="Cerrar sesión" title="Cerrar sesión"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" /></svg></button>
       </div>
     </aside>
-    {children}
+    <main id="main-content" className="backoffice-main">{children}</main>
     {commandOpen && <div className="command-backdrop" role="presentation" onMouseDown={closeCommand}><section className="command-menu" role="dialog" aria-modal="true" aria-label="Navegación rápida" onMouseDown={(event) => event.stopPropagation()}><header><span>ACCESO RÁPIDO</span><button type="button" onClick={closeCommand} aria-label="Cerrar navegación rápida">Esc</button></header><label className="command-search"><span className="sr-only">Buscar sección</span><input autoFocus value={commandQuery} onChange={(event) => setCommandQuery(event.target.value)} placeholder="Buscar productos, compras, pedidos…" /></label><nav>{filteredItems.length ? filteredItems.map((item) => <Link key={item.href} href={item.href} className="command-link" onClick={closeCommand}><span className="nav-icon"><NavIcon name={item.icon} /></span><strong>{item.label}</strong><small>{item.href.replace("/", "")}</small></Link>) : <p className="command-empty">No encontramos secciones para “{commandQuery}”.</p>}</nav></section></div>}
   </div>;
 }

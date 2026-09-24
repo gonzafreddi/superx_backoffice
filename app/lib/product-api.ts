@@ -146,6 +146,17 @@ export const productApi: ProductApi = {
     const category = payload as RawCategory;
     return { id: category.id, name: category.name };
   },
+  async createUnit(input) {
+    const name = input.name.trim();
+    const code = input.code.trim().toUpperCase();
+    if (!name) throw new Error("Ingresá el nombre de la unidad.");
+    if (!code) throw new Error("Ingresá el código de la unidad.");
+    const url = baseUrl();
+    if (!url) { await wait(); const unit = { id: crypto.randomUUID(), name, code }; units.push(unit); return unit; }
+    const payload = await fetchJson(`${url.replace(/\/$/, "")}/units`, { method: "POST", body: JSON.stringify({ name, code }) });
+    const unit = payload as RawUnit;
+    return { id: unit.id, name: unit.name, code: unit.code };
+  },
   async createProduct(input) {
     const url = baseUrl();
     if (!url) { await wait(); const number = products.length + 1; const category = categories.find((item) => item.id === input.categoryId); const brand = brands.find((item) => item.id === input.brandId); const product: Product = { ...input, id: `prd-${String(number).padStart(3, "0")}`, slug: input.name.toLocaleLowerCase("es-AR").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""), sku: `SUP-${String(number).padStart(4, "0")}`, categoryName: category?.name ?? "Sin categoría", brandName: brand?.name ?? "Sin marca", updatedAt: new Date().toISOString(), availableStock: 0 }; products = [product, ...products]; return product; }

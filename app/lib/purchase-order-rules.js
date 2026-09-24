@@ -31,7 +31,7 @@ export function validatePurchaseOrderInput(input) {
   (input.items ?? []).forEach((item, index) => {
     if (!item.productId?.trim()) errors[`item-${index}-product`] = "Elegí un producto.";
     if (!(Number(item.packageQuantity) >= 1) || !Number.isInteger(Number(item.packageQuantity))) errors[`item-${index}-quantity`] = "La cantidad de packs debe ser positiva, entera y mayor o igual a 1.";
-    if (!(Number(item.costPerPackage) >= 0)) errors[`item-${index}-cost`] = "El costo por pack no puede ser negativo.";
+    if (!(Number(item.costPerPackage) > 0)) errors[`item-${index}-cost`] = "El costo por pack debe ser mayor que cero.";
     if (!item.packagingId && !item.packagingName?.trim()) errors[`item-${index}-packagingName`] = "Indicá la presentación.";
     if (!item.packagingId && !(Number(item.unitsPerPack) > 0)) errors[`item-${index}-units`] = "Indicá unidades por pack positivas.";
     const subtotal = Number(item.packageQuantity) * Number(item.costPerPackage);

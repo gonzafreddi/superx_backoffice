@@ -9,6 +9,44 @@ export class AuthApiError extends Error {
 
 const TOKEN_KEY = "superx.access-token";
 const USER_KEY = "superx.access-user";
+const AUTH_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+function readCookie(key: string): string | null {
+  try {
+    const prefix = `${encodeURIComponent(key)}=`;
+    const entry = document.cookie.split("; ").find((value) => value.startsWith(prefix));
+    return entry ? decodeURIComponent(entry.slice(prefix.length)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persist(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* Cookie fallback below keeps development reloads authenticated. */
+  }
+  try {
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Path=/; Max-Age=${AUTH_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
+  } catch {
+    /* Storage is optional. */
+  }
+}
+
+function removePersisted(key: string): void {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    /* Storage is optional. */
+  }
+  try {
+    document.cookie = `${encodeURIComponent(key)}=; Path=/; Max-Age=0; SameSite=Lax`;
+  } catch {
+    /* Storage is optional. */
+  }
+}
 
 function baseUrl(): string | undefined {
   return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL;
@@ -16,28 +54,36 @@ function baseUrl(): string | undefined {
 
 export function getAccessToken(): string | null {
   try {
-    return window.localStorage.getItem(TOKEN_KEY);
+    const stored = window.localStorage.getItem(TOKEN_KEY);
+    if (stored) {
+      if (!readCookie(TOKEN_KEY)) persist(TOKEN_KEY, stored);
+      return stored;
+    }
+    return readCookie(TOKEN_KEY);
   } catch {
-    return null;
+    return readCookie(TOKEN_KEY);
   }
 }
 
 export function getStoredUser(): AdminUser | null {
   try {
-    const raw = window.localStorage.getItem(USER_KEY);
+    const stored = window.localStorage.getItem(USER_KEY);
+    if (stored && !readCookie(USER_KEY)) persist(USER_KEY, stored);
+    const raw = stored ?? readCookie(USER_KEY);
     return raw ? (JSON.parse(raw) as AdminUser) : null;
   } catch {
-    return null;
+    const raw = readCookie(USER_KEY);
+    try {
+      return raw ? (JSON.parse(raw) as AdminUser) : null;
+    } catch {
+      return null;
+    }
   }
 }
 
 export function logout(): void {
-  try {
-    window.localStorage.removeItem(TOKEN_KEY);
-    window.localStorage.removeItem(USER_KEY);
-  } catch {
-    /* storage is optional */
-  }
+  removePersisted(TOKEN_KEY);
+  removePersisted(USER_KEY);
 }
 
 export function authHeaders(): Record<string, string> {
@@ -65,10 +111,8 @@ export async function login(email: string, password: string, signal?: AbortSigna
   const url = baseUrl();
   if (!url) {
     const user: AdminUser = { id: "fixture-admin", email, role: "admin", name: "Administración (fixture)" };
-    try {
-      window.localStorage.setItem(TOKEN_KEY, "fixture-token");
-      window.localStorage.setItem(USER_KEY, JSON.stringify(user));
-    } catch { /* storage is optional */ }
+    persist(TOKEN_KEY, "fixture-token");
+    persist(USER_KEY, JSON.stringify(user));
     return user;
   }
   const response = await fetch(`${url.replace(/\/$/, "")}/api/auth/login`, {
@@ -87,9 +131,7 @@ export async function login(email: string, password: string, signal?: AbortSigna
     role: String(payload.user.role ?? "customer"),
     name: typeof payload.user.name === "string" ? payload.user.name : null,
   };
-  try {
-    window.localStorage.setItem(TOKEN_KEY, payload.accessToken);
-    window.localStorage.setItem(USER_KEY, JSON.stringify(user));
-  } catch { /* storage is optional */ }
+  persist(TOKEN_KEY, payload.accessToken);
+  persist(USER_KEY, JSON.stringify(user));
   return user;
 }
