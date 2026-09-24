@@ -22,7 +22,7 @@ const navGroups = [
       { href: "/productos", label: "Productos", icon: "box" },
       { href: "/precios", label: "Precios", icon: "tag" },
       { href: "/inventario", label: "Inventario", icon: "shelves" },
-      { href: "/ubicaciones", label: "Ubicaciones", icon: "pin" },
+      // Ubicaciones/racks deferred: stock is tracked per warehouse for now (route still exists).
     ],
   },
   {
@@ -281,7 +281,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                     <NavIcon name={item.icon} />
                   </span>
                   <span className="nav-label">{item.label}</span>
-                  {item.href === "/deposito" && pendingReceipts !== null && (
+                  {item.href === "/deposito" && Boolean(pendingReceipts) && (
                     <b className="side-count" aria-label={`${pendingReceipts} recepciones pendientes`}>
                       {pendingReceipts}
                     </b>

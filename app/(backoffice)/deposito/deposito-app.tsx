@@ -40,7 +40,14 @@ const emptyValue = (): LineValue => ({
   varianceReason: "",
 });
 // expectedDate is a calendar date stored as UTC midnight: format in UTC or it shows the previous day in Argentina.
-const shortDate = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+const shortDate = new Intl.DateTimeFormat("es-AR", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+/** Stock is tracked per warehouse for now; flip to true when locations/racks are rolled out. */
+const LOCATIONS_ENABLED = false;
 const packs = (count: number) => `${count} ${count === 1 ? "pack" : "packs"}`;
 const formatDate = (value: string | null) => (value ? shortDate.format(new Date(value)) : "Sin fecha");
 
@@ -179,6 +186,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
         ]),
       ),
       locationId,
+      LOCATIONS_ENABLED,
     );
     if (!checked.valid) {
       setError(Object.values(checked.errors)[0]);
@@ -195,7 +203,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
     setBusy(true);
     try {
       const next = await receivingApi.validate(detail.purchaseOrderId, {
-        locationId,
+        ...(LOCATIONS_ENABLED && locationId ? { locationId } : {}),
         idempotencyKey,
         // Backend contract: packageQuantity = packs accepted into stock; rejected packs travel separately.
         items: detail.lines.flatMap((line) => {
@@ -206,7 +214,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
           return {
             purchaseOrderItemId: line.purchaseOrderItemId,
             packageQuantity: diff.accepted,
-            ...(value.locationId ? { locationId: value.locationId } : {}),
+            ...(LOCATIONS_ENABLED && value.locationId ? { locationId: value.locationId } : {}),
             ...(diff.extra ? { allowOverReceipt: true, varianceReason: value.varianceReason.trim() } : {}),
             ...(diff.rejected ? { rejectedPackageQuantity: diff.rejected, rejectionReason } : {}),
           };
@@ -226,7 +234,9 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
           const fresh = await receivingApi.detail(detail.purchaseOrderId);
           setDetail(fresh);
           setValues(Object.fromEntries(fresh.lines.map((line) => [line.purchaseOrderItemId, emptyValue()])));
-          setLocationId(preselectedLocation(fresh.lines) || (fresh.locations.length === 1 ? fresh.locations[0].id : ""));
+          setLocationId(
+            preselectedLocation(fresh.lines) || (fresh.locations.length === 1 ? fresh.locations[0].id : ""),
+          );
           setConfirming(false);
           setError(
             "Otra persona registró una recepción mientras controlabas. Actualizamos las cantidades; volvé a verificarlas.",
@@ -284,7 +294,11 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
           <p className={styles.eyebrow}>CONTROL FINALIZADO</p>
           <h1>Recepción registrada</h1>
           <p>
-            {successPending ? (successPending === 1 ? "Queda 1 pack pendiente." : `Quedan ${successPending} packs pendientes.`) : "La orden quedó recibida por completo."}
+            {successPending
+              ? successPending === 1
+                ? "Queda 1 pack pendiente."
+                : `Quedan ${successPending} packs pendientes.`
+              : "La orden quedó recibida por completo."}
           </p>
           <button
             className={styles.primary}
@@ -345,7 +359,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
               <button>Buscar</button>
             </div>
           </form>
-          <label>
+          {LOCATIONS_ENABLED && (<label>
             Ubicación general
             <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>
               <option value="">Seleccionar ubicación</option>
@@ -355,7 +369,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                 </option>
               ))}
             </select>
-          </label>
+          </label>)}
           <button
             className={styles.fillAll}
             onClick={() =>
@@ -410,19 +424,22 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                   <div>
                     <dt>Pedido</dt>
                     <dd>
-                      {packs(line.orderedPackages)}<small>{line.orderedUnits} u.</small>
+                      {packs(line.orderedPackages)}
+                      <small>{line.orderedUnits} u.</small>
                     </dd>
                   </div>
                   <div>
                     <dt>Ya recibido</dt>
                     <dd>
-                      {packs(line.receivedPackages)}<small>{line.receivedUnits} u.</small>
+                      {packs(line.receivedPackages)}
+                      <small>{line.receivedUnits} u.</small>
                     </dd>
                   </div>
                   <div>
                     <dt>Pendiente</dt>
                     <dd>
-                      {packs(line.pendingPackages)}<small>{line.pendingUnits} u.</small>
+                      {packs(line.pendingPackages)}
+                      <small>{line.pendingUnits} u.</small>
                     </dd>
                   </div>
                 </dl>
@@ -469,7 +486,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                     />
                   </label>
                 )}
-                <details className={styles.advanced}>
+                {LOCATIONS_ENABLED && (<details className={styles.advanced}>
                   <summary>Cambiar ubicación para esta línea</summary>
                   <select
                     aria-label={`Ubicación de ${line.product.name}`}
@@ -483,7 +500,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                       </option>
                     ))}
                   </select>
-                </details>
+                </details>)}
                 <label className={styles.rejectToggle}>
                   <input
                     type="checkbox"

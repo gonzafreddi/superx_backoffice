@@ -19,5 +19,5 @@ export type PreviousReceipt = { id: string; receivedAt: string; receivedBy: { id
 export type ReceivingDetail = ReceivingHeader & { lines: ReceivingLine[]; locations: ReceivingLocation[]; previousReceipts: PreviousReceipt[] };
 export type ReceivingPage = { items: ReceivingHeader[]; total: number; page: number; pageSize: number };
 export type ReceivingFilters = { status?: ReceivingStatus; warehouseId?: string; q?: string; page?: number; pageSize?: number };
-export type ValidateReceivingInput = { locationId: string; reference?: string; notes?: string; idempotencyKey: string; items: Array<{ purchaseOrderItemId: string; packageQuantity: number; locationId?: string; allowOverReceipt?: boolean; varianceReason?: string; rejectedPackageQuantity?: number; rejectionReason?: string }> };
+export type ValidateReceivingInput = { locationId?: string; reference?: string; notes?: string; idempotencyKey: string; items: Array<{ purchaseOrderItemId: string; packageQuantity: number; locationId?: string; allowOverReceipt?: boolean; varianceReason?: string; rejectedPackageQuantity?: number; rejectionReason?: string }> };
 export type ReceivingApi = { list(filters?: ReceivingFilters): Promise<ReceivingPage>; detail(id: string): Promise<ReceivingDetail>; validate(id: string, input: ValidateReceivingInput): Promise<ReceivingDetail> };

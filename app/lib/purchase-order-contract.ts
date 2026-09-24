@@ -5,7 +5,7 @@ export type PurchaseOrderProduct = { id: string; name: string; slug: string };
 export type PurchaseOrderSupplier = { id: string; name: string };
 export type PurchaseOrderWarehouse = { id: string; name: string };
 export type PurchaseOrderPackaging = { id: string; name: string; unitsPerPack: number; equivalence?: string; isDefault?: boolean; isActive?: boolean };
-export type PurchaseOrderEventType = "CREATED" | "CONFIRMED" | "CANCELLED" | "CLOSED" | "UPDATED" | "RECEIPT_RECORDED" | "OVER_RECEIPT_AUTHORIZED" | "RECEIVED_WITH_DIFFERENCES";
+export type PurchaseOrderEventType = "CREATED" | "CONFIRMED" | "CANCELLED" | "CLOSED" | "UPDATED" | "RECEIPT_RECORDED" | "OVER_RECEIPT_AUTHORIZED" | "RECEIVED" | "RECEIVED_WITH_DIFFERENCES";
 export type PurchaseOrderEvent = { id?: string; type: PurchaseOrderEventType; actorUserId: string | null; note: string | null; createdAt: string };
 
 export type PurchaseOrderItem = {
@@ -28,8 +28,8 @@ export type UpdatePurchaseOrderDto = Partial<CreatePurchaseOrderDto>;
 export type PaginatedPurchaseOrders = { items: PurchaseOrderSummary[]; total: number; page: number; pageSize: number };
 export type PurchaseOrderFilters = { supplierId?: string; warehouseId?: string; status?: PurchaseOrderStatus | ""; receiptStatus?: ReceiptStatus | ""; receiptDifferences?: boolean; from?: string; to?: string; q?: string; page?: number; pageSize?: number };
 export type GoodsReceiptItem = { id: string; purchaseOrderItemId: string; packageQuantity: number; unitQuantity: number; unitsPerPackSnapshot: number; varianceReason: string | null; rejectedPackageQuantity?: number; rejectionReason?: string | null };
-export type GoodsReceipt = { id: string; purchaseOrderId: string; locationId: string; location?: { id: string; code?: string; name?: string }; reference: string | null; notes: string | null; receivedByUserId: string | null; receivedByUser?: { id: string; name?: string; email?: string }; receivedAt: string; items: GoodsReceiptItem[] };
-export type CreateGoodsReceiptDto = { locationId: string; reference?: string; notes?: string; idempotencyKey?: string; items: Array<{ purchaseOrderItemId: string; packageQuantity: number; allowOverReceipt?: boolean; varianceReason?: string }> };
+export type GoodsReceipt = { id: string; purchaseOrderId: string; locationId: string | null; location?: { id: string; code?: string; name?: string }; reference: string | null; notes: string | null; receivedByUserId: string | null; receivedByUser?: { id: string; name?: string; email?: string }; receivedAt: string; items: GoodsReceiptItem[] };
+export type CreateGoodsReceiptDto = { locationId?: string; reference?: string; notes?: string; idempotencyKey?: string; items: Array<{ purchaseOrderItemId: string; packageQuantity: number; allowOverReceipt?: boolean; varianceReason?: string }> };
 export type PurchaseOrderApi = {
   list(filters?: PurchaseOrderFilters): Promise<PaginatedPurchaseOrders>;
   get(id: string): Promise<PurchaseOrder>;
