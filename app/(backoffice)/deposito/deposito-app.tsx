@@ -41,6 +41,7 @@ const emptyValue = (): LineValue => ({
 });
 // expectedDate is a calendar date stored as UTC midnight: format in UTC or it shows the previous day in Argentina.
 const shortDate = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+const packs = (count: number) => `${count} ${count === 1 ? "pack" : "packs"}`;
 const formatDate = (value: string | null) => (value ? shortDate.format(new Date(value)) : "Sin fecha");
 
 export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId?: string }) {
@@ -409,19 +410,19 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                   <div>
                     <dt>Pedido</dt>
                     <dd>
-                      {line.orderedPackages} packs<small>{line.orderedUnits} u.</small>
+                      {packs(line.orderedPackages)}<small>{line.orderedUnits} u.</small>
                     </dd>
                   </div>
                   <div>
                     <dt>Ya recibido</dt>
                     <dd>
-                      {line.receivedPackages} packs<small>{line.receivedUnits} u.</small>
+                      {packs(line.receivedPackages)}<small>{line.receivedUnits} u.</small>
                     </dd>
                   </div>
                   <div>
                     <dt>Pendiente</dt>
                     <dd>
-                      {line.pendingPackages} packs<small>{line.pendingUnits} u.</small>
+                      {packs(line.pendingPackages)}<small>{line.pendingUnits} u.</small>
                     </dd>
                   </div>
                 </dl>
@@ -460,7 +461,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                 </p>
                 {diff.extra > 0 && (
                   <label className={styles.warning}>
-                    Hay {diff.extra} packs de más. Motivo obligatorio
+                    Hay {packs(diff.extra)} de más. Motivo obligatorio
                     <input
                       value={value.varianceReason}
                       onChange={(event) => update(line.purchaseOrderItemId, { varianceReason: event.target.value })}
@@ -543,7 +544,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
         <div className={styles.bottomSpacer} />
         <footer className={styles.sticky}>
           <div>
-            <strong>{summary.packages} packs</strong>
+            <strong>{packs(summary.packages)}</strong>
             <span>
               {summary.enteredLineCount}/{summary.lineCount} líneas · diferencias: {summary.differenceCount}
             </span>
@@ -694,7 +695,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                   </span>
                 </div>
                 <strong className={styles.pendingQty}>
-                  {item.pendingPackages} packs <small>· {item.pendingUnits} unidades pendientes</small>
+                  {packs(item.pendingPackages)} <small>· {item.pendingUnits} unidades pendientes</small>
                 </strong>
                 <span className={styles.open}>
                   Controlar <b aria-hidden="true">→</b>
