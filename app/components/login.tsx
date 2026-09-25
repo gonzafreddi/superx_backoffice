@@ -8,6 +8,10 @@ import { login as loginRequest, AuthApiError } from "@/app/lib/auth-api";
 
 type Login = typeof loginRequest;
 
+// Password recovery lives in the customer app (same accounts, same emailed link).
+const customerAppUrl = process.env.NEXT_PUBLIC_CUSTOMER_APP_URL?.replace(/\/$/, "");
+const recoveryUrl = customerAppUrl ? `${customerAppUrl}/recuperar-contrasena` : null;
+
 export function Login({ signIn = loginRequest }: { signIn?: Login }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -48,6 +52,7 @@ export function Login({ signIn = loginRequest }: { signIn?: Login }) {
           </label>
           <button className="button primary" type="submit" disabled={pending}>{pending ? "Ingresando…" : "Ingresar"}</button>
         </form>
+        {recoveryUrl && <p className="login-recovery"><a href={recoveryUrl}>¿Olvidaste tu contraseña?</a></p>}
       </section>
     </main>
   );
