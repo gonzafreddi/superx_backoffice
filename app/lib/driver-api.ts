@@ -1,4 +1,4 @@
-import { authHeaders } from "@/app/lib/auth-api";
+import { authFetch } from "@/app/lib/http";
 import type { DriverApi, DriverDelivery, DriverDeliveryEvent } from "./driver-contract";
 import { canMarkDelivered, canReportIncident, canStartDelivery, validateIncidentInput } from "./driver-rules";
 
@@ -49,7 +49,7 @@ type RawAssignment = { id: string; orderId: string; status: DriverDelivery["stat
 type RawOrder = { id: string; orderNumber: string; recipientName: string; phone: string; street: string; streetNumber: string; apartment: string | null; deliveryZoneName: string | null; paymentMethod: DriverDelivery["paymentMethod"]; paymentStatus: DriverDelivery["paymentStatus"]; grandTotal: string; status: string };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
-  const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
+  const response = await authFetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
   const payload: unknown = await response.json().catch(() => undefined);
   if (response.status === 401) throw new DriverApiError("Iniciá sesión para ver tus entregas.", 401, "unauthenticated");
   if (!response.ok) {

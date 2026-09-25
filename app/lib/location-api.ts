@@ -1,4 +1,4 @@
-import { authHeaders } from "@/app/lib/auth-api";
+import { authFetch } from "@/app/lib/http";
 import type { LocationApi, LocationCity, LocationInput, LocationProduct, LocationWarehouse, ProductLocation, WarehouseInput, WarehouseLocation, WarehouseLocationWithProducts, WarehouseStats, LocationDetailData, LocationStockItem, LocationStockMovement, Paginated, WarehouseStockItem } from "./location-contract";
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
@@ -34,7 +34,7 @@ const warehouseInputBody = (input: WarehouseInput, includeCity = false) => ({ ..
 const fixtureWarehouseStats = (warehouseId: string): WarehouseStats => { const locations = fixtureLocations.filter((location) => location.warehouseId === warehouseId); const capacity = locations.reduce((sum, location) => sum + (location.capacity ?? 0), 0); const quantity = warehouseId === "wh-central" ? 90 : warehouseId === "wh-norte" ? 40 : 0; return { warehouseId, locationsCount: locations.length, racksCount: new Set(locations.map((location) => location.rack)).size, productsCount: fixtureAssignments.filter((assignment) => assignment.warehouseId === warehouseId).length, totalQuantity: quantity, totalCapacity: capacity, occupancyPercentage: capacity ? quantity / capacity * 100 : null, locationsFullCount: capacity && quantity >= capacity ? locations.length : 0, locationsEmptyCount: locations.filter((location) => location.capacity && quantity === 0).length, lastUpdatedAt: locations.reduce<string | null>((latest, location) => !latest || location.updatedAt > latest ? location.updatedAt : latest, null) }; };
 
 async function fetchJson(path: string, init: RequestInit = {}): Promise<unknown> {
-  const response = await fetch(`${baseUrl()!.replace(/\/$/, "")}${path}`, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
+  const response = await authFetch(`${baseUrl()!.replace(/\/$/, "")}${path}`, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
   const payload: unknown = response.status === 204 ? undefined : await response.json().catch(() => undefined);
   if (!response.ok) {
     const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";

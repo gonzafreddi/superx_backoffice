@@ -1,4 +1,4 @@
-import { authHeaders } from "@/app/lib/auth-api";
+import { authFetch } from "@/app/lib/http";
 import type { PaginatedSupplierMovements, PaginatedSuppliers, PurchasePackaging, PurchasePackagingInput, Supplier, SupplierAccount, SupplierApi, SupplierBalance, SupplierEvent, SupplierInput, SupplierMovementType, SupplierProduct, UpdateSupplierDto } from "./supplier-contract";
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
@@ -29,7 +29,7 @@ const supplierBody = (input: Partial<SupplierInput>) => ({ ...(input.name === un
 const packagingBody = (input: Partial<PurchasePackagingInput>) => ({ ...(input.supplierId === undefined ? {} : { supplierId: input.supplierId }), ...(input.name === undefined ? {} : { name: input.name.trim() }), ...(input.unitsPerPack === undefined ? {} : { unitsPerPack: input.unitsPerPack }), ...(input.barcode === undefined ? {} : { barcode: clean(input.barcode) }), ...(input.supplierCode === undefined ? {} : { supplierCode: clean(input.supplierCode) }), ...(input.isDefault === undefined ? {} : { isDefault: input.isDefault }), ...(input.isActive === undefined ? {} : { isActive: input.isActive }) });
 
 async function fetchJson(path: string, init: RequestInit = {}): Promise<unknown> {
-  const response = await fetch(`${baseUrl()!.replace(/\/$/, "")}${path}`, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
+  const response = await authFetch(`${baseUrl()!.replace(/\/$/, "")}${path}`, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
   const payload: unknown = response.status === 204 ? undefined : await response.json().catch(() => undefined);
   if (!response.ok) {
     const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";

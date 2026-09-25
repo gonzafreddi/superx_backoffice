@@ -1,4 +1,4 @@
-import { authHeaders } from "@/app/lib/auth-api";
+import { authFetch } from "@/app/lib/http";
 import type { InventoryApi, InventoryFilters, InventoryItem, InventoryMovement, InventoryMovementInput, MovementType, Warehouse } from "./inventory-contract";
 import { getInventoryStatus } from "./inventory-rules";
 
@@ -24,7 +24,7 @@ type RawMovement = { id: string; type: string; quantity: number; reference: stri
 const MOVEMENT_TYPE_MAP: Record<string, MovementType> = { PURCHASE: "receipt", RETURN: "receipt", SALE: "sale", ADJUSTMENT: "adjustment", TRANSFER_IN: "transfer", TRANSFER_OUT: "transfer" };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
-  const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
+  const response = await authFetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
   const payload: unknown = await response.json().catch(() => undefined);
   if (!response.ok) {
     const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";

@@ -1,4 +1,4 @@
-import { authHeaders } from "@/app/lib/auth-api";
+import { authFetch } from "@/app/lib/http";
 import type { Order, OrderApi, OrderEvent, OrderFilters, OrderLine, OrderTransitionInput } from "./order-contract";
 import { buildOrderTransitionEvent, canSubmitOrderTransition, canTransitionOrder } from "./order-rules";
 
@@ -35,7 +35,7 @@ type RawOrder = {
 type RawOrderEvent = { id: string; toStatus: Order["status"]; actorUserId: string; actorRole: string; note: string | null; createdAt: string };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
-  const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
+  const response = await authFetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
   const payload: unknown = await response.json().catch(() => undefined);
   if (!response.ok) {
     const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";

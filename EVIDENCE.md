@@ -790,3 +790,18 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 - `pnpm test`: PASS — 69 tests (con warnings preexistentes de módulos JS sin `type: module`).
 - `pnpm build`: PASS — incluye `/proveedores` y `/proveedores/[supplierId]`.
 # Controles funcionales de imagen y estado de producto — 2026-09-22
+# Evidencia — Renovación de sesión del backoffice (2026-09-25)
+
+## Implementado
+
+- El login persiste access token, refresh token y usuario con el mecanismo existente de localStorage + cookie fallback.
+- Todos los adapters bearer usan un `authFetch` compartido: ante 401, una única renovación concurrente rota y persiste ambos tokens, y cada solicitud original se reintenta una vez. Si la renovación falla, se limpia la sesión y se conserva el 401 original para los estados y redirects existentes.
+- Logout envía `POST /auth/logout` con el refresh token como operación best effort antes de limpiar la sesión local.
+- Se agregaron pruebas del single-flight, el reintento exitoso y la limpieza ante refresh fallido.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 95 tests.
+- `pnpm build`: PASS — Next.js 16.3.4, 27 páginas estáticas generadas.

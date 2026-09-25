@@ -2,6 +2,8 @@ export type AdminUser = { id: string; email: string; role: string; name: string 
 export type ManagedUser = AdminUser & { createdAt: string };
 export type UserRole = "customer" | "admin" | "picker" | "driver" | "warehouse";
 
+import { authFetch } from "./http";
+
 export class AuthApiError extends Error {
   constructor(message: string, readonly status?: number) {
     super(message);
@@ -10,6 +12,7 @@ export class AuthApiError extends Error {
 }
 
 const TOKEN_KEY = "superx.access-token";
+const REFRESH_TOKEN_KEY = "superx.refresh-token";
 const USER_KEY = "superx.access-user";
 const AUTH_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
@@ -67,6 +70,19 @@ export function getAccessToken(): string | null {
   }
 }
 
+export function getRefreshToken(): string | null {
+  try {
+    const stored = window.localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (stored) {
+      if (!readCookie(REFRESH_TOKEN_KEY)) persist(REFRESH_TOKEN_KEY, stored);
+      return stored;
+    }
+    return readCookie(REFRESH_TOKEN_KEY);
+  } catch {
+    return readCookie(REFRESH_TOKEN_KEY);
+  }
+}
+
 export function getStoredUser(): AdminUser | null {
   try {
     const stored = window.localStorage.getItem(USER_KEY);
@@ -83,23 +99,38 @@ export function getStoredUser(): AdminUser | null {
   }
 }
 
-export function logout(): void {
+export function clearSession(): void {
   removePersisted(TOKEN_KEY);
+  removePersisted(REFRESH_TOKEN_KEY);
   removePersisted(USER_KEY);
 }
 
-export function authHeaders(): Record<string, string> {
-  const token = getAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+export function storeSession(accessToken: string, refreshToken: string, rawUser?: unknown): void {
+  persist(TOKEN_KEY, accessToken);
+  persist(REFRESH_TOKEN_KEY, refreshToken);
+  if (rawUser && typeof rawUser === "object") persist(USER_KEY, JSON.stringify(rawUser));
 }
 
-type RawLoginResponse = { user?: { id?: unknown; email?: unknown; role?: unknown; name?: unknown }; accessToken?: unknown };
-type ValidRawLoginResponse = { user: { id: string; email?: unknown; role?: unknown; name?: unknown }; accessToken: string };
+export function logout(): void {
+  const refreshToken = getRefreshToken();
+  const url = baseUrl();
+  if (url && refreshToken) {
+    void fetch(`${url.replace(/\/$/, "")}/api/auth/logout`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    }).catch(() => undefined);
+  }
+  clearSession();
+}
+
+type RawLoginResponse = { user?: { id?: unknown; email?: unknown; role?: unknown; name?: unknown }; accessToken?: unknown; refreshToken?: unknown };
+type ValidRawLoginResponse = { user: { id: string; email?: unknown; role?: unknown; name?: unknown }; accessToken: string; refreshToken: string };
 
 function isRawLoginResponse(value: unknown): value is ValidRawLoginResponse {
   if (!value || typeof value !== "object") return false;
   const body = value as RawLoginResponse;
-  return typeof body.user?.id === "string" && typeof body.accessToken === "string";
+  return typeof body.user?.id === "string" && typeof body.accessToken === "string" && typeof body.refreshToken === "string";
 }
 
 /**
@@ -114,6 +145,7 @@ export async function login(email: string, password: string, signal?: AbortSigna
   if (!url) {
     const user: AdminUser = { id: "fixture-admin", email, role: "admin", name: "Administración (fixture)" };
     persist(TOKEN_KEY, "fixture-token");
+    persist(REFRESH_TOKEN_KEY, "fixture-refresh-token");
     persist(USER_KEY, JSON.stringify(user));
     return user;
   }
@@ -133,8 +165,7 @@ export async function login(email: string, password: string, signal?: AbortSigna
     role: String(payload.user.role ?? "customer"),
     name: typeof payload.user.name === "string" ? payload.user.name : null,
   };
-  persist(TOKEN_KEY, payload.accessToken);
-  persist(USER_KEY, JSON.stringify(user));
+  storeSession(payload.accessToken, payload.refreshToken, user);
   return user;
 }
 
@@ -147,7 +178,7 @@ export async function listUsers(filters: { q?: string; role?: UserRole | ""; pag
   if (!baseUrl()) return { items: [{ id: "fixture-admin", email: "admin@superx.local", name: "Administración", role: "admin", createdAt: new Date().toISOString() }, { id: "fixture-warehouse", email: "deposito@superx.local", name: "Equipo Depósito", role: "warehouse", createdAt: new Date().toISOString() }], total: 2, page: 1, pageSize: 20 };
   const params = new URLSearchParams({ page: String(filters.page ?? 1), pageSize: String(filters.pageSize ?? 50) });
   if (filters.q) params.set("q", filters.q); if (filters.role) params.set("role", filters.role);
-  const response = await fetch(`${baseUrl()!.replace(/\/$/, "")}/api/auth/users?${params}`, { headers: { Accept: "application/json", ...authHeaders() } });
+  const response = await authFetch(`${baseUrl()!.replace(/\/$/, "")}/api/auth/users?${params}`, { headers: { Accept: "application/json" } });
   const payload: unknown = await response.json().catch(() => undefined);
   if (!response.ok) throw new AuthApiError(response.status === 403 ? "No tenés permiso para gestionar usuarios." : authMessage(payload), response.status);
   return payload as { items: ManagedUser[]; total: number; page: number; pageSize: number };
@@ -155,7 +186,7 @@ export async function listUsers(filters: { q?: string; role?: UserRole | ""; pag
 
 export async function updateUserRole(id: string, role: UserRole): Promise<ManagedUser> {
   if (!baseUrl()) return { id, email: id === "fixture-admin" ? "admin@superx.local" : "deposito@superx.local", name: null, role, createdAt: new Date().toISOString() };
-  const response = await fetch(`${baseUrl()!.replace(/\/$/, "")}/api/auth/users/${encodeURIComponent(id)}/role`, { method: "PATCH", headers: { Accept: "application/json", "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ role }) });
+  const response = await authFetch(`${baseUrl()!.replace(/\/$/, "")}/api/auth/users/${encodeURIComponent(id)}/role`, { method: "PATCH", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
   const payload: unknown = await response.json().catch(() => undefined);
   if (!response.ok) throw new AuthApiError(authMessage(payload), response.status);
   return payload as ManagedUser;

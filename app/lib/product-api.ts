@@ -1,4 +1,4 @@
-import { authHeaders } from "@/app/lib/auth-api";
+import { authFetch } from "@/app/lib/http";
 import type { Brand, Category, Product, ProductApi, ProductFilters, ProductInput, ProductPage, Unit } from "./product-contract";
 
 const categories: Category[] = [{ id: "beverages", name: "Bebidas" }, { id: "pantry", name: "Almacén" }, { id: "fresh", name: "Frescos" }];
@@ -23,7 +23,7 @@ type RawProduct = { id: string; name: string; description?: string; slug: string
 type RawResolvedPrice = { productId: string; amount: string };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
-  const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
+  const response = await authFetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
   const payload: unknown = await response.json().catch(() => undefined);
   if (!response.ok) {
     const rawMessage = payload && typeof payload === "object" ? (payload as { message?: unknown }).message : undefined;

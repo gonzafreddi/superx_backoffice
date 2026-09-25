@@ -1,4 +1,4 @@
-import { authHeaders } from "@/app/lib/auth-api";
+import { authFetch } from "@/app/lib/http";
 import type { KpiSnapshot, MetricsApi, MetricsRange } from "./metrics-contract";
 import { rangeDays, validateRange } from "./metrics-rules";
 
@@ -43,7 +43,7 @@ export const metricsApi: MetricsApi = {
     const url = baseUrl();
     if (!url) { await wait(); return seeded(range); }
     const root = url.replace(/\/$/, "");
-    const response = await fetch(`${root}/metrics/overview?from=${range.from}&to=${range.to}`, { headers: { Accept: "application/json", ...authHeaders() } });
+    const response = await authFetch(`${root}/metrics/overview?from=${range.from}&to=${range.to}`, { headers: { Accept: "application/json" } });
     const payload: unknown = await response.json().catch(() => undefined);
     if (!response.ok) {
       const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";

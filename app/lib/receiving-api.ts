@@ -1,11 +1,11 @@
-import { authHeaders } from "./auth-api";
+import { authFetch } from "./http";
 import type { ReceivingApi, ReceivingDetail, ReceivingFilters, ReceivingHeader, ReceivingPage, ValidateReceivingInput } from "./receiving-contract";
 
 const baseUrl = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL;
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 220));
 export class ReceivingApiError extends Error { constructor(message: string, readonly status?: number, readonly code?: string) { super(message); this.name = "ReceivingApiError"; } }
 const messageOf = (payload: unknown) => { const message = payload && typeof payload === "object" ? (payload as { message?: unknown }).message : undefined; return typeof message === "string" ? message : Array.isArray(message) ? message.filter((part): part is string => typeof part === "string").join(" ") : "No pudimos completar la operación."; };
-async function request(path: string, init: RequestInit = {}) { const response = await fetch(`${baseUrl()!.replace(/\/$/, "")}${path}`, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } }); const payload: unknown = await response.json().catch(() => undefined); if (!response.ok) { if (response.status === 401) throw new ReceivingApiError("Iniciá sesión para trabajar en depósito.", 401, "unauthenticated"); if (response.status === 403) throw new ReceivingApiError("Tu cuenta no tiene acceso a Depósito.", 403, "forbidden"); throw new ReceivingApiError(messageOf(payload), response.status, response.status === 409 ? "conflict" : "request_failed"); } return payload; }
+async function request(path: string, init: RequestInit = {}) { const response = await authFetch(`${baseUrl()!.replace(/\/$/, "")}${path}`, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } }); const payload: unknown = await response.json().catch(() => undefined); if (!response.ok) { if (response.status === 401) throw new ReceivingApiError("Iniciá sesión para trabajar en depósito.", 401, "unauthenticated"); if (response.status === 403) throw new ReceivingApiError("Tu cuenta no tiene acceso a Depósito.", 403, "forbidden"); throw new ReceivingApiError(messageOf(payload), response.status, response.status === 409 ? "conflict" : "request_failed"); } return payload; }
 
 const now = new Date();
 const fixture: ReceivingDetail[] = [

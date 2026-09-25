@@ -1,4 +1,4 @@
-import { authHeaders } from "@/app/lib/auth-api";
+import { authFetch } from "@/app/lib/http";
 import type { PickingApi, PickingItem, PickingTask } from "./picking-contract";
 import { clampPickQuantity } from "./picking-rules";
 
@@ -75,9 +75,9 @@ const find = (id: string): PickingTask => {
 
 async function http(path: string, init?: RequestInit): Promise<PickingTask> {
   const url = base()!;
-  const response = await fetch(`${url.replace(/\/$/, "")}${path}`, {
+  const response = await authFetch(`${url.replace(/\/$/, "")}${path}`, {
     ...init,
-    headers: { Accept: "application/json", ...(init?.body ? { "Content-Type": "application/json" } : {}), ...authHeaders() },
+    headers: { Accept: "application/json", ...(init?.body ? { "Content-Type": "application/json" } : {}) },
   });
   const payload: unknown = await response.json().catch(() => undefined);
   if (response.status === 401) throw new PickingApiError("Iniciá sesión para trabajar en picking.", 401, "unauthenticated");
@@ -96,7 +96,7 @@ async function http(path: string, init?: RequestInit): Promise<PickingTask> {
 
 async function httpList(path: string): Promise<PickingTask[]> {
   const url = base()!;
-  const response = await fetch(`${url.replace(/\/$/, "")}${path}`, { headers: { Accept: "application/json", ...authHeaders() } });
+  const response = await authFetch(`${url.replace(/\/$/, "")}${path}`, { headers: { Accept: "application/json" } });
   if (response.status === 401) throw new PickingApiError("Iniciá sesión para trabajar en picking.", 401, "unauthenticated");
   if (!response.ok) throw new PickingApiError("No pudimos cargar las tareas.", response.status);
   const payload: unknown = await response.json().catch(() => undefined);
@@ -106,8 +106,8 @@ async function httpList(path: string): Promise<PickingTask[]> {
 async function searchProductsHttp(query: string): Promise<Array<{ id: string; name: string }>> {
   try {
     const url = base()!;
-    const response = await fetch(`${url.replace(/\/$/, "")}/products?q=${encodeURIComponent(query)}`, {
-      headers: { Accept: "application/json", ...authHeaders() },
+    const response = await authFetch(`${url.replace(/\/$/, "")}/products?q=${encodeURIComponent(query)}`, {
+      headers: { Accept: "application/json" },
     });
     if (!response.ok) return [];
     const payload: unknown = await response.json();
