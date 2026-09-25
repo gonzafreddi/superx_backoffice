@@ -1,7 +1,29 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { money } from "../purchase-order-ui";
 import { previewPurchaseOrderLine } from "@/app/lib/purchase-order-rules";
 import type { Line } from "./types";
+// The lines table scrolls horizontally, which would clip an absolutely positioned
+// dropdown; results are pinned to the viewport under their input instead.
+function ProductResults({ anchors, index, children }: { anchors: RefObject<Array<HTMLInputElement | null>>; index: number; children: ReactNode }) {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  useLayoutEffect(() => {
+    const update = () => setRect(anchors.current[index]?.getBoundingClientRect() ?? null);
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [anchors, index]);
+  if (!rect) return null;
+  return (
+    <div className="poe-product-results" style={{ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 300) }}>
+      {children}
+    </div>
+  );
+}
+
 export function OrderLines({
   lines,
   errors,
@@ -30,6 +52,7 @@ export function OrderLines({
   focusPacks: { index: number; token: number } | null;
 }) {
   const packRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const productRefs = useRef<Array<HTMLInputElement | null>>([]);
   useEffect(() => { if (focusPacks) packRefs.current[focusPacks.index]?.focus(); }, [focusPacks]);
   return (
     <section className="poe-lines">
@@ -65,6 +88,7 @@ export function OrderLines({
                   <tr key={index}>
                     <td>
                       <input
+                        ref={(element) => { productRefs.current[index] = element; }}
                         aria-label={`Producto línea ${index + 1}`}
                         disabled={readOnly}
                         value={line.query}
@@ -72,14 +96,14 @@ export function OrderLines({
                         onChange={(event) => onSearch(index, event.target.value)}
                       />
                       {line.query.trim() && !line.product && (
-                        <div className="poe-product-results">
+                        <ProductResults anchors={productRefs} index={index}>
                           {line.results.length ? line.results.map((product) => (
                             <button type="button" key={product.id} onClick={() => onSelectProduct(index, product)}>
                               {product.name}
                             </button>
                           )) : <span>Sin resultados</span>}
                           <button type="button" className="poe-create-product" onMouseDown={(event) => { event.preventDefault(); onCreateProduct(index, line.query.trim(), event.currentTarget.closest("td")?.querySelector("input") as HTMLInputElement); }}>＋ Crear producto «{line.query.trim()}»</button>
-                        </div>
+                        </ProductResults>
                       )}
                       {errors[`item-${index}-product`] && <small>{errors[`item-${index}-product`]}</small>}
                     </td>

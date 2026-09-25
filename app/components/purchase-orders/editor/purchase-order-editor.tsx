@@ -372,6 +372,7 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
         id={orderId}
         number={order?.number}
         status={order?.status ?? "DRAFT"}
+        total={summary.total}
         saved={saved}
         pending={pending}
         confirmed={readOnly}

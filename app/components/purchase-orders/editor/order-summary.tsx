@@ -18,6 +18,7 @@ export function OrderSummary({
   return (
     <aside className="poe-summary">
       <header><span>Resumen</span><strong>Total de la orden</strong></header>
+      <div className="poe-summary-rows">
       <div>
         <span>Subtotal</span>
         <strong>{money(summary.subtotal)}</strong>
@@ -54,13 +55,16 @@ export function OrderSummary({
           onChange={(event) => onOther(event.target.value)}
         />
       </label>
-      <div className="poe-total">
-        <span>TOTAL</span>
-        <strong>{money(summary.total)}</strong>
       </div>
-      <small>
-        {summary.lineCount} líneas · {summary.unitCount} u. tot.
-      </small>
+      <div className="poe-total">
+        <div>
+          <span>Total</span>
+          <strong>{money(summary.total)}</strong>
+        </div>
+        <small>
+          {summary.lineCount} {summary.lineCount === 1 ? "línea" : "líneas"} · {summary.unitCount} u. en total
+        </small>
+      </div>
     </aside>
   );
 }
