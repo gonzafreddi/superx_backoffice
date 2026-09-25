@@ -1,7 +1,7 @@
 export const DELIVERY_PERMISSIONS = {
-  viewer: { editZone: false, editSlot: false, create: false },
-  operator: { editZone: false, editSlot: true, create: false },
-  admin: { editZone: true, editSlot: true, create: true },
+  viewer: { editZone: false, editHours: false, create: false },
+  operator: { editZone: false, editHours: true, create: false },
+  admin: { editZone: true, editHours: true, create: true },
 };
 
 export function getDeliveryPermissions(role) {
@@ -40,28 +40,47 @@ export function slotWindowsOverlap(a, b) {
   return aStart < bEnd && bStart < aEnd;
 }
 
-/** Validates a slot form. `context` = { today, existingSlots, editingSlot }. */
-export function validateSlotInput(input, context = {}) {
+/** Monday-first order for display; values follow JS getDay() (0 = Sunday). */
+export const WEEKDAYS = [
+  { value: 1, short: "Lun" }, { value: 2, short: "Mar" }, { value: 3, short: "Mié" }, { value: 4, short: "Jue" },
+  { value: 5, short: "Vie" }, { value: 6, short: "Sáb" }, { value: 0, short: "Dom" },
+];
+
+/**
+ * "Todos los días", "Lun a Sáb", "Lun, Mié, Vie"…
+ * @param {number[]} weekdays
+ * @returns {string}
+ */
+export function formatWeekdays(weekdays) {
+  const order = WEEKDAYS.map((day) => day.value);
+  const picked = order.filter((value) => weekdays.includes(value));
+  if (picked.length === 7) return "Todos los días";
+  if (picked.length === 0) return "Ningún día";
+  const label = (value) => WEEKDAYS.find((day) => day.value === value).short;
+  const first = order.indexOf(picked[0]);
+  const consecutive = picked.length > 2 && picked.every((value, i) => order.indexOf(value) === first + i);
+  return consecutive ? `${label(picked[0])} a ${label(picked[picked.length - 1])}` : picked.map(label).join(", ");
+}
+
+/**
+ * Validates a delivery-hours form against the other windows ({} when valid).
+ * @param {{ startTime: string, endTime: string, weekdays: number[], active: boolean }} input
+ * @param {Array<{ id: string, startTime: string, endTime: string, weekdays: number[], active: boolean }>} [existingWindows]
+ * @param {string | null} [editingId] the window being edited, which never clashes with itself
+ * @returns {{ time?: string, weekdays?: string }}
+ */
+export function validateWindowInput(input, existingWindows = [], editingId = null) {
   const errors = {};
-  const today = context.today ?? new Date().toISOString().slice(0, 10);
-  const editing = context.editingSlot ?? null;
-  if (!input.date) errors.date = "Elegí una fecha para la franja.";
-  else if (input.date < today) errors.date = "La fecha de la franja no puede ser pasada.";
   const start = toMinutes(input.startTime), end = toMinutes(input.endTime);
   if (Number.isNaN(start) || Number.isNaN(end)) errors.time = "Ingresá el horario de inicio y de fin.";
   else if (end <= start) errors.time = "El horario de fin debe ser posterior al de inicio.";
-  const capacity = Number(input.capacity);
-  if (input.capacity === "" || !Number.isInteger(capacity) || capacity < 1) errors.capacity = "La capacidad debe ser un entero mayor o igual a 1.";
-  else if (editing && capacity < editing.bookedCount) errors.capacity = `Ya hay ${editing.bookedCount} reservas: la capacidad no puede quedar por debajo.`;
-  const others = (context.existingSlots ?? []).filter((slot) => slot.id !== editing?.id && slot.active && slot.date === input.date);
-  if (!errors.time && others.some((slot) => slotWindowsOverlap(slot, input))) errors.time = "Se superpone con otra franja activa de esta zona en esa fecha.";
+  if (!Array.isArray(input.weekdays) || input.weekdays.length === 0) errors.weekdays = "Elegí al menos un día.";
+  if (!errors.time && !errors.weekdays) {
+    const clash = existingWindows.find((window) => window.id !== editingId && window.active && input.active
+      && window.weekdays.some((day) => input.weekdays.includes(day)) && slotWindowsOverlap(window, input));
+    if (clash) errors.time = `Se superpone con el horario ${clash.startTime}–${clash.endTime} (${formatWeekdays(clash.weekdays)}).`;
+  }
   return errors;
-}
-
-export function slotOccupancy(slot) {
-  const capacity = Math.max(0, Number(slot.capacity ?? 0));
-  const used = Math.max(0, Number(slot.bookedCount ?? 0));
-  return { used, capacity, remaining: Math.max(0, capacity - used), full: capacity > 0 && used >= capacity, ratio: capacity > 0 ? used / capacity : 0 };
 }
 
 /** What a customer sees at checkout for this zone — no deploy needed, changes are immediate. */

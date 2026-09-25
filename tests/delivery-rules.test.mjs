@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildDeliveryChangeEvent, getDeliveryPermissions, slotOccupancy, slotWindowsOverlap, summarizeCheckoutImpact, validateSlotInput, validateZoneInput } from "../app/lib/delivery-rules.js";
+import { buildDeliveryChangeEvent, formatWeekdays, getDeliveryPermissions, slotWindowsOverlap, summarizeCheckoutImpact, validateWindowInput, validateZoneInput } from "../app/lib/delivery-rules.js";
 
-test("permisos: consulta sólo lee, operador ajusta franjas, admin edita zonas y crea", () => {
-  assert.deepEqual(getDeliveryPermissions("viewer"), { editZone: false, editSlot: false, create: false });
-  assert.equal(getDeliveryPermissions("operator").editSlot, true);
+test("permisos: consulta sólo lee, operador ajusta horarios, admin edita zonas y crea", () => {
+  assert.deepEqual(getDeliveryPermissions("viewer"), { editZone: false, editHours: false, create: false });
+  assert.equal(getDeliveryPermissions("operator").editHours, true);
   assert.equal(getDeliveryPermissions("operator").editZone, false);
-  assert.deepEqual(getDeliveryPermissions("admin"), { editZone: true, editSlot: true, create: true });
+  assert.deepEqual(getDeliveryPermissions("admin"), { editZone: true, editHours: true, create: true });
 });
 
 test("validateZoneInput exige nombre, ciudad, fee válido, umbral coherente y cobertura", () => {
@@ -16,20 +16,25 @@ test("validateZoneInput exige nombre, ciudad, fee válido, umbral coherente y co
   assert.equal(validateZoneInput({ name: "A", cityName: "B", postalCodes: [], neighborhoods: ["Centro"], deliveryFee: 0, freeDeliveryThreshold: "", priority: 3, active: true }).freeDeliveryThreshold, undefined);
 });
 
-test("validateSlotInput bloquea pasado, rango invertido, capacidad < reservas y solapamiento", () => {
-  const today = "2026-09-10";
-  assert.deepEqual(validateSlotInput({ date: "2026-09-12", startTime: "10:00", endTime: "12:00", capacity: 8, active: true }, { today, existingSlots: [] }), {});
-  assert.ok(validateSlotInput({ date: "2026-09-01", startTime: "10:00", endTime: "12:00", capacity: 8, active: true }, { today }).date);
-  assert.ok(validateSlotInput({ date: "2026-09-12", startTime: "12:00", endTime: "10:00", capacity: 8, active: true }, { today }).time);
-  assert.ok(validateSlotInput({ date: "2026-09-12", startTime: "10:00", endTime: "12:00", capacity: 3, active: true }, { today, editingSlot: { id: "s1", bookedCount: 7 } }).capacity);
-  const overlap = validateSlotInput({ date: "2026-09-12", startTime: "11:00", endTime: "13:00", capacity: 8, active: true }, { today, existingSlots: [{ id: "s2", date: "2026-09-12", startTime: "10:00", endTime: "12:00", active: true }] });
-  assert.ok(overlap.time);
+test("validateWindowInput exige horario coherente, algún día y que no se pise con otro activo", () => {
+  const morning = { id: "w1", startTime: "10:00", endTime: "12:00", weekdays: [1, 2, 3, 4, 5], active: true };
+  assert.deepEqual(validateWindowInput({ startTime: "16:00", endTime: "18:00", weekdays: [1], active: true }, [morning]), {});
+  assert.ok(validateWindowInput({ startTime: "12:00", endTime: "10:00", weekdays: [1], active: true }).time);
+  assert.ok(validateWindowInput({ startTime: "10:00", endTime: "12:00", weekdays: [], active: true }).weekdays);
+  assert.ok(validateWindowInput({ startTime: "11:00", endTime: "13:00", weekdays: [5], active: true }, [morning]).time);
+  // Mismo horario en días que no se cruzan, un horario pausado o el propio horario editado no chocan.
+  assert.deepEqual(validateWindowInput({ startTime: "11:00", endTime: "13:00", weekdays: [6], active: true }, [morning]), {});
+  assert.deepEqual(validateWindowInput({ startTime: "11:00", endTime: "13:00", weekdays: [1], active: true }, [{ ...morning, active: false }]), {});
+  assert.deepEqual(validateWindowInput({ startTime: "10:00", endTime: "12:30", weekdays: [1], active: true }, [morning], "w1"), {});
 });
 
-test("slotWindowsOverlap y slotOccupancy", () => {
+test("slotWindowsOverlap y formatWeekdays", () => {
   assert.equal(slotWindowsOverlap({ startTime: "10:00", endTime: "12:00" }, { startTime: "12:00", endTime: "14:00" }), false);
   assert.equal(slotWindowsOverlap({ startTime: "10:00", endTime: "12:00" }, { startTime: "11:00", endTime: "13:00" }), true);
-  assert.deepEqual(slotOccupancy({ capacity: 12, bookedCount: 12 }), { used: 12, capacity: 12, remaining: 0, full: true, ratio: 1 });
+  assert.equal(formatWeekdays([0, 1, 2, 3, 4, 5, 6]), "Todos los días");
+  assert.equal(formatWeekdays([6, 1, 2, 3, 4, 5]), "Lun a Sáb");
+  assert.equal(formatWeekdays([1, 3, 5]), "Lun, Mié, Vie");
+  assert.equal(formatWeekdays([6, 0]), "Sáb, Dom");
 });
 
 test("summarizeCheckoutImpact describe lo que ve el cliente", () => {

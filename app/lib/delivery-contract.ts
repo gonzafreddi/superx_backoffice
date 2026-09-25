@@ -2,18 +2,16 @@ import type { UserRole } from "./product-contract";
 
 export type DeliveryChange = { id: string; summary: string; actor: string; role?: UserRole; changedAt: string };
 
-export type DeliverySlot = {
+/** A recurring delivery window ("horario de reparto"): the checkout offers it on those weekdays, with no capacity limit. */
+export type DeliveryWindow = {
   id: string;
-  zoneId: string;
-  date: string;        // YYYY-MM-DD
   startTime: string;   // HH:MM
   endTime: string;     // HH:MM
-  capacity: number;
-  bookedCount: number;
+  weekdays: number[];  // 0 = domingo … 6 = sábado
   active: boolean;
-  updatedAt: string;
-  history: DeliveryChange[];
 };
+
+export type WindowInput = Omit<DeliveryWindow, "id">;
 
 export type DeliveryZone = {
   id: string;
@@ -42,24 +40,15 @@ export type ZoneInput = {
 
 export type ZoneUpdateInput = ZoneInput & { changedBy: string; changedByRole?: UserRole; reason?: string };
 
-export type SlotInput = {
-  date: string;
-  startTime: string;
-  endTime: string;
-  capacity: number | "";
-  active: boolean;
-};
-
-export type SlotUpsertInput = SlotInput & { changedBy: string; changedByRole?: UserRole; reason?: string };
-
 export type DeliveryRole = UserRole;
 
-/** Contrato objetivo: GET/POST/PATCH /api/delivery-zones y GET/POST/PATCH /api/delivery/slots. */
+/** Contrato: GET/POST/PATCH /delivery-zones y GET/POST/PATCH/DELETE /delivery/windows. */
 export type DeliveryApi = {
   listZones(): Promise<DeliveryZone[]>;
   createZone(input: ZoneUpdateInput): Promise<DeliveryZone>;
   updateZone(id: string, input: ZoneUpdateInput): Promise<DeliveryZone>;
-  listSlots(zoneId: string): Promise<DeliverySlot[]>;
-  createSlot(zoneId: string, input: SlotUpsertInput): Promise<DeliverySlot>;
-  updateSlot(id: string, input: SlotUpsertInput): Promise<DeliverySlot>;
+  listWindows(): Promise<DeliveryWindow[]>;
+  createWindow(input: WindowInput): Promise<DeliveryWindow>;
+  updateWindow(id: string, input: WindowInput): Promise<DeliveryWindow>;
+  deleteWindow(id: string): Promise<void>;
 };

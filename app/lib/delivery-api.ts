@@ -1,6 +1,6 @@
 import { authHeaders } from "@/app/lib/auth-api";
-import type { DeliveryApi, DeliverySlot, DeliveryZone, SlotUpsertInput, ZoneUpdateInput } from "./delivery-contract";
-import { validateSlotInput, validateZoneInput } from "./delivery-rules";
+import type { DeliveryApi, DeliveryWindow, DeliveryZone, WindowInput, ZoneUpdateInput } from "./delivery-contract";
+import { validateWindowInput, validateZoneInput } from "./delivery-rules";
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 const uid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Math.random()).slice(2));
@@ -12,15 +12,14 @@ let zones: DeliveryZone[] = [
   { id: "zone-lanus", name: "Lanús Centro", cityName: "Lanús", postalCodes: ["1824"], neighborhoods: [], deliveryFee: 1500, freeDeliveryThreshold: null, priority: 5, active: false, updatedAt: "2026-09-03T16:00:00.000Z", history: [change("dc-3", "Zona creada · envío $1.500 · sin envío gratis", "Administración", "2026-09-03T16:00:00.000Z", "admin"), change("dc-3b", "Zona desactivada mientras se ajusta la logística", "Administración", "2026-09-03T16:05:00.000Z", "admin")] },
 ];
 
-const futureDate = (days: number) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); };
-let slots: DeliverySlot[] = [
-  { id: "slot-c1", zoneId: "zone-caballito", date: futureDate(1), startTime: "10:00", endTime: "12:00", capacity: 12, bookedCount: 7, active: true, updatedAt: "2026-09-04T08:00:00.000Z", history: [change("ds-1", "Franja creada · capacidad 12", "Operador", "2026-09-04T08:00:00.000Z", "operator")] },
-  { id: "slot-c2", zoneId: "zone-caballito", date: futureDate(1), startTime: "14:00", endTime: "16:00", capacity: 12, bookedCount: 12, active: true, updatedAt: "2026-09-04T08:05:00.000Z", history: [change("ds-2", "Franja creada · capacidad 12", "Operador", "2026-09-04T08:05:00.000Z", "operator")] },
-  { id: "slot-b1", zoneId: "zone-belgrano", date: futureDate(2), startTime: "09:00", endTime: "11:00", capacity: 8, bookedCount: 2, active: true, updatedAt: "2026-09-04T08:10:00.000Z", history: [change("ds-3", "Franja creada · capacidad 8", "Operador", "2026-09-04T08:10:00.000Z", "operator")] },
+let windows: DeliveryWindow[] = [
+  { id: "window-morning", startTime: "10:00", endTime: "12:00", weekdays: [1, 2, 3, 4, 5, 6], active: true },
+  { id: "window-afternoon", startTime: "16:00", endTime: "18:00", weekdays: [1, 2, 3, 4, 5], active: true },
 ];
 
 const cloneZone = (zone: DeliveryZone): DeliveryZone => ({ ...zone, postalCodes: [...zone.postalCodes], neighborhoods: [...zone.neighborhoods], history: zone.history.map((entry) => ({ ...entry })) });
-const cloneSlot = (slot: DeliverySlot): DeliverySlot => ({ ...slot, history: slot.history.map((entry) => ({ ...entry })) });
+const cloneWindow = (window: DeliveryWindow): DeliveryWindow => ({ ...window, weekdays: [...window.weekdays] });
+const byStart = (a: DeliveryWindow, b: DeliveryWindow) => a.startTime.localeCompare(b.startTime);
 
 function assertValid(errors: object) {
   const message = Object.values(errors)[0] as string | undefined;
@@ -31,7 +30,7 @@ function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_A
 
 type RawCity = { id: string; name: string };
 type RawZone = { id: string; cityId: string; name: string; postalCodes: string[]; neighborhoods: string[]; deliveryFee: string; freeDeliveryThreshold: string | null; priority: number; isActive: boolean };
-type RawSlot = { id: string; deliveryZoneId: string; slotDate: string; startTime: string; endTime: string; capacity: number; bookedCount: number; isActive: boolean };
+type RawWindow = { id: string; startTime: string; endTime: string; weekdays: number[]; isActive: boolean };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
   const response = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...authHeaders(), ...init.headers } });
@@ -55,7 +54,7 @@ async function resolveCityId(root: string, cityName: string): Promise<string> {
   return match.id;
 }
 
-/** DeliveryZone/DeliverySlot have no audit-log endpoint on the backend — history is always empty for real data, unlike price/inventory where a synthetic single entry could be derived from real fields. */
+/** DeliveryZone has no audit-log endpoint on the backend — history is always empty for real data, unlike price/inventory where a synthetic single entry could be derived from real fields. */
 function adaptZone(raw: RawZone, cityName: string): DeliveryZone {
   return {
     id: raw.id,
@@ -72,19 +71,9 @@ function adaptZone(raw: RawZone, cityName: string): DeliveryZone {
   };
 }
 
-function adaptSlot(raw: RawSlot): DeliverySlot {
-  return {
-    id: raw.id,
-    zoneId: raw.deliveryZoneId,
-    date: raw.slotDate,
-    startTime: raw.startTime.slice(0, 5),
-    endTime: raw.endTime.slice(0, 5),
-    capacity: raw.capacity,
-    bookedCount: raw.bookedCount,
-    active: raw.isActive,
-    updatedAt: new Date().toISOString(),
-    history: [],
-  };
+function adaptWindow(raw: RawWindow): DeliveryWindow {
+  // Postgres returns "HH:MM:SS"; the UI works in minutes.
+  return { id: String(raw.id), startTime: raw.startTime.slice(0, 5), endTime: raw.endTime.slice(0, 5), weekdays: [...raw.weekdays].sort((a, b) => a - b), active: raw.isActive };
 }
 
 export const deliveryApi: DeliveryApi = {
@@ -144,55 +133,45 @@ export const deliveryApi: DeliveryApi = {
     });
     return adaptZone(payload as RawZone, input.cityName.trim());
   },
-  async listSlots(zoneId: string) {
+  async listWindows() {
     const url = baseUrl();
-    if (!url) { await wait(); return slots.filter((slot) => slot.zoneId === zoneId).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)).map(cloneSlot); }
-    const root = url.replace(/\/$/, "");
-    const payload = await fetchJson(`${root}/delivery/slots?zoneId=${encodeURIComponent(zoneId)}&includeInactive=true`);
-    const list = Array.isArray(payload) ? (payload as RawSlot[]) : [];
-    return list.map(adaptSlot).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+    if (!url) { await wait(); return [...windows].sort(byStart).map(cloneWindow); }
+    const payload = await fetchJson(`${url.replace(/\/$/, "")}/delivery/windows`);
+    return (Array.isArray(payload) ? (payload as RawWindow[]) : []).map(adaptWindow).sort(byStart);
   },
-  async createSlot(zoneId: string, input: SlotUpsertInput) {
+  async createWindow(input: WindowInput) {
     const url = baseUrl();
     if (!url) {
       await wait();
-      if (!zones.some((zone) => zone.id === zoneId)) throw new Error("La zona ya no existe. Actualizá el listado.");
-      assertValid(validateSlotInput(input, { existingSlots: slots.filter((slot) => slot.zoneId === zoneId), today: new Date().toISOString().slice(0, 10) }));
-      const now = new Date().toISOString();
-      const { buildDeliveryChangeEvent } = await import("./delivery-rules");
-      const slot: DeliverySlot = { id: `slot-${uid()}`, zoneId, date: input.date, startTime: input.startTime, endTime: input.endTime, capacity: Number(input.capacity), bookedCount: 0, active: input.active, updatedAt: now, history: [buildDeliveryChangeEvent(`Franja creada por ${input.changedBy} · capacidad ${Number(input.capacity)}`, input.changedBy, input.changedByRole, now, `ds-${uid()}`)] };
-      slots = [...slots, slot];
-      return cloneSlot(slot);
+      assertValid(validateWindowInput(input, windows));
+      const window: DeliveryWindow = { id: `window-${uid()}`, ...input, weekdays: [...input.weekdays] };
+      windows = [...windows, window];
+      return cloneWindow(window);
     }
-    const existing = await deliveryApi.listSlots(zoneId);
-    assertValid(validateSlotInput(input, { existingSlots: existing, today: new Date().toISOString().slice(0, 10) }));
-    const root = url.replace(/\/$/, "");
-    const payload = await fetchJson(`${root}/delivery/slots`, {
+    const payload = await fetchJson(`${url.replace(/\/$/, "")}/delivery/windows`, {
       method: "POST",
-      body: JSON.stringify({ deliveryZoneId: Number(zoneId), slotDate: input.date, startTime: input.startTime, endTime: input.endTime, capacity: Number(input.capacity) }),
+      body: JSON.stringify({ startTime: input.startTime, endTime: input.endTime, weekdays: input.weekdays, isActive: input.active }),
     });
-    return adaptSlot(payload as RawSlot);
+    return adaptWindow(payload as RawWindow);
   },
-  async updateSlot(id: string, input: SlotUpsertInput) {
+  async updateWindow(id: string, input: WindowInput) {
     const url = baseUrl();
     if (!url) {
       await wait();
-      const slot = slots.find((candidate) => candidate.id === id);
-      if (!slot) throw new Error("La franja ya no existe. Actualizá el listado.");
-      assertValid(validateSlotInput(input, { existingSlots: slots.filter((candidate) => candidate.zoneId === slot.zoneId), today: new Date().toISOString().slice(0, 10), editingSlot: slot }));
-      const now = new Date().toISOString();
-      const { buildDeliveryChangeEvent } = await import("./delivery-rules");
-      const summary = `${input.changedBy} ajustó la franja · capacidad ${Number(input.capacity)}${input.active ? "" : " · inactiva"}${input.reason ? ` — ${input.reason}` : ""}`;
-      const updated: DeliverySlot = { ...slot, date: input.date, startTime: input.startTime, endTime: input.endTime, capacity: Number(input.capacity), active: input.active, updatedAt: now, history: [...slot.history, buildDeliveryChangeEvent(summary, input.changedBy, input.changedByRole, now, `ds-${uid()}`)] };
-      slots = slots.map((candidate) => (candidate.id === id ? updated : candidate));
-      return cloneSlot(updated);
+      if (!windows.some((window) => window.id === id)) throw new Error("El horario ya no existe. Actualizá el listado.");
+      assertValid(validateWindowInput(input, windows, id));
+      windows = windows.map((window) => (window.id === id ? { id, ...input, weekdays: [...input.weekdays] } : window));
+      return cloneWindow(windows.find((window) => window.id === id)!);
     }
-    // Real UpdateDeliverySlotDto only accepts capacity/isActive — date/startTime/endTime can't be changed after creation.
-    const root = url.replace(/\/$/, "");
-    const payload = await fetchJson(`${root}/delivery/slots/${encodeURIComponent(id)}`, {
+    const payload = await fetchJson(`${url.replace(/\/$/, "")}/delivery/windows/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      body: JSON.stringify({ capacity: Number(input.capacity), isActive: input.active }),
+      body: JSON.stringify({ startTime: input.startTime, endTime: input.endTime, weekdays: input.weekdays, isActive: input.active }),
     });
-    return adaptSlot(payload as RawSlot);
+    return adaptWindow(payload as RawWindow);
+  },
+  async deleteWindow(id: string) {
+    const url = baseUrl();
+    if (!url) { await wait(); windows = windows.filter((window) => window.id !== id); return; }
+    await fetchJson(`${url.replace(/\/$/, "")}/delivery/windows/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
 };

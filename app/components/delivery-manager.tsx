@@ -3,20 +3,20 @@
 import { Notice } from "@/app/components/ui/notice";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { DeliveryHours } from "@/app/components/delivery-hours";
 import { ListSkeleton } from "@/app/components/list-skeleton";
 import { roles } from "@/app/components/location-ui";
 import { getStoredUser } from "@/app/lib/auth-api";
 import { deliveryApi } from "@/app/lib/delivery-api";
-import type { DeliverySlot, DeliveryZone, SlotUpsertInput, ZoneUpdateInput } from "@/app/lib/delivery-contract";
+import type { DeliveryZone, ZoneUpdateInput } from "@/app/lib/delivery-contract";
 import type { UserRole } from "@/app/lib/product-contract";
-import { getDeliveryPermissions, slotOccupancy, summarizeCheckoutImpact, validateSlotInput, validateZoneInput } from "@/app/lib/delivery-rules";
+import { getDeliveryPermissions, summarizeCheckoutImpact, validateZoneInput } from "@/app/lib/delivery-rules";
 
 type Notice = { kind: "success" | "error"; text: string } | null;
-type Dialog = { kind: "zone-new" | "zone-edit" } | { kind: "slot-new" } | { kind: "slot-edit"; slot: DeliverySlot } | null;
+type Dialog = { kind: "zone-new" | "zone-edit" } | null;
 const actors: Record<UserRole, string> = { viewer: "Usuario de consulta", operator: "Operador actual", admin: "Administración actual" };
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const dateTime = new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" });
-const dayLabel = new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
 function Icon({ name }: { name: "search" | "zone" | "close" | "chevron" | "history" | "edit" | "plus" }) {
   const paths = {
@@ -32,21 +32,17 @@ function Icon({ name }: { name: "search" | "zone" | "close" | "chevron" | "histo
 }
 
 const emptyZoneForm = { name: "", cityName: "", postalCodes: "", neighborhoods: "", deliveryFee: "", freeDeliveryThreshold: "", priority: "0", active: true, reason: "" };
-const emptySlotForm = { date: "", startTime: "10:00", endTime: "12:00", capacity: "10", active: true, reason: "" };
 
 export function DeliveryManager() {
   const [zones, setZones] = useState<DeliveryZone[]>([]);
-  const [slots, setSlots] = useState<DeliverySlot[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole>("viewer");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [slotsLoading, setSlotsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState<Notice>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [zoneForm, setZoneForm] = useState(emptyZoneForm);
-  const [slotForm, setSlotForm] = useState(emptySlotForm);
   const [formError, setFormError] = useState("");
   const [pending, setPending] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -75,20 +71,6 @@ export function DeliveryManager() {
   useEffect(() => { const user = getStoredUser(); // eslint-disable-next-line react-hooks/set-state-in-effect
     setRole(user?.role === "admin" ? "admin" : "viewer"); }, []);
   useEffect(() => { if (formError) errorRef.current?.focus(); }, [formError]);
-  useEffect(() => {
-    let active = true;
-    // Carga perezosa de franjas de la zona seleccionada (adaptador temporal).
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (!selectedId) { setSlots([]); return; }
-    setSlotsLoading(true);
-    /* eslint-enable react-hooks/set-state-in-effect */
-    void deliveryApi.listSlots(selectedId)
-      .then((next) => { if (active) setSlots(next); })
-      .catch(() => { if (active) setSlots([]); })
-      .finally(() => { if (active) setSlotsLoading(false); });
-    return () => { active = false; };
-  }, [selectedId]);
-
   const visible = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("es-AR");
     return zones.filter((zone) => !normalized || [zone.name, zone.cityName, ...zone.postalCodes, ...zone.neighborhoods].some((value) => value.toLocaleLowerCase("es-AR").includes(normalized)));
@@ -103,13 +85,6 @@ export function DeliveryManager() {
     }
     setDialog({ kind });
   };
-  const openSlotDialog = (slot?: DeliverySlot) => {
-    setFormError("");
-    if (slot) setSlotForm({ date: slot.date, startTime: slot.startTime, endTime: slot.endTime, capacity: String(slot.capacity), active: slot.active, reason: "" });
-    else setSlotForm(emptySlotForm);
-    setDialog(slot ? { kind: "slot-edit", slot } : { kind: "slot-new" });
-  };
-
   const parseList = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
 
   const submitZone = (event: FormEvent) => {
@@ -137,43 +112,17 @@ export function DeliveryManager() {
     }
   };
 
-  const submitSlot = (event: FormEvent) => {
-    event.preventDefault();
-    if (!selected) return;
-    const editingSlot = dialog?.kind === "slot-edit" ? dialog.slot : null;
-    const input = { date: slotForm.date, startTime: slotForm.startTime, endTime: slotForm.endTime, capacity: slotForm.capacity === "" ? "" : Number(slotForm.capacity), active: slotForm.active } as const;
-    const message = Object.values(validateSlotInput(input, { existingSlots: slots, today: new Date().toISOString().slice(0, 10), editingSlot }))[0] ?? "";
-    setFormError(message);
-    if (message) return;
-    void saveSlot(input, editingSlot);
-  };
-  const saveSlot = async (input: Omit<SlotUpsertInput, "changedBy" | "changedByRole" | "reason">, editingSlot: DeliverySlot | null) => {
-    if (!selected) return;
-    setPending(true); setNotice(null);
-    const payload: SlotUpsertInput = { ...input, changedBy: actors[role], changedByRole: role, ...(slotForm.reason.trim() ? { reason: slotForm.reason.trim() } : {}) };
-    try {
-      const saved = editingSlot ? await deliveryApi.updateSlot(editingSlot.id, payload) : await deliveryApi.createSlot(selected.id, payload);
-      setSlots((current) => (current.some((slot) => slot.id === saved.id) ? current.map((slot) => (slot.id === saved.id ? saved : slot)) : [...current, saved]).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)));
-      setDialog(null);
-      setNotice({ kind: "success", text: `Franja ${editingSlot ? "actualizada" : "creada"}. Disponible en el checkout al instante.` });
-    } catch (error) {
-      setDialog(null);
-      setNotice({ kind: "error", text: error instanceof Error ? error.message : "No se pudo guardar la franja." });
-    } finally {
-      setPending(false);
-    }
-  };
-
   return <section className="workspace" id="entregas">
     <header className="topbar">
-      <div><p className="eyebrow">LOGÍSTICA / ENTREGAS</p><h1>Zonas y franjas</h1><p className="subtitle">Ajustá cobertura, costo de envío, umbral de envío gratis y capacidad de franjas. Los cambios impactan el checkout sin deploy.</p></div>
+      <div><p className="eyebrow">LOGÍSTICA / ENTREGAS</p><h1>Entregas</h1><p className="subtitle">Definí los horarios de reparto y, por zona, la cobertura, el costo de envío y el umbral de envío gratis. Los cambios impactan el checkout sin deploy.</p></div>
       <div className="top-actions">
         <span className="status active">{roles[role]}</span>
         {permissions.create && <button className="button primary" onClick={() => openZoneDialog("zone-new")}><Icon name="plus" /> Nueva zona</button>}
       </div>
     </header>
     {notice && <Notice kind={notice.kind} label={notice.kind === "success" ? "Listo" : "No se pudo completar"} onDismiss={() => setNotice(null)} dismissLabel="Cerrar mensaje" closeContent={<Icon name="close" />}>{notice.text}</Notice>}
-    <div className="permission-note">Estás operando como <strong>{roles[role]}</strong>. {permissions.editZone ? "Podés editar zonas y franjas." : permissions.editSlot ? "Podés ajustar franjas y capacidad; sólo administración edita zonas." : "Sólo podés consultar la configuración de entregas."}</div>
+    <div className="permission-note">Estás operando como <strong>{roles[role]}</strong>. {permissions.editZone ? "Podés editar horarios y zonas." : permissions.editHours ? "Podés ajustar horarios de reparto; sólo administración edita zonas." : "Sólo podés consultar la configuración de entregas."}</div>
+    <DeliveryHours canEdit={permissions.editHours} />
     <section className="catalog-grid order-grid">
       <div className="list-panel">
         <div className="filters"><label className="search"><Icon name="search" /><span className="sr-only">Buscar zona</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar zona, ciudad, CP o barrio" /></label></div>
@@ -181,7 +130,7 @@ export function DeliveryManager() {
         {loading ? <ListSkeleton label="Cargando zonas…" /> : loadError ? <div className="state error-state"><strong>{loadError.startsWith("Sin conexión") ? "Sin conexión" : "No pudimos cargar las zonas"}</strong><span>{loadError}</span><button className="button secondary" onClick={() => void load()}>Reintentar</button></div> : visible.length === 0 ? <div className="state"><Icon name="zone" /><strong>No encontramos zonas</strong><span>Ajustá la búsqueda o creá una zona nueva.</span></div> : <ul className="zone-list">{visible.map((zone) => <li key={zone.id}><button className={`zone-row ${selected?.id === zone.id ? "selected" : ""}`} onClick={() => setSelectedId(zone.id)}><span className="zone-row-head"><strong>{zone.name}</strong><span className={`status ${zone.active ? "active" : "inactive"}`}>{zone.active ? "Activa" : "Inactiva"}</span></span><span className="zone-row-meta">{zone.cityName} · {money.format(zone.deliveryFee)} envío{zone.freeDeliveryThreshold ? ` · gratis desde ${money.format(zone.freeDeliveryThreshold)}` : ""}</span></button></li>)}</ul>}
       </div>
       <aside className="detail-panel" aria-live="polite">
-        {!selected ? <div className="state detail-empty"><Icon name="zone" /><strong>Seleccioná una zona</strong><span>Vas a ver su cobertura, costos y franjas.</span></div> : <>
+        {!selected ? <div className="state detail-empty"><Icon name="zone" /><strong>Seleccioná una zona</strong><span>Vas a ver su cobertura y costos.</span></div> : <>
           <div className="detail-heading"><span className="price-mark"><Icon name="zone" /></span><div><span className={`status ${selected.active ? "active" : "inactive"}`}>{selected.active ? "Activa" : "Inactiva"}</span><h2>{selected.name}</h2><p>{selected.cityName} · prioridad {selected.priority}</p></div></div>
           <div className="stock-summary"><span>EN EL CHECKOUT</span><strong>{summarizeCheckoutImpact(selected)}</strong><small>Actualizado {dateTime.format(new Date(selected.updatedAt))}</small></div>
           <dl className="order-info">
@@ -189,19 +138,11 @@ export function DeliveryManager() {
             <div><dt>Barrios</dt><dd>{selected.neighborhoods.length ? selected.neighborhoods.join(", ") : "—"}</dd></div>
           </dl>
           {permissions.editZone && <button className="button primary full-width" onClick={() => openZoneDialog("zone-edit")}><Icon name="edit" /> Editar zona</button>}
-          <section className="slots-section">
-            <div className="slots-head"><h3>Franjas ({slots.length})</h3>{permissions.editSlot && <button className="button secondary" onClick={() => openSlotDialog()}><Icon name="plus" /> Nueva franja</button>}</div>
-            {slotsLoading ? <ListSkeleton label="Cargando franjas…" /> : slots.length === 0 ? <p className="slots-empty">Esta zona no tiene franjas cargadas.</p> : <ul className="slot-list">{slots.map((slot) => { const occ = slotOccupancy(slot); return <li key={slot.id} className={`slot-row ${slot.active ? "" : "slot-inactive"}`}>
-              <div className="slot-info"><strong>{dayLabel.format(new Date(`${slot.date}T00:00:00Z`))} · {slot.startTime}–{slot.endTime}</strong><span>{occ.used}/{occ.capacity} reservas{occ.full ? " · completa" : ""}{slot.active ? "" : " · inactiva"}</span><span className="slot-bar" aria-hidden="true"><span style={{ width: `${Math.round(occ.ratio * 100)}%` }} className={occ.full ? "slot-bar-full" : ""} /></span></div>
-              {permissions.editSlot && <button className="button ghost" onClick={() => openSlotDialog(slot)}>Editar</button>}
-            </li>; })}</ul>}
-          </section>
           <section className="history"><h3><Icon name="history" /> Historial de la zona</h3>{[...selected.history].reverse().map((entry) => <article className="history-row" key={entry.id}><strong>{entry.actor}{entry.role ? ` · ${entry.role}` : ""}</strong><div><time>{dateTime.format(new Date(entry.changedAt))}</time><em>{entry.summary}</em></div></article>)}</section>
         </>}
       </aside>
     </section>
-    {dialog && (dialog.kind === "zone-new" || dialog.kind === "zone-edit") && <ZoneForm mode={dialog.kind} form={zoneForm} error={formError} errorRef={errorRef} pending={pending} onChange={setZoneForm} onClose={() => setDialog(null)} onSubmit={submitZone} />}
-    {dialog && (dialog.kind === "slot-new" || dialog.kind === "slot-edit") && <SlotForm mode={dialog.kind} form={slotForm} slot={dialog.kind === "slot-edit" ? dialog.slot : null} error={formError} errorRef={errorRef} pending={pending} onChange={setSlotForm} onClose={() => setDialog(null)} onSubmit={submitSlot} />}
+    {dialog && <ZoneForm mode={dialog.kind} form={zoneForm} error={formError} errorRef={errorRef} pending={pending} onChange={setZoneForm} onClose={() => setDialog(null)} onSubmit={submitZone} />}
   </section>;
 }
 
@@ -228,26 +169,6 @@ function ZoneForm({ mode, form, error, errorRef, pending, onChange, onClose, onS
       <Field label="Barrios" hint="(separados por coma)"><input value={form.neighborhoods} onChange={(event) => set({ neighborhoods: event.target.value })} placeholder="Caballito, Primera Junta" /></Field>
       <label className="field reason-field"><span>Motivo <small>(opcional)</small></span><input value={form.reason} maxLength={140} onChange={(event) => set({ reason: event.target.value })} placeholder="Ej.: nueva tarifa del transportista" /></label>
       <footer><button type="button" className="button ghost" onClick={onClose}>Cancelar</button><button className="button primary" disabled={pending}>{pending ? "Guardando…" : "Guardar zona"}</button></footer>
-    </form>
-  </section></div>;
-}
-
-function SlotForm({ mode, form, slot, error, errorRef, pending, onChange, onClose, onSubmit }: { mode: "slot-new" | "slot-edit"; form: typeof emptySlotForm; slot: DeliverySlot | null; error: string; errorRef: React.RefObject<HTMLDivElement | null>; pending: boolean; onChange: (form: typeof emptySlotForm) => void; onClose: () => void; onSubmit: (event: FormEvent) => void }) {
-  const set = (patch: Partial<typeof emptySlotForm>) => onChange({ ...form, ...patch });
-  return <div className="modal-backdrop" role="presentation"><section className="modal price-modal" role="dialog" aria-modal="true" aria-labelledby="slot-form-title">
-    <header><div><p className="eyebrow">ENTREGAS</p><h2 id="slot-form-title">{mode === "slot-new" ? "Nueva franja" : "Editar franja"}</h2></div><button className="icon-button" aria-label="Cerrar formulario" onClick={onClose}><Icon name="close" /></button></header>
-    <p className="modal-lede">{slot ? `Franja con ${slot.bookedCount} reservas: la capacidad no puede bajar de ese número.` : "La franja queda disponible en el checkout apenas la guardás."}</p>
-    <form onSubmit={onSubmit} noValidate>
-      {error && <div className="form-summary" ref={errorRef} tabIndex={-1} role="alert"><strong>Revisá los datos</strong><span>{error}</span></div>}
-      <div className="form-grid">
-        <Field label="Fecha"><input type="date" value={form.date} onChange={(event) => set({ date: event.target.value })} /></Field>
-        <Field label="Capacidad"><input type="number" min="1" step="1" value={form.capacity} onChange={(event) => set({ capacity: event.target.value })} /></Field>
-        <Field label="Inicio"><input type="time" value={form.startTime} onChange={(event) => set({ startTime: event.target.value })} /></Field>
-        <Field label="Fin"><input type="time" value={form.endTime} onChange={(event) => set({ endTime: event.target.value })} /></Field>
-        <Field label="Estado"><select value={form.active ? "active" : "inactive"} onChange={(event) => set({ active: event.target.value === "active" })}><option value="active">Activa</option><option value="inactive">Inactiva</option></select></Field>
-      </div>
-      <label className="field reason-field"><span>Motivo <small>(opcional)</small></span><input value={form.reason} maxLength={140} onChange={(event) => set({ reason: event.target.value })} placeholder="Ej.: sumar capacidad por demanda" /></label>
-      <footer><button type="button" className="button ghost" onClick={onClose}>Cancelar</button><button className="button primary" disabled={pending}>{pending ? "Guardando…" : "Guardar franja"}</button></footer>
     </form>
   </section></div>;
 }
