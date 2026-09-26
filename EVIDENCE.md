@@ -821,3 +821,20 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 - `pnpm lint`: PASS.
 - `pnpm test`: PASS — 101 tests.
 - `pnpm build`: PASS — `/promociones` y `/medios-de-pago` prerenderizadas correctamente con Next.js 16.3.4.
+
+# Evidencia — BO4 Fotos de producto (2026-09-26)
+
+## Implementado
+
+- La ficha de producto suma la pestaña **Fotos** con grilla responsive, identificación de principal, cambio de principal, movimiento izquierda/derecha y borrado con confirmación.
+- La carga acepta selección múltiple y drag & drop, valida JPEG/PNG/WebP y 5 MB antes de enviar, procesa en forma secuencial y muestra preview, estado y error por archivo.
+- Las operaciones usan `authFetch` contra las rutas verificadas del backend (`POST/DELETE/PATCH /products/:id/images...`); el multipart se envía como `FormData` sin fijar `Content-Type`. Los estados 400, 413 y 403 tienen mensajes en español.
+- El contrato conserva la lista ordenada de imágenes, el listado usa la primera como miniatura y el modo sin API incluye fixtures para cargar, ordenar y borrar.
+- Se agregaron reglas puras y pruebas para formato, tamaño y mapeo de errores.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 104 tests.
+- `pnpm build`: PASS — Next.js 16.3.4; `/productos` y `/productos/[id]` generadas correctamente.

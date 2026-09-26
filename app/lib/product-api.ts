@@ -1,13 +1,14 @@
 import { authFetch } from "@/app/lib/http";
-import type { Brand, Category, Product, ProductApi, ProductFilters, ProductInput, ProductPage, Unit } from "./product-contract";
+import { productImageError } from "./product-image-rules.js";
+import type { Brand, Category, Product, ProductApi, ProductFilters, ProductImage, ProductInput, ProductPage, Unit } from "./product-contract";
 
 const categories: Category[] = [{ id: "beverages", name: "Bebidas" }, { id: "pantry", name: "Almacén" }, { id: "fresh", name: "Frescos" }];
 const brands: Brand[] = [{ id: "superx", name: "SuperX" }, { id: "natura", name: "Natura" }, { id: "campo", name: "El Campo" }];
 const units: Unit[] = [{ id: "unidad", code: "UN", name: "Unidad" }, { id: "kg", code: "KG", name: "Kilogramo" }, { id: "litro", code: "L", name: "Litro" }];
 let products: Product[] = [
-  { id: "prd-001", slug: "agua-mineral-sin-gas-1-5-l", name: "Agua mineral sin gas 1,5 L", description: "", sku: "SUP-0001", barcode: "7791234567890", categoryId: "beverages", categoryName: "Bebidas", brandId: "superx", brandName: "SuperX", unit: "UN", imageUrl: "", active: true, updatedAt: "2026-09-04T12:00:00.000Z", availableStock: 48, price: 1250 },
-  { id: "prd-002", slug: "yerba-mate-tradicional-500-g", name: "Yerba mate tradicional 500 g", description: "", sku: "CAM-0002", barcode: "7791234567891", categoryId: "pantry", categoryName: "Almacén", brandId: "campo", brandName: "El Campo", unit: "UN", imageUrl: "", active: true, updatedAt: "2026-09-03T15:30:00.000Z", availableStock: 8, price: 3400 },
-  { id: "prd-003", slug: "jugo-de-naranja-1-l", name: "Jugo de naranja 1 L", description: "", sku: "NAT-0003", barcode: "7791234567892", categoryId: "beverages", categoryName: "Bebidas", brandId: "natura", brandName: "Natura", unit: "L", imageUrl: "", active: false, updatedAt: "2026-08-30T09:10:00.000Z", availableStock: 0, price: 2150 },
+  { id: "prd-001", slug: "agua-mineral-sin-gas-1-5-l", name: "Agua mineral sin gas 1,5 L", description: "", sku: "SUP-0001", barcode: "7791234567890", categoryId: "beverages", categoryName: "Bebidas", brandId: "superx", brandName: "SuperX", unit: "UN", imageUrl: "", images: [], active: true, updatedAt: "2026-09-04T12:00:00.000Z", availableStock: 48, price: 1250 },
+  { id: "prd-002", slug: "yerba-mate-tradicional-500-g", name: "Yerba mate tradicional 500 g", description: "", sku: "CAM-0002", barcode: "7791234567891", categoryId: "pantry", categoryName: "Almacén", brandId: "campo", brandName: "El Campo", unit: "UN", imageUrl: "", images: [], active: true, updatedAt: "2026-09-03T15:30:00.000Z", availableStock: 8, price: 3400 },
+  { id: "prd-003", slug: "jugo-de-naranja-1-l", name: "Jugo de naranja 1 L", description: "", sku: "NAT-0003", barcode: "7791234567892", categoryId: "beverages", categoryName: "Bebidas", brandId: "natura", brandName: "Natura", unit: "L", imageUrl: "", images: [], active: false, updatedAt: "2026-08-30T09:10:00.000Z", availableStock: 0, price: 2150 },
 ];
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 const missing = () => new Error("El producto ya no está disponible. Actualizá el listado e intentá nuevamente.");
@@ -17,7 +18,7 @@ function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_A
 type RawCategory = { id: string; name: string };
 type RawBrand = { id: string; name: string };
 type RawUnit = { id: string; code: string; name: string };
-type RawImage = { url?: unknown; altText?: unknown; isPrimary?: unknown };
+type RawImage = { id?: unknown; url?: unknown; altText?: unknown; sortOrder?: unknown; isPrimary?: unknown };
 type RawBarcode = { value?: unknown };
 type RawProduct = { id: string; name: string; description?: string; slug: string; categoryId: string; brandId: string | null; unitId: string; isActive: boolean; updatedAt: string; availableStock?: number; category?: { name?: unknown }; brand?: { name?: unknown } | null; unit?: { code?: unknown }; images?: RawImage[]; barcodes?: RawBarcode[] };
 type RawResolvedPrice = { productId: string; amount: string };
@@ -35,6 +36,7 @@ async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> 
 
 function adaptProduct(raw: RawProduct, unitById: Map<string, RawUnit>): Product {
   const unit = unitById.get(raw.unitId);
+  const images = adaptImages(raw.images);
   return {
     id: raw.id,
     slug: raw.slug,
@@ -47,11 +49,16 @@ function adaptProduct(raw: RawProduct, unitById: Map<string, RawUnit>): Product 
     brandId: raw.brandId ?? "",
     brandName: typeof raw.brand?.name === "string" ? raw.brand.name : "Sin marca",
     unit: typeof raw.unit?.code === "string" ? raw.unit.code : unit?.code ?? "",
-    imageUrl: raw.images?.[0]?.url ? String(raw.images[0].url) : "",
+    imageUrl: images[0]?.url ?? "",
+    images,
     active: raw.isActive,
     updatedAt: raw.updatedAt,
     availableStock: typeof raw.availableStock === "number" ? raw.availableStock : undefined,
   };
+}
+
+function adaptImages(raw: RawImage[] | undefined): ProductImage[] {
+  return (raw ?? []).map((image, index) => ({ id: String(image.id ?? index), url: String(image.url ?? ""), altText: typeof image.altText === "string" ? image.altText : null, sortOrder: typeof image.sortOrder === "number" ? image.sortOrder : index, isPrimary: image.isPrimary === true })).sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 function buildCreateBody(input: ProductInput, unitId: string) {
@@ -68,7 +75,7 @@ function buildCreateBody(input: ProductInput, unitId: string) {
 }
 
 function buildUpdateBody(input: ProductInput, unitId: string) {
-  return { ...buildCreateBody(input, unitId), isActive: input.active };
+  return { name: input.name, description: input.description?.trim() || undefined, categoryId: Number(input.categoryId), brandId: input.brandId ? Number(input.brandId) : undefined, unitId: Number(unitId), barcodes: input.barcode ? [{ value: input.barcode }] : [], isActive: input.active };
 }
 
 /** Real backend has no product DELETE — products can only be deactivated (PATCH isActive:false). */
@@ -161,7 +168,7 @@ export const productApi: ProductApi = {
   },
   async createProduct(input) {
     const url = baseUrl();
-    if (!url) { await wait(); const number = products.length + 1; const category = categories.find((item) => item.id === input.categoryId); const brand = brands.find((item) => item.id === input.brandId); const product: Product = { ...input, id: `prd-${String(number).padStart(3, "0")}`, slug: input.name.toLocaleLowerCase("es-AR").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""), sku: `SUP-${String(number).padStart(4, "0")}`, categoryName: category?.name ?? "Sin categoría", brandName: brand?.name ?? "Sin marca", updatedAt: new Date().toISOString(), availableStock: 0 }; products = [product, ...products]; return product; }
+    if (!url) { await wait(); const number = products.length + 1; const category = categories.find((item) => item.id === input.categoryId); const brand = brands.find((item) => item.id === input.brandId); const product: Product = { ...input, images: [], id: `prd-${String(number).padStart(3, "0")}`, slug: input.name.toLocaleLowerCase("es-AR").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""), sku: `SUP-${String(number).padStart(4, "0")}`, categoryName: category?.name ?? "Sin categoría", brandName: brand?.name ?? "Sin marca", updatedAt: new Date().toISOString(), availableStock: 0 }; products = [product, ...products]; return product; }
     const unitsList = await this.listUnits();
     const unit = unitsList.find((candidate) => candidate.code === input.unit);
     if (!unit) throw new Error("Seleccioná una unidad de venta válida.");
@@ -186,6 +193,28 @@ export const productApi: ProductApi = {
     const payload = await fetchJson(`${url.replace(/\/$/, "")}/products/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ isActive: active }) });
     const unitById = new Map(unitsList.map((u) => [u.id, u]));
     return adaptProduct(payload as RawProduct, unitById);
+  },
+  async uploadProductImage(id, file, alt) {
+    const url = baseUrl();
+    if (!url) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); const image: ProductImage = { id: crypto.randomUUID(), url: URL.createObjectURL(file), altText: alt?.trim() || null, sortOrder: found.images.length, isPrimary: found.images.length === 0 }; found.images = [...found.images, image]; found.imageUrl = found.images[0]?.url ?? ""; return found.images; }
+    const form = new FormData(); form.append("file", file); if (alt?.trim()) form.append("alt", alt.trim());
+    const response = await authFetch(`${url.replace(/\/$/, "")}/products/${encodeURIComponent(id)}/images`, { method: "POST", body: form, headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(productImageError(response.status));
+    return adaptImages(await response.json() as RawImage[]);
+  },
+  async deleteProductImage(id, imageId) {
+    const url = baseUrl();
+    if (!url) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); found.images = found.images.filter((image) => image.id !== imageId).map((image, index) => ({ ...image, sortOrder: index, isPrimary: index === 0 })); found.imageUrl = found.images[0]?.url ?? ""; return found.images; }
+    const response = await authFetch(`${url.replace(/\/$/, "")}/products/${encodeURIComponent(id)}/images/${encodeURIComponent(imageId)}`, { method: "DELETE", headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(productImageError(response.status));
+    return adaptImages(await response.json() as RawImage[]);
+  },
+  async reorderProductImages(id, imageIds) {
+    const url = baseUrl();
+    if (!url) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); const byId = new Map(found.images.map((image) => [image.id, image])); found.images = imageIds.map((imageId, index) => ({ ...byId.get(imageId)!, sortOrder: index, isPrimary: index === 0 })); found.imageUrl = found.images[0]?.url ?? ""; return found.images; }
+    const response = await authFetch(`${url.replace(/\/$/, "")}/products/${encodeURIComponent(id)}/images/order`, { method: "PATCH", body: JSON.stringify({ imageIds }), headers: { Accept: "application/json", "Content-Type": "application/json" } });
+    if (!response.ok) throw new Error(productImageError(response.status));
+    return adaptImages(await response.json() as RawImage[]);
   },
   async deleteProduct(id) {
     const url = baseUrl();
