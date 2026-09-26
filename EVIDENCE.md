@@ -877,3 +877,23 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 - `pnpm lint`: PASS.
 - `pnpm test`: PASS — 104 tests.
 - `pnpm build`: PASS — Next.js 16.3.4; `/productos` y `/productos/[id]` generadas correctamente.
+
+# Combos (backoffice) — 2026-09-26
+
+## Implementado
+
+- Se agregó `/combos` al catálogo del backoffice con listado, búsqueda, filtro de estado, paginación, alta, edición y activación contra el módulo real de combos.
+- El formulario busca productos con el flujo existente, administra cantidades y composición, resuelve precios vigentes, muestra precio regular/ahorro en vivo y replica las reglas del backend sin ocultar sus errores 400.
+- La carga y eliminación de imagen reutiliza las restricciones de Fotos de producto (JPEG/PNG/WebP, 5 MB) y envía multipart mediante `authFetch`. También se incorporaron contrato, adapter con fixture, reglas puras, pruebas y guía operativa.
+
+## Decisiones
+
+- Las fechas quedan opcionales como en los DTO reales. La interfaz representa la composición mínima como dos unidades totales, equivalente a dos productos distintos o dos unidades de uno.
+- El ahorro del listado se recalcula con los precios actuales del endpoint de precios; si falta alguno se informa “Sin precio” y el formulario bloquea el guardado, mientras el backend conserva la autoridad final.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 116 tests.
+- `pnpm build`: PASS — `/combos` prerenderizada correctamente con Next.js 16.3.4.

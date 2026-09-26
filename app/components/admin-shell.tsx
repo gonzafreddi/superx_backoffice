@@ -23,6 +23,7 @@ const navGroups = [
       { href: "/productos/categorias", label: "Categorías", icon: "tag" },
       { href: "/precios", label: "Precios", icon: "tag" },
       { href: "/promociones", label: "Promociones", icon: "promotion" },
+      { href: "/combos", label: "Combos", icon: "box" },
       { href: "/inventario", label: "Inventario", icon: "shelves" },
       // Ubicaciones/racks deferred: stock is tracked per warehouse for now (route still exists).
     ],

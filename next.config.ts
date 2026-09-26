@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   // port to the backend on localhost:3000 — some hosting firewalls only
   // allow the ports this app's own dev servers were opened on, not 3000.
   async rewrites() {
-    return [{ source: "/api-proxy/:path*", destination: "http://localhost:3000/:path*" }];
+    return [{ source: "/api-proxy/:path*", destination: `${process.env.SUPERX_BACKEND_URL ?? "http://localhost:3000"}/:path*` }];
   },
 };
 
