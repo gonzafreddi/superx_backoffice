@@ -20,6 +20,7 @@ const navGroups = [
     label: "Catálogo",
     items: [
       { href: "/productos", label: "Productos", icon: "box" },
+      { href: "/productos/categorias", label: "Categorías", icon: "tag" },
       { href: "/precios", label: "Precios", icon: "tag" },
       { href: "/promociones", label: "Promociones", icon: "promotion" },
       { href: "/inventario", label: "Inventario", icon: "shelves" },
@@ -33,6 +34,7 @@ const navGroups = [
       { href: "/compras", label: "Compras", icon: "purchase" },
       { href: "/facturas", label: "Facturas", icon: "invoice" },
       { href: "/pagos", label: "Pagos", icon: "payment" },
+      { href: "/impuestos", label: "Impuestos", icon: "tag" },
     ],
   },
   {
@@ -244,7 +246,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   if (!ready) return null;
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => {
+    const matches = pathname === href || pathname.startsWith(`${href}/`);
+    if (!matches) return false;
+    return !items.some((item) => item.href !== href && item.href.startsWith(`${href}/`) && (pathname === item.href || pathname.startsWith(`${item.href}/`)));
+  };
   const activeItem = items.find((item) => isActive(item.href));
   const allowed = role === "admin" || Boolean(activeItem);
   const userInitial = user?.email?.charAt(0).toUpperCase() ?? "S";

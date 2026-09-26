@@ -12,7 +12,7 @@ function seeded(range: MetricsRange): KpiSnapshot | null {
   if (days === 0) return null;
   // "Sin datos" para rangos muy cortos, para ejercitar el estado vacío.
   if (days <= 1) {
-    return { range, generatedAt: new Date().toISOString(), currency: "ARS", orderCount: 0, ordersPerDay: [{ date: range.to, count: 0 }], gmv: 0, averageTicket: 0, cancellations: { count: 0, rate: 0 }, stockouts: 0, fillRate: null, operationalTimes: null };
+    return { range, generatedAt: new Date().toISOString(), currency: "ARS", orderCount: 0, ordersPerDay: [{ date: range.to, count: 0 }], gmv: 0, averageTicket: 0, paymentsByMethod: [], paymentsByAccount: [], cancellations: { count: 0, rate: 0 }, stockouts: 0, fillRate: null, operationalTimes: null };
   }
   const ordersPerDay = Array.from({ length: Math.min(days, 31) }, (_, index) => {
     const date = new Date(Date.parse(`${range.from}T00:00:00Z`) + index * 86400000).toISOString().slice(0, 10);
@@ -29,6 +29,15 @@ function seeded(range: MetricsRange): KpiSnapshot | null {
     ordersPerDay,
     gmv,
     averageTicket: Math.round(gmv / orderCount),
+    paymentsByMethod: [
+      { method: "CASH", count: Math.round(orderCount * .42), total: Math.round(gmv * .42) },
+      { method: "MERCADO_PAGO", count: Math.round(orderCount * .38), total: Math.round(gmv * .38) },
+      { method: "BANK_TRANSFER", count: Math.round(orderCount * .2), total: Math.round(gmv * .2) },
+    ],
+    paymentsByAccount: [
+      { accountId: "1", accountName: "Caja central", accountType: "CASH", count: 11, total: 95400 },
+      { accountId: "2", accountName: "Banco operativo", accountType: "BANK", count: 6, total: 82100 },
+    ],
     cancellations,
     stockouts: 6,
     fillRate: 0.965,
@@ -49,6 +58,12 @@ export const metricsApi: MetricsApi = {
       const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la operación.";
       throw new Error(response.status === 401 || response.status === 403 ? "No tenés permiso para hacer esto. Iniciá sesión con una cuenta de administración." : message);
     }
-    return payload as KpiSnapshot;
+    if (!payload || typeof payload !== "object") throw new Error("La respuesta de métricas no tiene un formato válido.");
+    const raw = payload as Partial<KpiSnapshot>;
+    return {
+      ...raw,
+      paymentsByMethod: Array.isArray(raw.paymentsByMethod) ? raw.paymentsByMethod : [],
+      paymentsByAccount: Array.isArray(raw.paymentsByAccount) ? raw.paymentsByAccount : [],
+    } as KpiSnapshot;
   },
 };

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { addDaysToDate, duplicateLineWarnings, isDirty, previewPurchaseOrderLine, summarizePurchaseOrder, validatePurchaseOrderInput } from "../app/lib/purchase-order-rules.js";
+import { addDaysToDate, calculateSelectedTaxes, duplicateLineWarnings, isDirty, previewPurchaseOrderLine, summarizePurchaseOrder, validatePurchaseOrderInput } from "../app/lib/purchase-order-rules.js";
 
 test("el preview convierte packs a unidades y redondea igual que backend", () => {
   assert.deepEqual(previewPurchaseOrderLine({ packageQuantity: 3, unitsPerPack: 6, costPerPackage: 100 }), { unitQuantity: 18, unitCost: 16.67, total: 300 });
@@ -17,6 +17,13 @@ test("la orden requiere proveedor, depósito, líneas y cantidades positivas", (
 
 test("resume líneas, cargos e IVA calculado después del descuento", () => {
   assert.deepEqual(summarizePurchaseOrder({ lines: [{ packageQuantity: 2, unitsPerPack: 6, costPerPackage: 100, discountAmount: 10, taxRate: 21 }], freightAmount: 5, otherChargesAmount: 2.5 }), { subtotal: 200, discountTotal: 10, taxTotal: 39.9, freightAmount: 5, otherChargesAmount: 2.5, total: 237.4, lineCount: 1, unitCount: 12 });
+});
+
+test("calcula cada impuesto seleccionado y suma importes ya redondeados", () => {
+  assert.deepEqual(calculateSelectedTaxes(99.99, [{ id: "1", rate: 21 }, { id: "2", rate: 3 }]), [{ id: "1", rate: 21, amount: 21 }, { id: "2", rate: 3, amount: 3 }]);
+  const preview = previewPurchaseOrderLine({ packageQuantity: 1, unitsPerPack: 1, costPerPackage: 99.99, discountAmount: 0, taxRate: 99, taxes: [{ rate: 21 }, { rate: 3 }] });
+  assert.equal(preview.taxAmount, 24);
+  assert.equal(preview.total, 123.99);
 });
 
 test("suma días sobre fechas sin deriva de zona horaria", () => {
@@ -39,6 +46,7 @@ test("valida packs enteros, descuento, IVA, cargos y vencimiento", () => {
   assert.match(errors.freightAmount, /negativo/);
   assert.match(errors.dueDate, /anterior/);
   assert.deepEqual(validatePurchaseOrderInput({ ...base, dueDate: "2026-09-23", items: [{ ...line, discountAmount: 200, taxRate: 10.5 }] }), {});
+  assert.deepEqual(validatePurchaseOrderInput({ ...base, items: [{ ...line, taxRate: 150, taxIds: [1] }] }), {});
 });
 
 test("advierte líneas repetidas sin bloquear la validación", () => {

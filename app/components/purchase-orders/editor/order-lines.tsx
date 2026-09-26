@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { money } from "../purchase-order-ui";
 import { previewPurchaseOrderLine } from "@/app/lib/purchase-order-rules";
+import type { Tax } from "@/app/lib/tax-contract";
 import type { Line } from "./types";
+
 // The lines table scrolls horizontally, which would clip an absolutely positioned
 // dropdown; results are pinned to the viewport under their input instead.
 function ProductResults({ anchors, index, children }: { anchors: RefObject<Array<HTMLInputElement | null>>; index: number; children: ReactNode }) {
@@ -29,6 +31,8 @@ export function OrderLines({
   errors,
   warnings,
   readOnly,
+  taxes,
+  taxCatalogAvailable,
   onUpdate,
   onSearch,
   onSelectProduct,
@@ -42,6 +46,8 @@ export function OrderLines({
   errors: Record<string, string>;
   warnings: Record<string, string>;
   readOnly: boolean;
+  taxes: Tax[];
+  taxCatalogAvailable: boolean;
   onUpdate: (index: number, patch: Partial<Line>) => void;
   onSearch: (index: number, query: string) => void;
   onSelectProduct: (index: number, product: NonNullable<Line["product"]>) => void;
@@ -75,7 +81,7 @@ export function OrderLines({
               <th>Costo pack</th>
               <th>Costo unit.</th>
               <th>Desc. $</th>
-              <th>IVA %</th>
+              <th>Impuestos</th>
               <th>Total</th>
               <th />
             </tr>
@@ -83,7 +89,7 @@ export function OrderLines({
           <tbody>
             {lines.length ? (
               lines.map((line, index) => {
-                const preview = previewPurchaseOrderLine(line);
+                const preview = previewPurchaseOrderLine({ ...line, ...(taxCatalogAvailable ? { taxes: taxes.filter((tax) => line.taxIds.includes(tax.id)) } : {}) });
                 return (
                   <tr key={index}>
                     <td>
@@ -190,7 +196,7 @@ export function OrderLines({
                       {errors[`item-${index}-discount`] && <small>{errors[`item-${index}-discount`]}</small>}
                     </td>
                     <td>
-                      <select
+                      {taxCatalogAvailable ? <details className="poe-tax-picker"><summary aria-label={`Impuestos línea ${index + 1}`}>{line.taxIds.length ? `${line.taxIds.length} imp.` : "Sin impuestos"}</summary><div role="group" aria-label={`Seleccionar impuestos línea ${index + 1}`}>{taxes.map((tax) => <label key={tax.id}><input type="checkbox" disabled={readOnly} checked={line.taxIds.includes(tax.id)} onChange={() => onUpdate(index, { taxRate: "0", taxIds: line.taxIds.includes(tax.id) ? line.taxIds.filter((id) => id !== tax.id) : [...line.taxIds, tax.id] })} /><span>{tax.name} · {tax.rate}% {tax.includeInCost && <small>+ costo</small>}</span></label>)}</div></details> : <><select
                         aria-label={`IVA línea ${index + 1}`}
                         disabled={readOnly}
                         value={["0", "10.5", "21", "27"].includes(line.taxRate) ? line.taxRate : "other"}
@@ -215,6 +221,7 @@ export function OrderLines({
                           onChange={(event) => onUpdate(index, { taxRate: event.target.value })}
                         />
                       )}
+                      </>}
                       {errors[`item-${index}-tax`] && <small>{errors[`item-${index}-tax`]}</small>}
                     </td>
                     <td className="poe-number">

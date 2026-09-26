@@ -9,6 +9,8 @@ import { SupplierDialog } from "@/app/components/suppliers/supplier-form";
 import { getStoredUser } from "@/app/lib/auth-api";
 import { locationApi } from "@/app/lib/location-api";
 import { purchaseOrderApi } from "@/app/lib/purchase-order-api";
+import { taxApi } from "@/app/lib/tax-api";
+import type { Tax } from "@/app/lib/tax-contract";
 import type {
   CreatePurchaseOrderDto,
   PurchaseOrder,
@@ -57,6 +59,7 @@ const line = (): Line => ({
   costPerPackage: "",
   discountAmount: "0",
   taxRate: "0",
+  taxIds: [],
   packagings: [],
   query: "",
   results: [],
@@ -76,7 +79,7 @@ const blank = (): Form => ({
   notes: "",
   lines: [line()],
 });
-const fromOrder = (order: PurchaseOrder): Form => ({
+const fromOrder = (order: PurchaseOrder, taxes: Tax[] = [], catalogAvailable = false): Form => ({
   supplierId: order.supplierId,
   warehouseId: order.warehouseId,
   currency: order.currency,
@@ -98,6 +101,7 @@ const fromOrder = (order: PurchaseOrder): Form => ({
     costPerPackage: String(item.costPerPackage),
     discountAmount: String(item.discountAmount),
     taxRate: String(item.taxRate),
+    taxIds: item.taxes?.length ? item.taxes.map((tax) => tax.taxId).filter((id): id is string => id !== null) : catalogAvailable && item.taxRate > 0 ? taxes.filter((tax) => tax.type === "VAT" && tax.rate === item.taxRate).slice(0, 1).map((tax) => tax.id) : [],
     packagings: item.packagingId
       ? [{ id: item.packagingId, name: item.packagingName, unitsPerPack: item.unitsPerPack }]
       : [],
@@ -128,6 +132,7 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
     [dialog, setDialog] = useState<"confirm" | "delete" | "discard" | null>(null),
     [packagingNotice, setPackagingNotice] = useState(false),
     [duplicateSkipped, setDuplicateSkipped] = useState<string[]>([]);
+  const [taxes, setTaxes] = useState<Tax[]>([]), [taxCatalogAvailable, setTaxCatalogAvailable] = useState(false);
   const [supplierDialog, setSupplierDialog] = useState<string | null>(null), [supplierPending, setSupplierPending] = useState(false), [quickProduct, setQuickProduct] = useState<{ index: number; query: string } | null>(null), [focusPacks, setFocusPacks] = useState<{ index: number; token: number } | null>(null);
   const supplierTrigger = useRef<HTMLInputElement | HTMLButtonElement | null>(null), productTrigger = useRef<HTMLInputElement | null>(null);
   const timers = useRef<Record<number, number>>({});
@@ -143,12 +148,15 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
       supplierApi.listSuppliers({ status: "ACTIVE", pageSize: 100 }),
       locationApi.listWarehouses(),
       orderId ? purchaseOrderApi.get(orderId) : Promise.resolve(null),
+      taxApi.list(true).then((active) => ({ active, available: true })).catch(() => ({ active: [] as Tax[], available: false })),
     ])
-      .then(([supplierResult, warehouseResult, loaded]) => {
+      .then(([supplierResult, warehouseResult, loaded, taxResult]) => {
         setSuppliers(supplierResult.items.map(({ id, name }) => ({ id, name })));
         const active = warehouseResult.filter((item) => item.isActive !== false).map(({ id, name }) => ({ id, name }));
         setWarehouses(active);
-        const next = loaded ? fromOrder(loaded) : { ...blank(), warehouseId: (warehouseResult.find((item) => item.isPrimary && item.isActive !== false && item.status === "ACTIVE") ?? (active.length === 1 ? active[0] : null))?.id ?? "" };
+        const next = loaded ? fromOrder(loaded, taxResult.active, taxResult.available) : { ...blank(), warehouseId: (warehouseResult.find((item) => item.isPrimary && item.isActive !== false && item.status === "ACTIVE") ?? (active.length === 1 ? active[0] : null))?.id ?? "", lines: [{ ...line(), taxIds: taxResult.active.filter((tax) => tax.isDefault).map((tax) => tax.id) }] };
+        setTaxes(taxResult.active);
+        setTaxCatalogAvailable(taxResult.available);
         setOrder(loaded);
         setForm(next);
         setInitial(next);
@@ -295,7 +303,7 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
       packageQuantity: Number(entry.packageQuantity),
       costPerPackage: Number(entry.costPerPackage),
       discountAmount: Number(entry.discountAmount),
-      taxRate: Number(entry.taxRate),
+      ...(taxCatalogAvailable && (entry.taxIds.length > 0 || entry.taxRate === "0") ? { taxIds: entry.taxIds.map(Number) } : { taxRate: Number(entry.taxRate) }),
     })),
   });
   const validate = () => {
@@ -317,8 +325,8 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
         ? await purchaseOrderApi.update(orderId, payload)
         : await purchaseOrderApi.create(payload as CreatePurchaseOrderDto);
       setOrder(stored);
-      setInitial(fromOrder(stored));
-      setForm(fromOrder(stored));
+      setInitial(fromOrder(stored, taxes, taxCatalogAvailable));
+      setForm(fromOrder(stored, taxes, taxCatalogAvailable));
       if (!orderId) router.replace(`/compras/${stored.id}/editar`);
       if (confirm) {
         await purchaseOrderApi.confirm(stored.id);
@@ -344,11 +352,11 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
   const summary = useMemo(
     () =>
       summarizePurchaseOrder({
-        lines: form.lines,
+        lines: form.lines.map((entry) => ({ ...entry, ...(taxCatalogAvailable ? { taxes: taxes.filter((tax) => entry.taxIds.includes(tax.id)) } : {}) })),
         freightAmount: form.freightAmount,
         otherChargesAmount: form.otherChargesAmount,
       }),
-    [form.lines, form.freightAmount, form.otherChargesAmount],
+    [form.lines, form.freightAmount, form.otherChargesAmount, taxCatalogAvailable, taxes],
   );
   if (access === "loading" || loading)
     return (
@@ -552,6 +560,8 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
             errors={errors}
             warnings={warnings}
             readOnly={readOnly}
+            taxes={taxes}
+            taxCatalogAvailable={taxCatalogAvailable}
             onUpdate={updateLine}
             onSearch={productSearch}
             onSelectProduct={selectProduct}
@@ -563,7 +573,7 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
                 unitsPerPack: packaging ? String(packaging.unitsPerPack) : "",
               });
             }}
-            onAdd={() => patch("lines", [...form.lines, line()])}
+            onAdd={() => patch("lines", [...form.lines, { ...line(), taxIds: taxes.filter((tax) => tax.isDefault).map((tax) => tax.id) }])}
             onRemove={(index) =>
               patch(
                 "lines",
@@ -581,6 +591,8 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
           onFreight={(value) => patch("freightAmount", value)}
           onOther={(value) => patch("otherChargesAmount", value)}
           readOnly={readOnly}
+          lines={form.lines}
+          taxes={taxes}
         />
       </div>
       {dialog && (

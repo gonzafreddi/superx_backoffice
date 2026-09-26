@@ -1,10 +1,12 @@
 export function roundMoney(value) { return Math.round((Number(value) + Number.EPSILON) * 100) / 100; }
 
 export function packagingEquivalence(name, unitsPerPack) { return `1 ${String(name || "pack").trim() || "pack"} = ${Number(unitsPerPack) || 0} unidades`; }
-/** @param {{packageQuantity: any, unitsPerPack: any, costPerPackage: any, discountAmount?: any, taxRate?: any}} input */
-export function previewPurchaseOrderLine({ packageQuantity, unitsPerPack, costPerPackage, discountAmount, taxRate }) {
+export function calculateSelectedTaxes(taxable, taxes) { return (taxes ?? []).map((tax) => ({ ...tax, amount: roundMoney(Math.max(0, Number(taxable) || 0) * Math.max(0, Number(tax.rate) || 0) / 100) })); }
+/** @param {{packageQuantity: any, unitsPerPack: any, costPerPackage: any, discountAmount?: any, taxRate?: any, taxes?: Array<{rate: any, [key: string]: any}>}} input */
+export function previewPurchaseOrderLine(input) {
+  const { packageQuantity, unitsPerPack, costPerPackage, discountAmount, taxRate, taxes } = input;
   const packs = Number(packageQuantity) || 0, units = Number(unitsPerPack) || 0, cost = Number(costPerPackage) || 0, discount = Math.max(0, Number(discountAmount) || 0), tax = Math.max(0, Number(taxRate) || 0);
-  const lineSubtotal = roundMoney(cost * packs), taxable = Math.max(0, lineSubtotal - discount), taxAmount = roundMoney(taxable * tax / 100);
+  const lineSubtotal = roundMoney(cost * packs), taxable = Math.max(0, lineSubtotal - discount), selected = Array.isArray(taxes) ? calculateSelectedTaxes(taxable, taxes) : null, taxAmount = selected ? roundMoney(selected.reduce((sum, item) => sum + item.amount, 0)) : roundMoney(taxable * tax / 100);
   return { unitQuantity: packs * units, unitCost: units > 0 ? roundMoney(cost / units) : 0, ...(discountAmount === undefined && taxRate === undefined ? {} : { lineSubtotal, discountAmount: roundMoney(discount), taxRate: tax, taxAmount }), total: roundMoney(taxable + taxAmount) };
 }
 export function summarizePurchaseOrder({ lines, freightAmount, otherChargesAmount }) {
@@ -36,7 +38,7 @@ export function validatePurchaseOrderInput(input) {
     if (!item.packagingId && !(Number(item.unitsPerPack) > 0)) errors[`item-${index}-units`] = "Indicá unidades por pack positivas.";
     const subtotal = Number(item.packageQuantity) * Number(item.costPerPackage);
     if (Number(item.discountAmount ?? 0) > subtotal) errors[`item-${index}-discount`] = "El descuento no puede superar el subtotal.";
-    if (!(Number(item.taxRate ?? 0) >= 0 && Number(item.taxRate ?? 0) <= 100)) errors[`item-${index}-tax`] = "El IVA debe estar entre 0 y 100%.";
+    if (!Array.isArray(item.taxIds) && !(Number(item.taxRate ?? 0) >= 0 && Number(item.taxRate ?? 0) <= 100)) errors[`item-${index}-tax`] = "El IVA debe estar entre 0 y 100%.";
   });
   if (Number(input.freightAmount ?? 0) < 0) errors.freightAmount = "El flete no puede ser negativo.";
   if (Number(input.otherChargesAmount ?? 0) < 0) errors.otherChargesAmount = "Otros cargos no pueden ser negativos.";

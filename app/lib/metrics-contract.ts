@@ -14,6 +14,8 @@ export type KpiSnapshot = {
   ordersPerDay: OrdersPerDay[];
   gmv: number;
   averageTicket: number;
+  paymentsByMethod: Array<{ method: string; count: number; total: number }>;
+  paymentsByAccount: Array<{ accountId: string; accountName: string; accountType: string; count: number; total: number }>;
   cancellations: { count: number; rate: number };
   stockouts: number;
   fillRate: number | null;

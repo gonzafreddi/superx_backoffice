@@ -9,6 +9,7 @@ import { metricsApi } from "@/app/lib/metrics-api";
 import type { KpiSnapshot, MetricsPreset, MetricsRange } from "@/app/lib/metrics-contract";
 import type { UserRole } from "@/app/lib/product-contract";
 import { describeDataCoverage, getMetricsVisibility, presetRange, rangeDays, validateRange } from "@/app/lib/metrics-rules";
+import { ORDER_PAYMENT_METHOD_LABELS } from "@/app/lib/order-rules";
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const dateTime = new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" });
@@ -68,6 +69,8 @@ export function KpiDashboard() {
   const coverage = useMemo(() => describeDataCoverage(snapshot), [snapshot]);
   const maxCount = useMemo(() => Math.max(1, ...(snapshot?.ordersPerDay.map((day) => day.count) ?? [1])), [snapshot]);
   const activePreset = presets.find((preset) => { const candidate = presetRange(preset.key, { today }); return candidate.from === range.from && candidate.to === range.to; })?.key ?? null;
+  const paymentsByMethod = snapshot?.paymentsByMethod ?? [];
+  const paymentsByAccount = snapshot?.paymentsByAccount ?? [];
 
   return <section className="workspace" id="tablero">
     <header className="topbar">
@@ -114,6 +117,10 @@ export function KpiDashboard() {
           <h2>Pedidos por día</h2>
           <ol className="kpi-bars">{snapshot.ordersPerDay.map((day) => <li key={day.date}><span className="kpi-bar" style={{ height: `${Math.round((day.count / maxCount) * 100)}%` }} /><span className="kpi-bar-value">{day.count}</span><time>{day.date.slice(5)}</time></li>)}</ol>
         </section>
+
+        {visibility.financial && paymentsByMethod.length > 0 && <section className="payment-method-metrics" aria-labelledby="payment-method-title"><header><div><p className="eyebrow">COBROS ACREDITADOS</p><h2 id="payment-method-title">Ventas por medio de pago</h2></div><span>{paymentsByMethod.reduce((sum, item) => sum + item.count, 0)} pagos</span></header><div>{paymentsByMethod.map((item) => <article key={item.method}><span>{ORDER_PAYMENT_METHOD_LABELS[item.method as keyof typeof ORDER_PAYMENT_METHOD_LABELS] ?? item.method}</span><strong>{money.format(item.total)}</strong><small>{item.count} {item.count === 1 ? "pago" : "pagos"}</small></article>)}</div></section>}
+
+        {visibility.financial && paymentsByAccount.length > 0 && <section className="payment-method-metrics" aria-labelledby="payment-account-title"><header><div><p className="eyebrow">IMPUTACIÓN EN TESORERÍA</p><h2 id="payment-account-title">Cobros por cuenta</h2></div><span>{paymentsByAccount.length} {paymentsByAccount.length === 1 ? "cuenta" : "cuentas"}</span></header><div>{paymentsByAccount.map((item) => <article key={item.accountId}><span>{item.accountName}</span><strong>{money.format(item.total)}</strong><small>{item.count} {item.count === 1 ? "cobro" : "cobros"}</small></article>)}</div></section>}
 
         {coverage.pending.length > 0 && <p className="kpi-range-note">Pendientes de datos: {coverage.pending.join(", ")}. Se completan cuando el backend acumula suficiente histórico.</p>}
       </>

@@ -11,7 +11,7 @@ export type PurchaseOrderEvent = { id?: string; type: PurchaseOrderEventType; ac
 export type PurchaseOrderItem = {
   id: string; productId: string; packagingId: string | null; product: PurchaseOrderProduct;
   packagingName: string; unitsPerPack: number; packageQuantity: number; unitQuantity: number;
-  costPerPackage: number; unitCost: number; lineSubtotal: number; discountAmount: number; taxRate: number; taxAmount: number; total: number; receivedPackageQuantity: number; receivedUnitQuantity: number;
+  costPerPackage: number; unitCost: number; lineSubtotal: number; discountAmount: number; taxRate: number; taxAmount: number; taxes?: Array<{ taxId: string | null; name: string; rate: number; includeInCost: boolean; amount: number }>; total: number; receivedPackageQuantity: number; receivedUnitQuantity: number;
 };
 
 export type PurchaseOrderSummary = {
@@ -22,7 +22,7 @@ export type PurchaseOrderSummary = {
   receiptProgress?: { received: number; total: number }; hasReceiptDifferences?: boolean;
 };
 export type PurchaseOrder = PurchaseOrderSummary & { items: PurchaseOrderItem[]; events: PurchaseOrderEvent[]; receiptCount?: number; updatedByUserId?: string | null; confirmedByUserId?: string | null; createdByUser?: { id: string; name: string | null; email: string } | null };
-export type PurchaseOrderItemInput = { productId: string; packagingId?: string; packagingName?: string; unitsPerPack?: number; packageQuantity: number; costPerPackage: number; discountAmount?: number; taxRate?: number };
+export type PurchaseOrderItemInput = { productId: string; packagingId?: string; packagingName?: string; unitsPerPack?: number; packageQuantity: number; costPerPackage: number; discountAmount?: number; taxRate?: number; taxIds?: number[] };
 export type CreatePurchaseOrderDto = { supplierId: string; warehouseId: string; currency?: string; orderDate?: string; expectedDate?: string; paymentCondition?: "CASH" | "CREDIT" | "TRANSFER" | "OTHER"; paymentTermDays?: number | null; dueDate?: string | null; freightAmount?: string; otherChargesAmount?: string; reference?: string; notes?: string; items: PurchaseOrderItemInput[] };
 export type UpdatePurchaseOrderDto = Partial<CreatePurchaseOrderDto>;
 export type PaginatedPurchaseOrders = { items: PurchaseOrderSummary[]; total: number; page: number; pageSize: number };

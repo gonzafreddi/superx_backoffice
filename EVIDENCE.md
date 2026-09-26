@@ -1,3 +1,42 @@
+# Pedidos — cobros vinculados a Tesorería (2026-09-24)
+
+- El modal **Acreditar pago** carga medios habilitados y cuentas reales activas desde Tesorería.
+- Exige una cuenta compatible con el medio: Caja para efectivo, Banco para transferencia y Digital para Mercado Pago; soporta múltiples cuentas del mismo tipo (por ejemplo Santander y Galicia).
+- La acreditación envía `treasuryAccountId` al backend y no modifica el estado logístico.
+- El tablero muestra cobros tanto por medio de pago como por cuenta de Tesorería.
+- Verificación: typecheck, lint, 93 tests y build de producción en verde.
+
+# Evidencia — Rediseño operativo de Pedidos (2026-09-24)
+
+## Implementado
+
+- `/pedidos` se reorganizó como consola operativa: resumen clickeable por etapa, búsqueda por código/cliente/teléfono, filtros de estado/entrega/zona/pago, ordenamiento y tabla completa; en mobile cambia a cards.
+- Los filtros y el orden viven en query params. El enlace al detalle conserva ese contexto para que **Volver a pedidos** restaure la vista.
+- Se agregó `/pedidos/[id]` con resumen, timeline basado sólo en eventos reales, líneas y cargos, cliente, dirección/mapa, cobro, alertas, acciones válidas e historial.
+- Se conservaron el adaptador, las reglas, permisos, confirmación y checklist existentes. No se inventaron email, SKU, imágenes, repartidor, coordenadas, pago parcial ni notas internas porque no forman parte del contrato actual.
+
+## Decisiones
+
+- Las cards agrupadas incluyen los estados intermedios reales (`PAID` dentro de Confirmados y `PACKED` dentro de Picking).
+- No se agregó preview lateral al listado: se priorizó una tabla legible con diez columnas y acceso directo al detalle.
+- Imprimir usa la impresión nativa del navegador y Ver en mapa un enlace web, sin agregar dependencias.
+
+## Verificación ejecutada
+
+- `pnpm lint`: PASS.
+- `pnpm typecheck`: PASS.
+- `pnpm test`: PASS — 93 tests (con warnings preexistentes de módulos JS sin `type: module`).
+- `pnpm build`: PASS — incluye `/pedidos` y `/pedidos/[id]`.
+- Validación visual automatizada no ejecutada: el entorno no tiene el paquete Python `playwright` instalado.
+
+## Extensión — Medio de pago al acreditar
+
+- El pago se acredita desde la card **Cobro y pago** y exige elegir un medio habilitado por `GET /payment-methods`; no modifica el estado logístico.
+- Administración puede activar o desactivar medios desde **Pedidos / Medios de pago**; siempre se conserva al menos una opción activa en la interfaz.
+- El tablero muestra cantidad e importe acreditado por medio mediante `paymentsByMethod` del endpoint real de métricas.
+- El flujo logístico avanza de Confirmado a Picking independientemente del estado de cobro; `PAID` deja de ofrecerse como transición logística.
+- Verificación adicional: lint, typecheck, 93 tests y build del backoffice en verde.
+
 # 2026-09-23 — Compras ETAPA 2: editor de orden de compra
 
 - Se reemplazó el formulario vertical por un editor ERP denso con toolbar sticky, contexto de proveedor, encabezado de pago/vencimiento, resumen de cargos y totales, grilla de líneas desacoplada y acciones de guardar, confirmar, duplicar y eliminar.

@@ -1,5 +1,5 @@
 import { authFetch } from "@/app/lib/http";
-import type { Order, OrderApi, OrderEvent, OrderFilters, OrderLine, OrderTransitionInput } from "./order-contract";
+import type { Order, OrderApi, OrderEvent, OrderFilters, OrderLine, OrderPaymentMethodSetting, OrderTransitionInput } from "./order-contract";
 import { buildOrderTransitionEvent, canSubmitOrderTransition, canTransitionOrder } from "./order-rules";
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
@@ -83,6 +83,16 @@ async function fetchOrderWithEvents(root: string, id: string): Promise<Order> {
 }
 
 export const orderApi: OrderApi = {
+  async listPaymentMethods() {
+    const url = baseUrl();
+    if (!url) return (["CASH", "BANK_TRANSFER", "MERCADO_PAGO"] as const).map((method) => ({ method, enabled: method !== "MERCADO_PAGO" } satisfies OrderPaymentMethodSetting));
+    return fetchJson(`${url.replace(/\/$/, "")}/payment-methods`) as Promise<OrderPaymentMethodSetting[]>;
+  },
+  async setPaymentMethodEnabled(method, enabled) {
+    const url = baseUrl();
+    if (!url) return { method, enabled };
+    return fetchJson(`${url.replace(/\/$/, "")}/payment-methods/${method}`, { method: "PATCH", body: JSON.stringify({ enabled }) }) as Promise<OrderPaymentMethodSetting>;
+  },
   async listOrders(filters: OrderFilters = {}) {
     const url = baseUrl();
     if (!url) {
@@ -125,6 +135,17 @@ export const orderApi: OrderApi = {
     }
     const root = url.replace(/\/$/, "");
     await fetchJson(`${root}/orders/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify({ status: input.status, ...(input.note?.trim() ? { note: input.note.trim() } : {}), ...(input.checklist ? { checklist: input.checklist } : {}) }) });
+    return fetchOrderWithEvents(root, id);
+  },
+  async updatePayment(id, input) {
+    const url = baseUrl();
+    if (!url) {
+      await wait(); const order = orders.find((candidate) => candidate.id === id); if (!order) throw notFound();
+      const updated: Order = { ...order, payment: { method: input.paymentMethod ?? order.payment.method, status: input.status }, paymentRequired: input.status !== "PAID", updatedAt: new Date().toISOString() };
+      orders = orders.map((candidate) => candidate.id === id ? updated : candidate); return clone(updated);
+    }
+    const root = url.replace(/\/$/, "");
+    await fetchJson(`${root}/orders/${encodeURIComponent(id)}/payment`, { method: "PATCH", body: JSON.stringify(input) });
     return fetchOrderWithEvents(root, id);
   },
 };
