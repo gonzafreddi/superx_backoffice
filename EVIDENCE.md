@@ -805,3 +805,19 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 - `pnpm lint`: PASS.
 - `pnpm test`: PASS — 95 tests.
 - `pnpm build`: PASS — Next.js 16.3.4, 27 páginas estáticas generadas.
+
+# Evidencia — Promociones y medios de pago (2026-09-26)
+
+## Implementado
+
+- Nueva ruta admin `/promociones` con búsqueda, filtros, paginación, resolución de nombres de categoría/producto, alta/edición completa y activación/desactivación contra `/promotions` mediante `authFetch`; incluye fixture cuando no hay URL configurada.
+- Las reglas puras reflejan nombre, tipo/valor, mínimo, alcance exclusivo, cupón y vigencia del DTO. La interfaz aclara que sólo se aplica la mejor promoción elegible y que nunca se acumulan.
+- Nueva ruta admin `/medios-de-pago` con los tres métodos del backend, toggles autenticados, advertencia y confirmación para Mercado Pago, y bloqueo del último método activo; incluye fixture local.
+- Se agregaron accesos en Catálogo y Administración, estados accesibles, vistas responsive y pruebas unitarias para ambos módulos de reglas.
+
+## Verificación ejecutada
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 101 tests.
+- `pnpm build`: PASS — `/promociones` y `/medios-de-pago` prerenderizadas correctamente con Next.js 16.3.4.

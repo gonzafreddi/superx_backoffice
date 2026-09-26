@@ -21,6 +21,7 @@ const navGroups = [
     items: [
       { href: "/productos", label: "Productos", icon: "box" },
       { href: "/precios", label: "Precios", icon: "tag" },
+      { href: "/promociones", label: "Promociones", icon: "promotion" },
       { href: "/inventario", label: "Inventario", icon: "shelves" },
       // Ubicaciones/racks deferred: stock is tracked per warehouse for now (route still exists).
     ],
@@ -50,7 +51,7 @@ const navGroups = [
       { href: "/tesoreria", label: "Tesorería", icon: "treasury" },
     ],
   },
-  { label: "Administración", items: [{ href: "/usuarios", label: "Usuarios", icon: "users" }] },
+  { label: "Administración", items: [{ href: "/usuarios", label: "Usuarios", icon: "users" }, { href: "/medios-de-pago", label: "Medios de pago", icon: "payment" }] },
 ];
 type NavItem = { href: string; label: string; icon: string; roles?: string[] };
 /** Items without `roles` are admin-only. Without a backend (fixture mode) everyone is treated as admin. */
@@ -108,6 +109,12 @@ function NavIcon({ name }: { name: string }) {
       <>
         <path {...props} d="M20 13.5 13.5 20a2 2 0 0 1-2.8 0L4 13.3V4h9.3l6.7 6.7a2 2 0 0 1 0 2.8Z" />
         <path {...props} d="M8 8h.01" />
+      </>
+    ),
+    promotion: (
+      <>
+        <path {...props} d="M5 12h14M8 5h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3Z" />
+        <path {...props} d="m9 15 6-6M9 9h.01M15 15h.01" />
       </>
     ),
     shelves: <path {...props} d="M4 4h16v16H4zM4 10h16M8 4v6M16 4v6M8 10v10M16 10v10" />,

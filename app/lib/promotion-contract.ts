@@ -1,0 +1,4 @@
+export type PromotionDiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
+export type Promotion = { id: string; name: string; discountType: PromotionDiscountType; discountValue: string; minPurchaseAmount: string | null; categoryId: string | null; productId: string | null; couponCode: string | null; validFrom: string; validTo: string | null; active: boolean; createdAt: string; updatedAt: string };
+export type PromotionInput = Omit<Promotion, "id" | "discountValue" | "minPurchaseAmount" | "categoryId" | "productId" | "createdAt" | "updatedAt"> & { discountValue: number; minPurchaseAmount: number | null; categoryId: number | null; productId: number | null };
+export type PromotionApi = { list(active?: boolean): Promise<Promotion[]>; create(input: PromotionInput): Promise<Promotion>; update(id: string, input: Partial<PromotionInput>): Promise<Promotion>; setActive(id: string, active: boolean): Promise<Promotion> };
