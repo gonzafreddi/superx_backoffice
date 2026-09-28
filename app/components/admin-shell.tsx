@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { logout, validateBackofficeSession, type AdminUser } from "@/app/lib/auth-api";
 import { receivingApi } from "@/app/lib/receiving-api";
+import { forgetDevice } from "@/app/lib/push-api";
+import { StaffPushPrompt } from "./staff-push-prompt";
 
 const navGroups = [
   {
@@ -55,7 +57,7 @@ const navGroups = [
       { href: "/tesoreria", label: "Tesorería", icon: "treasury" },
     ],
   },
-  { label: "Administración", items: [{ href: "/usuarios", label: "Usuarios", icon: "users" }, { href: "/medios-de-pago", label: "Medios de pago", icon: "payment" }] },
+  { label: "Administración", items: [{ href: "/usuarios", label: "Usuarios", icon: "users" }, { href: "/notificaciones", label: "Notificaciones", icon: "bell" }, { href: "/medios-de-pago", label: "Medios de pago", icon: "payment" }] },
 ];
 type NavItem = { href: string; label: string; icon: string; roles?: string[] };
 /** Items without `roles` are admin-only. Without a backend (fixture mode) everyone is treated as admin. */
@@ -163,6 +165,7 @@ function NavIcon({ name }: { name: string }) {
         <path {...props} d="M7 13h10v7M9 13v7M15 13v7" />
       </>
     ),
+    bell: <path {...props} d="M6 9a6 6 0 1 1 12 0c0 6 3 7 3 7H3s3-1 3-7M10 20a2 2 0 0 0 4 0" />,
     users: (
       <>
         <circle {...props} cx="9" cy="8" r="3" />
@@ -353,8 +356,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
             type="button"
             className="top-logout"
             onClick={() => {
-              logout();
-              router.replace("/login");
+              // Stop this user's alerts on this device before the session goes away.
+              void Promise.race([forgetDevice(), new Promise((resolve) => setTimeout(resolve, 1500))]).finally(() => {
+                logout();
+                router.replace("/login");
+              });
             }}
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
@@ -385,6 +391,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </section>
         )}
       </main>
+      {user && <StaffPushPrompt role={role} />}
       {commandOpen && (
         <div className="command-backdrop" role="presentation" onMouseDown={closeCommand}>
           <section

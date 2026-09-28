@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
       "frame-ancestors 'none'", "object-src 'none'",
       "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline'",
       "font-src 'self' data:", "img-src 'self' data: blob: https:",
+      "worker-src 'self'",
       `connect-src 'self' ${apiOrigin}`,
     ].join("; ");
     return [{ source: "/:path*", headers: [
@@ -28,6 +29,10 @@ const nextConfig: NextConfig = {
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "X-Frame-Options", value: "DENY" },
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
+    ] }, { source: "/sw.js", headers: [
+      { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+      { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+      { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
     ] }];
   },
 };
