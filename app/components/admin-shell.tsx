@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { logout, validateBackofficeSession, type AdminUser } from "@/app/lib/auth-api";
 import { receivingApi } from "@/app/lib/receiving-api";
 
@@ -183,8 +183,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<AdminUser | null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [pendingReceipts, setPendingReceipts] = useState<number | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
   const openCommand = () => {
     setCommandQuery("");
     setCommandOpen(true);
@@ -231,11 +234,28 @@ export function AdminShell({ children }: { children: ReactNode }) {
         event.preventDefault();
         openCommand();
       }
-      if (event.key === "Escape") closeCommand();
+      if (event.key === "Escape") {
+        closeCommand();
+        setDrawerOpen(false);
+        window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.requestAnimationFrame(() => drawerRef.current?.focus());
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [drawerOpen]);
+  const closeDrawer = (restoreFocus = true) => {
+    setDrawerOpen(false);
+    if (restoreFocus) window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+  };
   useEffect(() => {
     if (!ready || !canSeeReceipts) return;
     let active = true;
@@ -266,7 +286,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <a className="skip-link" href="#main-content">
         Saltar al contenido
       </a>
-      <aside className="side-navigation">
+      <header className="mobile-shell-bar">
+        <button ref={menuButtonRef} type="button" className="mobile-menu-button" aria-label="Abrir menú" aria-expanded={drawerOpen} aria-controls="mobile-navigation" onClick={() => setDrawerOpen(true)}><span /><span /><span /></button>
+        <Link className="mobile-brand" href={home} aria-label="SuperX backoffice"><b>SX</b><strong>SuperX</strong></Link>
+        <div className="mobile-shell-actions">
+          <button type="button" className="mobile-search-button" onClick={openCommand} aria-label="Buscar secciones"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg></button>
+          <span className="mobile-user" title={user?.email ?? "SuperX"}>{userInitial}</span>
+        </div>
+      </header>
+      <button className={`mobile-drawer-overlay${drawerOpen ? " open" : ""}`} type="button" aria-label="Cerrar menú" tabIndex={drawerOpen ? 0 : -1} onClick={() => closeDrawer()} />
+      <aside id="mobile-navigation" ref={drawerRef} className={`side-navigation${drawerOpen ? " drawer-open" : ""}`} tabIndex={-1}>
+        <button type="button" className="mobile-drawer-close" aria-label="Cerrar menú" onClick={() => closeDrawer()}>×</button>
         <Link className="brandmark" href={home} aria-label="SuperX backoffice">
           <span>SX</span>
           <strong>superx</strong>
@@ -295,6 +325,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   href={item.href}
                   aria-current={isActive(item.href) ? "page" : undefined}
                   title={item.label}
+                  onClick={() => closeDrawer(false)}
                 >
                   <span className="nav-icon">
                     <NavIcon name={item.icon} />

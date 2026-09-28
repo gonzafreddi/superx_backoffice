@@ -1,3 +1,22 @@
+# Mobile — etapas 1–3 — 2026-09-28
+
+## Implementado
+
+- En ≤760 px el rail pasa a una barra superior y un drawer de 84vw (máximo 320 px). El drawer muestra marca, buscador, grupos, icono + etiqueta de cada sección, badges y usuario con nombre/rol y salida; cierra por overlay, botón, Escape o navegación, bloquea el scroll y restaura el foco.
+- `MobileFilters` es un disclosure explícito con contador: mantiene la búsqueda visible y colapsa sólo los controles secundarios. Conserva en desktop el elemento semántico, `aria-label`, orden y aspecto originales; en `/gastos` la búsqueda sigue al final.
+- KPIs y formularios se adaptan a teléfono, los controles táctiles tienen al menos 44 px y los inputs usan 16 px. Headers y acciones permiten wrap; tabs densos conservan scroll interno y los footers de edición respetan safe area.
+- Las tablas principales pasan a cards donde existe una jerarquía móvil útil: detalle de pedido, promociones, combos y líneas editables de compra. El scroll interno queda sólo en tablas operativas densas (movimientos, pagos y recepciones).
+- `/entregas`, `/precios` e `/inventario` abren el detalle seleccionado como sheet de pantalla completa. `/productos` usa filas compactas; inventario muestra KPIs 2×2; pedidos conserva “cantidad × precio unitario” y las notas/sustituciones.
+- Los `.tsx` existentes fueron reconstruidos desde `HEAD` y recibieron sólo cambios semánticos, conservando el formato compacto del repositorio. No se ejecutó un formateador sobre archivos existentes.
+
+## Verificación
+
+- `pnpm typecheck`, `pnpm lint` y `pnpm test`: PASS; 118 tests. El typecheck se ejecutó con las variables de entorno requeridas por `next.config.ts`.
+- Build y `next start` mediante `scratchpad/rebuild.sh`: PASS.
+- `node shots.cjs after3` a 390×844: 0 OVERFLOW en todas las rutas renderizadas; todas informan `w=390`. Los detalles sin link/fixture (proveedor, compra, factura, depósito, gasto e inversión) se registran como `no detail link found`, no como overflow.
+- `node interact.cjs`: drawer con todas las etiquetas y salida visibles, cierre al navegar, filtros de pedidos y sheet de precios verificados. El selector de inventario se corrigió a `.inventory-product-card` y el sheet quedó capturado abierto en `inter/inventario-sheet.png`.
+- Comparación HEAD vs etapa 3 a 1440×900 en `/pedidos`, `/gastos`, `/facturas`, `/compras`, `/productos`, `/precios`, `/inventario`, `/entregas`, `/administracion`, `/promociones`, `/usuarios` y `/clientes`: 0 píxeles distintos y geometría DOM idéntica en las 12 rutas (`desktop-compare/report.json`).
+
 # Pedidos — cobros vinculados a Tesorería (2026-09-24)
 
 - El modal **Acreditar pago** carga medios habilitados y cuentas reales activas desde Tesorería.

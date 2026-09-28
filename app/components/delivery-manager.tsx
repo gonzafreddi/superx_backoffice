@@ -44,7 +44,7 @@ export function DeliveryManager() {
   const [dialog, setDialog] = useState<Dialog>(null);
   const [zoneForm, setZoneForm] = useState(emptyZoneForm);
   const [formError, setFormError] = useState("");
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState(false), [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
 
   const permissions = getDeliveryPermissions(role);
@@ -127,11 +127,11 @@ export function DeliveryManager() {
       <div className="list-panel">
         <div className="filters"><label className="search"><Icon name="search" /><span className="sr-only">Buscar zona</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar zona, ciudad, CP o barrio" /></label></div>
         <div className="list-meta"><strong>{visible.length} {visible.length === 1 ? "zona" : "zonas"}</strong><button className="link-button" onClick={() => setQuery("")}>Limpiar</button></div>
-        {loading ? <ListSkeleton label="Cargando zonas…" /> : loadError ? <div className="state error-state"><strong>{loadError.startsWith("Sin conexión") ? "Sin conexión" : "No pudimos cargar las zonas"}</strong><span>{loadError}</span><button className="button secondary" onClick={() => void load()}>Reintentar</button></div> : visible.length === 0 ? <div className="state"><Icon name="zone" /><strong>No encontramos zonas</strong><span>Ajustá la búsqueda o creá una zona nueva.</span></div> : <ul className="zone-list">{visible.map((zone) => <li key={zone.id}><button className={`zone-row ${selected?.id === zone.id ? "selected" : ""}`} onClick={() => setSelectedId(zone.id)}><span className="zone-row-head"><strong>{zone.name}</strong><span className={`status ${zone.active ? "active" : "inactive"}`}>{zone.active ? "Activa" : "Inactiva"}</span></span><span className="zone-row-meta">{zone.cityName} · {money.format(zone.deliveryFee)} envío{zone.freeDeliveryThreshold ? ` · gratis desde ${money.format(zone.freeDeliveryThreshold)}` : ""}</span></button></li>)}</ul>}
+        {loading ? <ListSkeleton label="Cargando zonas…" /> : loadError ? <div className="state error-state"><strong>{loadError.startsWith("Sin conexión") ? "Sin conexión" : "No pudimos cargar las zonas"}</strong><span>{loadError}</span><button className="button secondary" onClick={() => void load()}>Reintentar</button></div> : visible.length === 0 ? <div className="state"><Icon name="zone" /><strong>No encontramos zonas</strong><span>Ajustá la búsqueda o creá una zona nueva.</span></div> : <ul className="zone-list">{visible.map((zone) => <li key={zone.id}><button className={`zone-row ${selected?.id === zone.id ? "selected" : ""}`} onClick={() => { setSelectedId(zone.id); setMobileDetailOpen(true); }}><span className="zone-row-head"><strong>{zone.name}</strong><span className={`status ${zone.active ? "active" : "inactive"}`}>{zone.active ? "Activa" : "Inactiva"}</span></span><span className="zone-row-meta">{zone.cityName} · {money.format(zone.deliveryFee)} envío{zone.freeDeliveryThreshold ? ` · gratis desde ${money.format(zone.freeDeliveryThreshold)}` : ""}</span></button></li>)}</ul>}
       </div>
-      <aside className="detail-panel" aria-live="polite">
+      <aside className={`detail-panel mobile-detail-sheet${mobileDetailOpen ? " mobile-detail-open" : ""}`} aria-live="polite">
         {!selected ? <div className="state detail-empty"><Icon name="zone" /><strong>Seleccioná una zona</strong><span>Vas a ver su cobertura y costos.</span></div> : <>
-          <div className="detail-heading"><span className="price-mark"><Icon name="zone" /></span><div><span className={`status ${selected.active ? "active" : "inactive"}`}>{selected.active ? "Activa" : "Inactiva"}</span><h2>{selected.name}</h2><p>{selected.cityName} · prioridad {selected.priority}</p></div></div>
+          <button type="button" className="mobile-sheet-close" onClick={() => setMobileDetailOpen(false)}>← Volver a zonas</button><div className="detail-heading"><span className="price-mark"><Icon name="zone" /></span><div><span className={`status ${selected.active ? "active" : "inactive"}`}>{selected.active ? "Activa" : "Inactiva"}</span><h2>{selected.name}</h2><p>{selected.cityName} · prioridad {selected.priority}</p></div></div>
           <div className="stock-summary"><span>EN EL CHECKOUT</span><strong>{summarizeCheckoutImpact(selected)}</strong><small>Actualizado {dateTime.format(new Date(selected.updatedAt))}</small></div>
           <dl className="order-info">
             <div><dt>Códigos postales</dt><dd>{selected.postalCodes.length ? selected.postalCodes.join(", ") : "—"}</dd></div>
