@@ -3,13 +3,13 @@ import test from "node:test";
 import { createAuthFetch } from "../app/lib/http-core.js";
 
 function harness(fetchImpl) {
-  let session = { accessToken: "expired-access", refreshToken: "refresh-1" };
+  let session = { accessToken: "expired-access" };
   let cleared = false;
   const authFetch = createAuthFetch({
     fetchImpl,
     getSession: () => session,
-    setSession: ({ accessToken, refreshToken }) => { session = { accessToken, refreshToken }; },
-    clearSession: () => { cleared = true; session = { accessToken: null, refreshToken: null }; },
+    setSession: ({ accessToken }) => { session = { accessToken }; },
+    clearSession: () => { cleared = true; session = { accessToken: null }; },
     refreshUrl: () => "https://api.example/auth/refresh",
   });
   return { authFetch, session: () => session, cleared: () => cleared };
@@ -25,7 +25,9 @@ test("dos 401 concurrentes comparten un solo refresh y reintentan con el token r
     if (request.url.endsWith("/auth/refresh")) {
       refreshCalls += 1;
       await gate.promise;
-      return Response.json({ accessToken: "access-2", refreshToken: "refresh-2", user: { id: "1" } });
+      assert.deepEqual(await request.json(), {});
+      assert.equal(request.credentials, "include");
+      return Response.json({ accessToken: "access-2", user: { id: "1" } });
     }
     return request.headers.get("Authorization") === "Bearer access-2"
       ? Response.json({ ok: true })
@@ -40,7 +42,7 @@ test("dos 401 concurrentes comparten un solo refresh y reintentan con el token r
 
   assert.equal(refreshCalls, 1);
   assert.deepEqual(responses.map((response) => response.status), [200, 200]);
-  assert.deepEqual(state.session(), { accessToken: "access-2", refreshToken: "refresh-2" });
+  assert.deepEqual(state.session(), { accessToken: "access-2" });
   assert.equal(calls.filter((request) => !request.url.endsWith("/auth/refresh")).length, 4);
 });
 
@@ -57,5 +59,5 @@ test("un refresh fallido limpia la sesión y conserva el 401 original", async ()
   assert.equal(response, originalResponse);
   assert.equal(response.status, 401);
   assert.equal(state.cleared(), true);
-  assert.deepEqual(state.session(), { accessToken: null, refreshToken: null });
+  assert.deepEqual(state.session(), { accessToken: null });
 });

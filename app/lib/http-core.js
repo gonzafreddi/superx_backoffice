@@ -4,15 +4,14 @@ export function createAuthFetch({ fetchImpl, getSession, setSession, clearSessio
   async function refresh() {
     if (!refreshPromise) {
       refreshPromise = (async () => {
-        const session = getSession();
-        if (!session.refreshToken) return false;
         const response = await fetchImpl(refreshUrl(), {
           method: "POST",
           headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken: session.refreshToken }),
+          body: JSON.stringify({}),
+          credentials: "include",
         });
         const payload = await response.json().catch(() => undefined);
-        if (!response.ok || !payload || typeof payload !== "object" || typeof payload.accessToken !== "string" || typeof payload.refreshToken !== "string") {
+        if (!response.ok || !payload || typeof payload !== "object" || typeof payload.accessToken !== "string") {
           clearSession();
           return false;
         }
@@ -35,7 +34,7 @@ export function createAuthFetch({ fetchImpl, getSession, setSession, clearSessio
       const headers = new Headers(init?.headers);
       const token = getSession().accessToken;
       if (token) headers.set("Authorization", `Bearer ${token}`);
-      return fetchImpl(input, { ...init, headers });
+      return fetchImpl(input, { credentials: "include", ...init, headers });
     };
     const response = await send();
     if (response.status !== 401 || !(await refresh())) return response;

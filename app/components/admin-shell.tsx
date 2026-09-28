@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { getAccessToken, getStoredUser, logout } from "@/app/lib/auth-api";
+import { logout, validateBackofficeSession, type AdminUser } from "@/app/lib/auth-api";
 import { receivingApi } from "@/app/lib/receiving-api";
 
 const navGroups = [
@@ -180,6 +180,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<AdminUser | null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [pendingReceipts, setPendingReceipts] = useState<number | null>(null);
@@ -192,7 +193,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
     setCommandQuery("");
   };
   // Role is read after mount (`ready`); the shell renders nothing before that, so there's no hydration mismatch.
-  const user = ready ? getStoredUser() : null;
   const role = process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL ? (user?.role ?? "customer") : "admin";
   const items = allItems.filter((item) => canSee(item, role));
   const visibleGroups = navGroups
@@ -210,15 +210,19 @@ export function AdminShell({ children }: { children: ReactNode }) {
     : items;
 
   useEffect(() => {
-    window.setTimeout(() => {
-      // No API base URL configured (local fixture mode) never requires
-      // login, matching how every other screen falls back to fixtures.
-      if (!process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL || getAccessToken()) {
-        setReady(true);
+    const controller = new AbortController();
+    void validateBackofficeSession(controller.signal).then((validatedUser) => {
+      if (controller.signal.aborted) return;
+      if (!validatedUser) {
+        router.replace("/login");
         return;
       }
-      router.replace("/login");
-    }, 0);
+      setUser(validatedUser);
+      setReady(true);
+    }).catch(() => {
+      if (!controller.signal.aborted) router.replace("/login");
+    });
+    return () => controller.abort();
   }, [router]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

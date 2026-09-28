@@ -12,29 +12,12 @@ export class AuthApiError extends Error {
 }
 
 const TOKEN_KEY = "superx.access-token";
-const REFRESH_TOKEN_KEY = "superx.refresh-token";
 const USER_KEY = "superx.access-user";
-const AUTH_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
-
-function readCookie(key: string): string | null {
-  try {
-    const prefix = `${encodeURIComponent(key)}=`;
-    const entry = document.cookie.split("; ").find((value) => value.startsWith(prefix));
-    return entry ? decodeURIComponent(entry.slice(prefix.length)) : null;
-  } catch {
-    return null;
-  }
-}
+const BACKOFFICE_ROLES = new Set(["admin", "picker", "driver", "warehouse"]);
 
 function persist(key: string, value: string): void {
   try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    /* Cookie fallback below keeps development reloads authenticated. */
-  }
-  try {
-    const secure = window.location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Path=/; Max-Age=${AUTH_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
+    window.sessionStorage.setItem(key, value);
   } catch {
     /* Storage is optional. */
   }
@@ -42,12 +25,8 @@ function persist(key: string, value: string): void {
 
 function removePersisted(key: string): void {
   try {
+    window.sessionStorage.removeItem(key);
     window.localStorage.removeItem(key);
-  } catch {
-    /* Storage is optional. */
-  }
-  try {
-    document.cookie = `${encodeURIComponent(key)}=; Path=/; Max-Age=0; SameSite=Lax`;
   } catch {
     /* Storage is optional. */
   }
@@ -58,79 +37,80 @@ function baseUrl(): string | undefined {
 }
 
 export function getAccessToken(): string | null {
-  try {
-    const stored = window.localStorage.getItem(TOKEN_KEY);
-    if (stored) {
-      if (!readCookie(TOKEN_KEY)) persist(TOKEN_KEY, stored);
-      return stored;
-    }
-    return readCookie(TOKEN_KEY);
-  } catch {
-    return readCookie(TOKEN_KEY);
-  }
+  try { return window.sessionStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 
+/** @deprecated Refresh credentials are stored only in an HttpOnly cookie. */
 export function getRefreshToken(): string | null {
-  try {
-    const stored = window.localStorage.getItem(REFRESH_TOKEN_KEY);
-    if (stored) {
-      if (!readCookie(REFRESH_TOKEN_KEY)) persist(REFRESH_TOKEN_KEY, stored);
-      return stored;
-    }
-    return readCookie(REFRESH_TOKEN_KEY);
-  } catch {
-    return readCookie(REFRESH_TOKEN_KEY);
-  }
+  return null;
 }
 
 export function getStoredUser(): AdminUser | null {
   try {
-    const stored = window.localStorage.getItem(USER_KEY);
-    if (stored && !readCookie(USER_KEY)) persist(USER_KEY, stored);
-    const raw = stored ?? readCookie(USER_KEY);
+    const raw = window.sessionStorage.getItem(USER_KEY);
     return raw ? (JSON.parse(raw) as AdminUser) : null;
   } catch {
-    const raw = readCookie(USER_KEY);
-    try {
-      return raw ? (JSON.parse(raw) as AdminUser) : null;
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
 
 export function clearSession(): void {
   removePersisted(TOKEN_KEY);
-  removePersisted(REFRESH_TOKEN_KEY);
+  removePersisted("superx.refresh-token");
   removePersisted(USER_KEY);
 }
 
-export function storeSession(accessToken: string, refreshToken: string, rawUser?: unknown): void {
+export function storeSession(accessToken: string, rawUser?: unknown): void {
   persist(TOKEN_KEY, accessToken);
-  persist(REFRESH_TOKEN_KEY, refreshToken);
   if (rawUser && typeof rawUser === "object") persist(USER_KEY, JSON.stringify(rawUser));
 }
 
-export function logout(): void {
-  const refreshToken = getRefreshToken();
+/** Validates the browser session and role against the backend before rendering protected pages. */
+export async function validateBackofficeSession(signal?: AbortSignal): Promise<AdminUser | null> {
   const url = baseUrl();
-  if (url && refreshToken) {
+  if (!url) return getStoredUser() ?? { id: "fixture-admin", email: "admin@fixture.local", role: "admin", name: "Administración" };
+  const response = await authFetch(`${url.replace(/\/$/, "")}/api/auth/me`, {
+    headers: { Accept: "application/json" }, signal,
+  });
+  if (!response.ok) {
+    clearSession();
+    return null;
+  }
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!payload || typeof payload !== "object") {
+    clearSession();
+    return null;
+  }
+  const raw = payload as { id?: unknown; email?: unknown; role?: unknown; name?: unknown };
+  if (typeof raw.id !== "string" || typeof raw.email !== "string" || typeof raw.role !== "string" || !BACKOFFICE_ROLES.has(raw.role)) {
+    clearSession();
+    return null;
+  }
+  const user: AdminUser = { id: raw.id, email: raw.email, role: raw.role, name: typeof raw.name === "string" ? raw.name : null };
+  persist(USER_KEY, JSON.stringify(user));
+  return user;
+}
+
+export function logout(): void {
+  const url = baseUrl();
+  if (url) {
     void fetch(`${url.replace(/\/$/, "")}/api/auth/logout`, {
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({}),
+      credentials: "include",
     }).catch(() => undefined);
   }
   clearSession();
 }
 
 type RawLoginResponse = { user?: { id?: unknown; email?: unknown; role?: unknown; name?: unknown }; accessToken?: unknown; refreshToken?: unknown };
-type ValidRawLoginResponse = { user: { id: string; email?: unknown; role?: unknown; name?: unknown }; accessToken: string; refreshToken: string };
+type ValidRawLoginResponse = { user: { id: string; email?: unknown; role?: unknown; name?: unknown }; accessToken: string };
 
 function isRawLoginResponse(value: unknown): value is ValidRawLoginResponse {
   if (!value || typeof value !== "object") return false;
   const body = value as RawLoginResponse;
-  return typeof body.user?.id === "string" && typeof body.accessToken === "string" && typeof body.refreshToken === "string";
+  return typeof body.user?.id === "string" && typeof body.accessToken === "string";
 }
 
 /**
@@ -145,7 +125,6 @@ export async function login(email: string, password: string, signal?: AbortSigna
   if (!url) {
     const user: AdminUser = { id: "fixture-admin", email, role: "admin", name: "Administración (fixture)" };
     persist(TOKEN_KEY, "fixture-token");
-    persist(REFRESH_TOKEN_KEY, "fixture-refresh-token");
     persist(USER_KEY, JSON.stringify(user));
     return user;
   }
@@ -153,7 +132,7 @@ export async function login(email: string, password: string, signal?: AbortSigna
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ email, password }),
-    signal,
+    signal, credentials: "include",
   });
   const payload: unknown = await response.json().catch(() => undefined);
   if (response.status === 401) throw new AuthApiError("Email o contraseña incorrectos.", 401);
@@ -165,7 +144,11 @@ export async function login(email: string, password: string, signal?: AbortSigna
     role: String(payload.user.role ?? "customer"),
     name: typeof payload.user.name === "string" ? payload.user.name : null,
   };
-  storeSession(payload.accessToken, payload.refreshToken, user);
+  if (!BACKOFFICE_ROLES.has(user.role)) {
+    clearSession();
+    throw new AuthApiError("Tu cuenta no tiene acceso al backoffice.", 403);
+  }
+  storeSession(payload.accessToken, user);
   return user;
 }
 
