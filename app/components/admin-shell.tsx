@@ -13,6 +13,7 @@ const navGroups = [
       { href: "/administracion", label: "Administración", icon: "admin" },
       { href: "/tablero", label: "Tablero", icon: "chart" },
       { href: "/pedidos", label: "Pedidos", icon: "receipt" },
+      { href: "/clientes", label: "Clientes", icon: "users" },
       { href: "/entregas", label: "Entregas", icon: "truck" },
     ],
   },
