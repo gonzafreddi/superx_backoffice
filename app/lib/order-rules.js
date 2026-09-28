@@ -70,3 +70,14 @@ export function buildOrderTransitionEvent(input, occurredAt, id) {
     ...(combinedNote ? { note: combinedNote } : {}),
   };
 }
+
+/** Parses the refund amount typed by staff ("1.234,50", "1234.5") and checks it against what the customer is owed. */
+export function validateRefundAmount(value, due) {
+  const raw = String(value ?? "").trim();
+  const normalized = raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw;
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return { valid: false, error: "Ingresá un monto válido, con hasta 2 decimales." };
+  const cents = Math.round(Number(normalized) * 100);
+  if (cents <= 0) return { valid: false, error: "El monto tiene que ser mayor a cero." };
+  if (cents > Math.round(Number(due) * 100)) return { valid: false, error: "El reintegro supera lo que se le debe al cliente." };
+  return { valid: true, amount: (cents / 100).toFixed(2) };
+}

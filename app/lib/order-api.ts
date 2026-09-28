@@ -31,6 +31,7 @@ type RawOrder = {
   createdAt: string; updatedAt: string; paymentMethod: Order["payment"]["method"]; paymentStatus: Order["payment"]["status"];
   substitutionPreference: Order["substitutionPreference"]; customerNotes: string | null;
   itemsSubtotal: string; deliveryFee: string; discountTotal: string; grandTotal: string; items: RawOrderItem[];
+  paidAmount?: string | null; refundedAmount?: string; refundDue?: string;
 };
 type RawOrderEvent = { id: string; toStatus: Order["status"]; actorUserId: string; actorRole: string; note: string | null; createdAt: string };
 
@@ -71,6 +72,7 @@ function adaptOrder(raw: RawOrder, events: RawOrderEvent[]): Order {
     // Picking-time substitutions aren't exposed on this endpoint (only via the picking module, not wired here).
     lines: raw.items.map((item) => line(item.id, item.productName, item.quantity, Number(item.unitPrice))),
     events: events.map(adaptEvent),
+    refund: { paid: raw.paidAmount == null ? null : Number(raw.paidAmount), refunded: Number(raw.refundedAmount ?? 0), due: Number(raw.refundDue ?? 0) },
   };
 }
 
@@ -146,6 +148,19 @@ export const orderApi: OrderApi = {
     }
     const root = url.replace(/\/$/, "");
     await fetchJson(`${root}/orders/${encodeURIComponent(id)}/payment`, { method: "PATCH", body: JSON.stringify(input) });
+    return fetchOrderWithEvents(root, id);
+  },
+  async createRefund(id, input) {
+    const url = baseUrl();
+    if (!url) {
+      await wait(); const order = orders.find((candidate) => candidate.id === id); if (!order) throw notFound();
+      const amount = Number(input.amount); const current = order.refund ?? { paid: order.total, refunded: 0, due: 0 };
+      if (!(amount > 0) || amount > current.due + 0.001) throw new Error("El reintegro supera lo que se le debe al cliente.");
+      const updated: Order = { ...order, refund: { ...current, refunded: current.refunded + amount, due: current.due - amount }, updatedAt: new Date().toISOString() };
+      orders = orders.map((candidate) => candidate.id === id ? updated : candidate); return clone(updated);
+    }
+    const root = url.replace(/\/$/, "");
+    await fetchJson(`${root}/orders/${encodeURIComponent(id)}/refunds`, { method: "POST", body: JSON.stringify({ amount: input.amount, treasuryAccountId: Number(input.treasuryAccountId), ...(input.note?.trim() ? { note: input.note.trim() } : {}) }) });
     return fetchOrderWithEvents(root, id);
   },
 };

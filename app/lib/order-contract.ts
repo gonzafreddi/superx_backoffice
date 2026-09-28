@@ -31,11 +31,14 @@ export type Order = {
   total: number;
   lines: OrderLine[];
   events: OrderEvent[];
+  /** Charged amount and money owed back to the customer (shortage after payment or paid cancellation). */
+  refund?: { paid: number | null; refunded: number; due: number };
 };
 
 export type OrderFilters = { query?: string; status?: "all" | OrderStatus; from?: string; to?: string };
 export type PackingChecklist = { itemsVerified: boolean; packagingSealed: boolean; labelAttached: boolean };
 export type OrderTransitionInput = { status: OrderStatus; performedBy: string; performedByRole?: OrderRole; note?: string; checklist?: PackingChecklist };
+export type OrderRefundInput = { amount: string; treasuryAccountId: string; note?: string };
 export type OrderPaymentInput = { status: OrderPaymentStatus; paymentMethod?: OrderPaymentMethod; treasuryAccountId?: string; note?: string };
 
 /** Contrato objetivo: GET /api/orders, GET /api/orders/:id y PATCH /api/orders/:id/status. */
@@ -46,6 +49,7 @@ export type OrderApi = {
   setPaymentMethodEnabled(method: OrderPaymentMethod, enabled: boolean): Promise<OrderPaymentMethodSetting>;
   transitionOrder(id: string, input: OrderTransitionInput): Promise<Order>;
   updatePayment(id: string, input: OrderPaymentInput): Promise<Order>;
+  createRefund(id: string, input: OrderRefundInput): Promise<Order>;
 };
 
 export type OrderPermissions = { transition: boolean; cancel: boolean };

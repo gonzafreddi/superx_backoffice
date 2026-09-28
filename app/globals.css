@@ -1327,3 +1327,4 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 .transfer-details-form{grid-column:1/-1;margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}.transfer-details-form h3{margin:0;color:var(--ink);font-size:15px}.transfer-details-form .form-grid{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:12px}.transfer-details-actions{display:flex;justify-content:flex-end;margin-top:12px}
 @media(max-width:760px){.transfer-details-form .form-grid{grid-template-columns:1fr}}
+.payment-card-refund-due dt,.payment-card-refund-due dd{color:var(--danger,#b42318);font-weight:800}.payment-modal .field{display:grid;gap:6px;margin:0 0 14px}
