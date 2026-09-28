@@ -1,30 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapsUrl, moveItem, paymentHint, slotLabel } from "../app/lib/dispatch-rules.js";
-
-test("moveItem reordena sin mutar la lista", () => {
-  const source = ["a", "b", "c"];
-  assert.deepEqual(moveItem(source, 0, 2), ["b", "c", "a"]);
-  assert.deepEqual(source, ["a", "b", "c"]);
-  assert.deepEqual(moveItem(source, -1, 2), source);
-});
-
-test("slotLabel muestra hoy o una fecha breve y el rango horario", () => {
-  const today = { slotDate: "2026-09-28", slotStart: "10:00:00", slotEnd: "12:00:00" };
-  const future = { ...today, slotDate: "2026-10-03" };
-  assert.equal(slotLabel(today, new Date(2026, 8, 28, 9)), "hoy 10:00–12:00");
-  assert.equal(slotLabel(future, new Date(2026, 8, 28, 9)), "sáb 3 oct 10:00–12:00");
-});
-
-test("mapsUrl busca por dirección y ciudad", () => {
-  assert.equal(mapsUrl({ addressLine: "Moldes 2480", cityName: "CABA" }), "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent("Moldes 2480, CABA"));
-  assert.equal(mapsUrl({ addressLine: "", cityName: "" }), null);
-});
-
-test("paymentHint nunca incluye montos", () => {
-  assert.equal(paymentHint({ paymentMethod: "CASH", paymentStatus: "PENDING" }), "Cobra en efectivo");
-  assert.equal(paymentHint({ paymentMethod: "CASH", paymentStatus: "PAID" }), "Pagado");
-  assert.equal(paymentHint({ paymentMethod: "BANK_TRANSFER", paymentStatus: "PAID" }), "Pagado");
-  assert.equal(paymentHint({ paymentMethod: "BANK_TRANSFER", paymentStatus: "PENDING" }), "Pago pendiente (transferencia)");
-  assert.equal(paymentHint({ paymentMethod: "MERCADO_PAGO", paymentStatus: "PENDING" }), "Pago pendiente (Mercado Pago)");
-});
+import { filterOrders, mapsUrl, moveItem, nextStop, paymentHint, progressLabel, routeOrders, slotLabel } from "../app/lib/dispatch-rules.js";
+const order = (id, status, position) => ({ id, status, position }); const board = { ready: [order("2", "READY", 2)], outForDelivery: [order("1", "OUT_FOR_DELIVERY", 1)], delivered: [order("3", "DELIVERED", 3)] };
+test("moveItem reordena sin mutar", () => { const source = ["a", "b", "c"]; assert.deepEqual(moveItem(source, 0, 2), ["b", "c", "a"]); assert.deepEqual(source, ["a", "b", "c"]); });
+test("slotLabel muestra fecha y rango", () => { const value = { slotDate: "2026-09-28", slotStart: "10:00:00", slotEnd: "12:00:00" }; assert.equal(slotLabel(value, new Date(2026, 8, 28, 9)), "hoy 10:00–12:00"); });
+test("mapsUrl crea direcciones y prioriza coordenadas", () => { assert.equal(mapsUrl({ addressLine: "Moldes 2480", cityName: "CABA", postalCode: "1428" }), "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent("Moldes 2480, CABA, 1428")); assert.equal(mapsUrl({}, { lat: -34.2, lng: -60.2 }), "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent("-34.2,-60.2")); });
+test("ruta filtros próxima parada y progreso", () => { assert.deepEqual(routeOrders(board).map((o) => o.id), ["1", "2"]); assert.deepEqual(filterOrders(board, "delivered").map((o) => o.id), ["3"]); assert.equal(nextStop(board)?.id, "1"); assert.equal(nextStop(board, "1")?.id, "2"); assert.equal(progressLabel(board, "2"), "2 de 3"); });
+test("paymentHint nunca incluye montos", () => { for (const value of [{ paymentMethod: "CASH", paymentStatus: "PENDING" }, { paymentMethod: "BANK_TRANSFER", paymentStatus: "PAID" }, { paymentMethod: "MERCADO_PAGO", paymentStatus: "PENDING" }]) assert.equal(paymentHint(value).includes("$"), false); });

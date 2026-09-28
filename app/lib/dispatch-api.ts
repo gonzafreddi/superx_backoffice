@@ -1,73 +1,24 @@
 import { authFetch } from "@/app/lib/http";
-import type { DispatchApi, DispatchBoard, DispatchOrder } from "./dispatch-contract";
+import type { DispatchApi, DispatchBoard, DispatchHistory, DispatchOrder, IncidentReason, LatLng, RouteEstimate } from "./dispatch-contract";
 
-const wait = (ms = 250) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const wait = (ms = 120) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const base = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL;
-
-export class DispatchApiError extends Error {
-  constructor(message: string, readonly status?: number, readonly code?: string) {
-    super(message);
-    this.name = "DispatchApiError";
-  }
-}
-
-const delivery = (recipientName: string, phone: string, addressLine: string, neighborhood: string, slotStart: string, slotEnd: string) => ({ recipientName, phone, addressLine, neighborhood, postalCode: "1428", cityName: "CABA", addressNotes: "Tocar timbre", customerNotes: null, zoneName: "Norte", slotDate: "2026-09-28", slotStart, slotEnd });
-const order = (id: string, orderNumber: string, status: DispatchOrder["status"], position: number, name: string, address: string, paymentMethod: DispatchOrder["paymentMethod"], paymentStatus: DispatchOrder["paymentStatus"]): DispatchOrder => ({
-  id, orderNumber, status, position, paymentMethod, paymentStatus,
-  delivery: delivery(name, `+54 9 11 5555-01${id.padStart(2, "0")}`, address, "Belgrano", "10:00:00", "12:00:00"),
-  items: [{ productName: "Yerba mate tradicional 500 g", quantity: 2, unitCode: "UN" }, { productName: "Agua mineral sin gas 1,5 L", quantity: 3, unitCode: "UN" }],
-});
-
-let fixture: DispatchBoard = {
-  ready: [order("1", "SX-1048", "READY", 1, "Ana Gómez", "Av. Cabildo 1820, 4° B", "CASH", "PENDING"), order("2", "SX-1049", "READY", 2, "Marcos Ruiz", "Moldes 2480", "BANK_TRANSFER", "PENDING")],
-  outForDelivery: [order("3", "SX-1042", "OUT_FOR_DELIVERY", 1, "Lucía Fernández", "Amenábar 910", "MERCADO_PAGO", "PAID")],
-};
-
-const cloneOrder = (value: DispatchOrder): DispatchOrder => ({ ...value, delivery: { ...value.delivery }, items: value.items.map((item) => ({ ...item })) });
-const cloneBoard = (value: DispatchBoard): DispatchBoard => ({ ready: value.ready.map(cloneOrder), outForDelivery: value.outForDelivery.map(cloneOrder) });
-
-async function request(path: string, init?: RequestInit): Promise<unknown> {
-  const response = await authFetch(`${base()!.replace(/\/$/, "")}${path}`, {
-    ...init,
-    headers: { Accept: "application/json", ...(init?.body ? { "Content-Type": "application/json" } : {}) },
-  });
-  const payload: unknown = await response.json().catch(() => undefined);
-  if (response.status === 401) throw new DispatchApiError("Iniciá sesión para trabajar en reparto.", 401, "unauthenticated");
-  if (!response.ok) {
-    const message = payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string" ? (payload as { message: string }).message : "No pudimos completar la acción.";
-    throw new DispatchApiError(message, response.status);
-  }
-  return payload;
-}
-
+export class DispatchApiError extends Error { constructor(message: string, readonly status?: number, readonly code?: string) { super(message); this.name = "DispatchApiError"; } }
+const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
+const delivery = (name: string, phone: string, address: string, start: string, end: string) => ({ recipientName: name, phone, addressLine: address, neighborhood: "Centro", postalCode: "2741", cityName: "Salto", addressNotes: "Tocar timbre", customerNotes: null, zoneName: "Centro", slotDate: today(), slotStart: start, slotEnd: end });
+const order = (id: string, number: string, status: DispatchOrder["status"], position: number, name: string, address: string, location: LatLng | null): DispatchOrder => ({ id, orderNumber: number, status, position, paymentMethod: "CASH", paymentStatus: "PENDING", delivery: delivery(name, `+54 9 2474 40${id.padStart(4, "0")}`, address, "17:00:00", "20:00:00"), location, dispatchedBy: status === "READY" ? null : { id: "fixture-admin", name: "Administración" }, dispatchedAt: status === "READY" ? null : new Date().toISOString(), deliveredAt: status === "DELIVERED" ? new Date().toISOString() : null, incident: null, items: [{ productName: "Yerba mate tradicional 500 g", quantity: 2, unitCode: "UN", imageUrl: null }, { productName: "Agua mineral sin gas 1,5 L", quantity: 3, unitCode: "UN", imageUrl: null }] });
+let fixtureOrders = [order("1", "SX-1048", "READY", 1, "Ana Gómez", "Av. España 620", { lat: -34.2921, lng: -60.2546 }), order("2", "SX-1049", "READY", 2, "Marcos Ruiz", "San Pablo 481", { lat: -34.2982, lng: -60.2493 }), order("3", "SX-1050", "READY", 3, "Lucía Fernández", "Buenos Aires 1024", null)];
+const cloneOrder = (o: DispatchOrder): DispatchOrder => structuredClone(o);
+const board = (date = today()): DispatchBoard => { const ready = fixtureOrders.filter((o) => o.status === "READY").map(cloneOrder); const outForDelivery = fixtureOrders.filter((o) => o.status === "OUT_FOR_DELIVERY").map(cloneOrder); const delivered = fixtureOrders.filter((o) => o.status === "DELIVERED").map(cloneOrder); const all = [...ready, ...outForDelivery, ...delivered]; return { date, ready, outForDelivery, delivered, summary: { total: all.length, pending: ready.length + outForDelivery.length, delivered: delivered.length, incidents: all.filter((o) => o.incident).length } }; };
+async function request(path: string, init?: RequestInit): Promise<unknown> { const response = await authFetch(`${base()!.replace(/\/$/, "")}${path}`, { ...init, headers: { Accept: "application/json", ...(init?.body ? { "Content-Type": "application/json" } : {}) } }); const payload: unknown = await response.json().catch(() => undefined); if (response.status === 401) throw new DispatchApiError("Iniciá sesión para trabajar en reparto.", 401, "unauthenticated"); if (!response.ok) { const raw = payload && typeof payload === "object" ? (payload as { message?: unknown }).message : undefined; throw new DispatchApiError(typeof raw === "string" ? raw : "No pudimos completar la acción.", response.status); } return payload; }
 const numericIds = (ids: string[]) => ids.map(Number);
-
 export const dispatchApi: DispatchApi = {
-  async getBoard() {
-    if (!base()) { await wait(); return cloneBoard(fixture); }
-    return request("/dispatch") as Promise<DispatchBoard>;
-  },
-  async saveSequence(orderIds) {
-    if (!base()) {
-      await wait();
-      const byId = new Map(fixture.ready.map((item) => [item.id, item]));
-      fixture = { ...fixture, ready: orderIds.map((id, index) => ({ ...byId.get(id)!, position: index + 1 })).filter(Boolean) };
-      return cloneBoard(fixture);
-    }
-    return request("/dispatch/sequence", { method: "PUT", body: JSON.stringify({ orderIds: numericIds(orderIds) }) }) as Promise<DispatchBoard>;
-  },
-  async start(orderIds) {
-    if (!base()) {
-      await wait();
-      const selected = new Set(orderIds);
-      const moved = fixture.ready.filter((item) => selected.has(item.id)).map((item, index) => ({ ...item, status: "OUT_FOR_DELIVERY" as const, position: fixture.outForDelivery.length + index + 1 }));
-      fixture = { ready: fixture.ready.filter((item) => !selected.has(item.id)), outForDelivery: [...fixture.outForDelivery, ...moved] };
-      return cloneBoard(fixture);
-    }
-    return request("/dispatch/start", { method: "POST", body: JSON.stringify({ orderIds: numericIds(orderIds) }) }) as Promise<DispatchBoard>;
-  },
-  async markDelivered(id) {
-    if (!base()) { await wait(); fixture = { ...fixture, outForDelivery: fixture.outForDelivery.filter((item) => item.id !== id) }; return; }
-    await request(`/orders/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify({ status: "DELIVERED" }) });
-  },
+  async getBoard(date) { if (!base()) { await wait(); return board(date); } return request(`/dispatch${date ? `?date=${encodeURIComponent(date)}` : ""}`) as Promise<DispatchBoard>; },
+  async saveSequence(ids) { if (!base()) { await wait(); const positions = new Map(ids.map((id, i) => [id, i + 1])); fixtureOrders = fixtureOrders.map((o) => positions.has(o.id) ? { ...o, position: positions.get(o.id)! } : o); return board(); } return request("/dispatch/sequence", { method: "PUT", body: JSON.stringify({ orderIds: numericIds(ids) }) }) as Promise<DispatchBoard>; },
+  async start(ids) { if (!base()) { await wait(); const selected = new Set(ids); fixtureOrders = fixtureOrders.map((o) => selected.has(o.id) && o.status === "READY" ? { ...o, status: "OUT_FOR_DELIVERY", dispatchedBy: { id: "fixture-admin", name: "Administración" }, dispatchedAt: new Date().toISOString() } : o); return board(); } return request("/dispatch/start", { method: "POST", body: JSON.stringify({ orderIds: numericIds(ids) }) }) as Promise<DispatchBoard>; },
+  async route(ids, origin) { if (!base()) { await wait(); const located = ids.map((id) => fixtureOrders.find((o) => o.id === id)).filter((o): o is DispatchOrder => Boolean(o)).filter((o) => o.location); if (located.length < 1 || (located.length < 2 && !origin)) return { available: false, reason: "No hay suficientes paradas ubicadas para estimar la ruta." }; return { available: false, reason: "La estimación vial no está disponible en el modo de prueba." }; } return request("/dispatch/route", { method: "POST", body: JSON.stringify({ orderIds: numericIds(ids), ...(origin ? { origin } : {}) }) }) as Promise<RouteEstimate>; },
+  async optimize(ids, origin) { if (!base()) { await wait(); const located = ids.filter((id) => fixtureOrders.find((o) => o.id === id)?.location); const missing = ids.filter((id) => !located.includes(id)); return this.saveSequence([...located, ...missing]); } return request("/dispatch/optimize", { method: "POST", body: JSON.stringify({ orderIds: numericIds(ids), ...(origin ? { origin } : {}) }) }) as Promise<DispatchBoard>; },
+  async markDelivered(id, note) { if (!base()) { await wait(); fixtureOrders = fixtureOrders.map((o) => o.id === id ? { ...o, status: "DELIVERED", deliveredAt: new Date().toISOString() } : o); return board(); } return request(`/dispatch/${encodeURIComponent(id)}/delivered`, { method: "POST", body: JSON.stringify(note ? { note } : {}) }) as Promise<DispatchBoard>; },
+  async reportIncident(id, reason: IncidentReason, note) { if (!base()) { await wait(); fixtureOrders = fixtureOrders.map((o) => o.id === id ? { ...o, incident: { id: `incident-${id}`, reason, note: note || null, createdAt: new Date().toISOString(), reportedBy: { id: "fixture-admin", name: "Administración" } } } : o); return board(); } return request(`/dispatch/${encodeURIComponent(id)}/incident`, { method: "POST", body: JSON.stringify({ reason, ...(note ? { note } : {}) }) }) as Promise<DispatchBoard>; },
+  async history(from, to) { if (!base()) { await wait(); const b = board(); return { days: [{ date: b.date, delivered: b.delivered.length, incidents: b.summary.incidents, orders: [...b.delivered, ...b.outForDelivery.filter((o) => o.incident)] }] }; } const params = new URLSearchParams(); if (from) params.set("from", from); if (to) params.set("to", to); return request(`/dispatch/history${params.size ? `?${params}` : ""}`) as Promise<DispatchHistory>; },
 };

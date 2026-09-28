@@ -2,45 +2,20 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
 import React from "react";
-import { DeliveryBoard } from "../app/(backoffice)/reparto/driver-app";
-import type { DispatchBoard, DispatchOrder } from "../app/lib/dispatch-contract";
-
-const makeOrder = (id: string, status: DispatchOrder["status"]): DispatchOrder => ({ id, orderNumber: `SX-${id}`, status, position: Number(id), paymentMethod: "CASH", paymentStatus: "PENDING", delivery: { recipientName: `Cliente ${id}`, phone: "+54 11 5555 0000", addressLine: "Moldes 2480", neighborhood: "Colegiales", postalCode: "1428", cityName: "CABA", addressNotes: null, customerNotes: null, zoneName: "Norte", slotDate: "2026-09-28", slotStart: "10:00:00", slotEnd: "12:00:00" }, items: [{ productName: "Yerba", quantity: 2, unitCode: "UN" }] });
-const source: DispatchBoard = { ready: [makeOrder("1", "READY"), makeOrder("2", "READY")], outForDelivery: [makeOrder("3", "OUT_FOR_DELIVERY")] };
-const clone = (): DispatchBoard => structuredClone(source);
-
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost" });
-Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, Node: dom.window.Node, MutationObserver: dom.window.MutationObserver, getComputedStyle: dom.window.getComputedStyle });
+import { DeliveryBoard } from "../app/(driver)/reparto/driver-app";
+import type { DispatchBoard, DispatchOrder, IncidentReason } from "../app/lib/dispatch-contract";
+const makeOrder = (id: string, status: DispatchOrder["status"]): DispatchOrder => ({ id, orderNumber: `SX-${id}`, status, position: Number(id), paymentMethod: "CASH", paymentStatus: "PENDING", delivery: { recipientName: `Cliente ${id}`, phone: "+54 11 5555 0000", addressLine: "Moldes 2480", neighborhood: "Colegiales", postalCode: "1428", cityName: "CABA", addressNotes: null, customerNotes: null, zoneName: "Norte", slotDate: "2026-09-28", slotStart: "10:00:00", slotEnd: "12:00:00" }, location: null, dispatchedBy: status === "READY" ? null : { id: "fixture-admin", name: "Admin" }, dispatchedAt: status === "READY" ? null : "2026-09-28T10:00:00Z", deliveredAt: status === "DELIVERED" ? "2026-09-28T11:00:00Z" : null, incident: null, items: [{ productName: "Yerba", quantity: 2, unitCode: "UN", imageUrl: null }] });
+const createBoard = (ready = [makeOrder("1", "READY"), makeOrder("2", "READY")], out = [makeOrder("3", "OUT_FOR_DELIVERY")], delivered: DispatchOrder[] = []): DispatchBoard => ({ date: "2026-09-28", ready, outForDelivery: out, delivered, summary: { total: ready.length + out.length + delivered.length, pending: ready.length + out.length, delivered: delivered.length, incidents: [...ready, ...out, ...delivered].filter((o) => o.incident).length } });
+const source = createBoard(); const clone = () => structuredClone(source); const estimateRoute = async () => ({ available: false as const, reason: "Sin ruta" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/reparto" });
+Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, Node: dom.window.Node, MutationObserver: dom.window.MutationObserver, getComputedStyle: dom.window.getComputedStyle, SVGElement: dom.window.SVGElement });
 Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
+dom.window.sessionStorage.setItem("superx.access-user", JSON.stringify({ id: "fixture-admin", email: "admin@fixture.local", role: "admin", name: "Admin" }));
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { cleanup, fireEvent, render, screen, waitFor } = require("@testing-library/react") as typeof import("@testing-library/react");
-afterEach(() => cleanup());
-
-test("renderiza tarjetas sin precios", async () => {
-  render(<DeliveryBoard loadBoard={async () => clone()} />);
-  await screen.findByText("SX-1");
-  assert.equal(document.body.textContent?.includes("$"), false);
-});
-
-test("reordenar con teclado guarda todos los ids en el nuevo orden", async () => {
-  let received: string[] = [];
-  render(<DeliveryBoard loadBoard={async () => clone()} saveSequence={async (ids) => { received = ids; const board = clone(); board.ready.reverse(); return board; }} />);
-  const handle = await screen.findByRole("button", { name: /Mover pedido SX-1/ });
-  fireEvent.keyDown(handle, { key: "ArrowDown" });
-  await waitFor(() => assert.deepEqual(received, ["2", "1"]));
-});
-
-test("salir a repartir envía todos los pedidos listos", async () => {
-  let received: string[] = [];
-  render(<DeliveryBoard loadBoard={async () => clone()} startDispatch={async (ids) => { received = ids; return { ready: [], outForDelivery: [...clone().outForDelivery, ...clone().ready] }; }} />);
-  fireEvent.click(await screen.findByRole("button", { name: "Salir a repartir (2)" }));
-  fireEvent.click(screen.getByRole("button", { name: "Confirmar salida" }));
-  await waitFor(() => assert.deepEqual(received, ["1", "2"]));
-});
-
-test("Entregado actualiza el pedido indicado", async () => {
-  let received = "";
-  render(<DeliveryBoard loadBoard={async () => clone()} deliver={async (id) => { received = id; }} />);
-  fireEvent.click(await screen.findByRole("button", { name: "Entregado" }));
-  await waitFor(() => assert.equal(received, "3"));
-});
+const { cleanup, fireEvent, render, screen, waitFor, within } = require("@testing-library/react") as typeof import("@testing-library/react"); afterEach(() => cleanup());
+test("renderiza tablero y detalle sin dinero", async () => { render(<DeliveryBoard loadBoard={async () => clone()} estimateRoute={estimateRoute}/>); fireEvent.click(await screen.findByText("SX-1")); await screen.findByText("Productos (1)"); assert.equal(document.body.textContent?.includes("$"), false); });
+test("reordenar con teclado guarda todos los ids", async () => { let received: string[] = []; const readyOnly = createBoard(source.ready, []); render(<DeliveryBoard loadBoard={async () => readyOnly} estimateRoute={estimateRoute} saveSequence={async (ids) => { received = ids; return createBoard([...readyOnly.ready].reverse(), []); }}/>); fireEvent.keyDown(await screen.findByRole("button", { name: /Mover pedido SX-1/ }), { key: "ArrowDown" }); await waitFor(() => assert.deepEqual(received, ["2", "1"])); });
+test("iniciar ruta envía listos y selecciona primera parada", async () => { let received: string[] = []; const moved = createBoard([], [makeOrder("1", "OUT_FOR_DELIVERY"), makeOrder("2", "OUT_FOR_DELIVERY"), makeOrder("3", "OUT_FOR_DELIVERY")]); render(<DeliveryBoard loadBoard={async () => clone()} estimateRoute={estimateRoute} startDispatch={async (ids) => { received = ids; return moved; }}/>); fireEvent.click(await screen.findByRole("button", { name: /Iniciar ruta \(2\)/ })); fireEvent.click(screen.getByRole("button", { name: "Iniciar ruta" })); await waitFor(() => assert.deepEqual(received, ["1", "2"])); assert.ok(await screen.findByRole("complementary", { name: "Detalle de SX-1" })); });
+test("entregar avanza y actualiza progreso", async () => { const active = createBoard([], [makeOrder("1", "OUT_FOR_DELIVERY"), makeOrder("2", "OUT_FOR_DELIVERY")]); const after = createBoard([], [makeOrder("2", "OUT_FOR_DELIVERY")], [makeOrder("1", "DELIVERED")]); render(<DeliveryBoard loadBoard={async () => active} estimateRoute={estimateRoute} deliver={async () => after}/>); fireEvent.click((await screen.findAllByText("SX-1"))[0]); fireEvent.click(screen.getByRole("button", { name: /Marcar como entregado/ })); const detail = await screen.findByRole("complementary", { name: "Detalle de SX-2" }); assert.ok(within(detail).getByText("2 de 2")); });
+test("incidencia envía motivo y observación", async () => { let payload: [string, IncidentReason, string | undefined] | null = null; const active = createBoard([], [makeOrder("3", "OUT_FOR_DELIVERY")]); render(<DeliveryBoard loadBoard={async () => active} estimateRoute={estimateRoute} reportIncident={async (id, reason, note) => { payload = [id, reason, note]; return active; }}/>); fireEvent.click((await screen.findAllByText("SX-3"))[0]); fireEvent.click(screen.getByRole("button", { name: /Reportar incidencia/ })); fireEvent.click(screen.getByLabelText("No responde")); fireEvent.change(screen.getByLabelText(/Observaciones/), { target: { value: "No atiende" } }); fireEvent.click(screen.getByRole("button", { name: "Registrar incidencia" })); await waitFor(() => assert.deepEqual(payload, ["3", "NO_ANSWER", "No atiende"])); });
+test("filtros y optimización", async () => { let called: string[] = []; render(<DeliveryBoard loadBoard={async () => clone()} estimateRoute={estimateRoute} optimizeRoute={async (ids) => { called = ids; return clone(); }}/>); await screen.findByRole("button", { name: "Ruta 3" }); assert.ok(screen.getByRole("button", { name: "Pendientes 3" })); assert.ok(screen.getByRole("button", { name: "Entregados 0" })); fireEvent.click(screen.getByRole("button", { name: "Optimizar ruta" })); fireEvent.click(screen.getAllByRole("button", { name: "Optimizar ruta" }).at(-1)!); await waitFor(() => assert.deepEqual(called, ["1", "2", "3"])); });
