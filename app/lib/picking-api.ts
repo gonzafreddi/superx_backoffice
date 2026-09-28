@@ -35,6 +35,7 @@ let fixtureTasks: PickingTask[] = [
     slotDate: "2026-09-12",
     slotStart: "10:00",
     assignedPickerId: "me",
+    delivery: { recipientName: "Ana Gómez", phone: "+54 9 11 5555-0101", addressLine: "Av. Cabildo 1820, 4° B", neighborhood: "Belgrano", postalCode: "1428", cityName: "CABA", addressNotes: "Timbre 4B", customerNotes: "Llamar al llegar", zoneName: "Norte", slotDate: "2026-09-28", slotStart: "10:00:00", slotEnd: "12:00:00" },
     items: [
       item("pi-1", "Yerba mate tradicional 500 g", 2, "A-01-2", 12, "7791234567891"),
       item("pi-2", "Agua mineral sin gas 1,5 L", 3, "B-04-1", 41, "7791234567890"),
@@ -49,6 +50,7 @@ let fixtureTasks: PickingTask[] = [
     slotDate: "2026-09-12",
     slotStart: "12:00",
     assignedPickerId: null,
+    delivery: { recipientName: "Marcos Ruiz", phone: "+54 9 11 5555-0102", addressLine: "Moldes 2480", neighborhood: "Colegiales", postalCode: "1428", cityName: "CABA", addressNotes: null, customerNotes: null, zoneName: "Norte", slotDate: "2026-10-03", slotStart: "12:00:00", slotEnd: "14:00:00" },
     items: [item("pi-4", "Jugo de naranja 1 L", 4, "A-03-1", 20, "7791234567892")],
   },
 ];
@@ -59,7 +61,7 @@ const fixtureProducts = [
   { id: "prod-pan", name: "Pan integral con semillas 500 g" },
 ];
 
-const clone = (task: PickingTask): PickingTask => ({ ...task, items: task.items.map((i) => ({ ...i })) });
+const clone = (task: PickingTask): PickingTask => ({ ...task, delivery: task.delivery ? { ...task.delivery } : task.delivery, items: task.items.map((i) => ({ ...i })) });
 const replace = (next: PickingTask) => {
   fixtureTasks = fixtureTasks.map((t) => (t.id === next.id ? next : t));
 };

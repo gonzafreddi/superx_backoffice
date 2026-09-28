@@ -16,6 +16,21 @@ export type PickingItem = {
   substituteProductName?: string;
 };
 
+export type PickingDelivery = {
+  recipientName: string;
+  phone: string;
+  addressLine: string;
+  neighborhood: string | null;
+  postalCode: string;
+  cityName: string;
+  addressNotes: string | null;
+  customerNotes: string | null;
+  zoneName: string;
+  slotDate: string;
+  slotStart: string;
+  slotEnd: string;
+};
+
 export type PickingTask = {
   id: string;
   orderNumber: string;
@@ -24,6 +39,7 @@ export type PickingTask = {
   slotDate: string;
   slotStart: string;
   assignedPickerId: string | null;
+  delivery?: PickingDelivery | null;
   items: PickingItem[];
 };
 

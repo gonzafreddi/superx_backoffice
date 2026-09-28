@@ -5,6 +5,13 @@
 .back{width:44px;height:44px;flex:none;border:1px solid #aeb8c4;border-radius:0;background:#fff;font-size:20px}
 .progressTrack{height:8px;border-radius:0;background:#dce9df;overflow:hidden}
 .progressTrack span{display:block;height:100%;border-radius:0;background:var(--green,#149C3B);transition:width .2s}
+.customer{border:1px solid #b8c1cc;background:#fff}
+.customer summary{min-height:44px;padding:0 12px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;cursor:pointer}
+.customer summary span{margin-left:auto;color:#475467;font-weight:650}
+.customer>div{display:grid;gap:3px;padding:0 12px 12px;border-top:1px solid #e4e7ec;color:#344054;font-size:13px}
+.customer a{margin-top:10px;color:var(--green-strong,#0F7F30);font-weight:750;text-decoration:none}
+.customer p{margin:0}
+.customerNotes{margin-top:5px!important;padding:7px 8px;border-left:3px solid var(--green,#149C3B);background:#f8fcf9}
 .card{margin:auto 0;padding:18px;border:1px solid #aeb8c4;border-radius:0;background:#fff;display:grid;gap:10px;justify-items:center;text-align:center}
 .card h1{margin:0;font-size:22px}
 .card p{margin:0;color:#667085;line-height:1.5}

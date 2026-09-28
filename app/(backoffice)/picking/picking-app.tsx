@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pickingApi, PickingApiError } from "@/app/lib/picking-api";
 import type { PickingItem, PickingTask } from "@/app/lib/picking-contract";
+import { slotLabel } from "@/app/lib/dispatch-rules";
 import { canCompleteTask, clampPickQuantity, nextPendingIndex, pendingLines, pickingProgress, sequenceItems } from "@/app/lib/picking-rules";
 import styles from "./picking.module.css";
 
@@ -222,8 +223,8 @@ export function PickingApp({
         <div className={styles.card}>
           <div className={styles.doneMark} aria-hidden="true">✓</div>
           <h1>Picking finalizado</h1>
-          <p>{task?.orderNumber} quedó listo para empacar.</p>
-          <button className={styles.primary} onClick={() => { setTask(null); setView("list"); }}>Volver a mis tareas</button>
+          <p>{task?.orderNumber} quedó listo para reparto.</p>
+          <button className={styles.primary} onClick={() => { setTask(null); setView("list"); }}>Volver a picking</button>
         </div>
       </main>
     );
@@ -241,6 +242,17 @@ export function PickingApp({
             <strong>{progress.resolved}/{progress.total} líneas</strong>
           </div>
         </header>
+        {task.delivery && (
+          <details className={styles.customer}>
+            <summary>Cliente <span>{task.delivery.recipientName}</span></summary>
+            <div>
+              <a href={`tel:${task.delivery.phone.replace(/\s+/g, "")}`}>{task.delivery.phone}</a>
+              <p>{task.delivery.addressLine}</p>
+              <p>{[task.delivery.neighborhood, task.delivery.postalCode && `CP ${task.delivery.postalCode}`].filter(Boolean).join(" · ")}</p>
+              {(task.delivery.addressNotes || task.delivery.customerNotes) && <p className={styles.customerNotes}>{[task.delivery.addressNotes, task.delivery.customerNotes].filter(Boolean).join(" · ")}</p>}
+            </div>
+          </details>
+        )}
         <div className={styles.progressTrack} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent} aria-label="Progreso del picking">
           <span style={{ width: `${progress.percent}%` }} />
         </div>
@@ -371,7 +383,7 @@ export function PickingApp({
             <h2 id="mine-h">En curso ({mine.length})</h2>
             {mine.length === 0 ? <p className={styles.empty}>No tenés tareas asignadas.</p> : mine.map((t) => (
               <button key={t.id} className={styles.taskRow} disabled={busy} onClick={() => void openTask(t.id, false)}>
-                <span><strong>{t.orderNumber}</strong><span>{t.items.length} líneas · {t.slotStart}</span></span>
+                <span><strong>{t.orderNumber}{t.delivery ? ` · ${t.delivery.recipientName}` : ""}</strong><span>{t.delivery ? `${t.delivery.zoneName}${t.delivery.neighborhood ? ` · ${t.delivery.neighborhood}` : ""} · ${slotLabel(t.delivery)}` : `${t.items.length} líneas · ${t.slotStart}`}</span><span>{t.items.length} líneas</span></span>
                 <span className={styles.taskProgress}>{pickingProgress(t).resolved}/{pickingProgress(t).total}</span>
               </button>
             ))}
@@ -380,7 +392,7 @@ export function PickingApp({
             <h2 id="avail-h">Disponibles ({available.length})</h2>
             {available.length === 0 ? <p className={styles.empty}>No hay tareas en la cola.</p> : available.map((t) => (
               <button key={t.id} className={styles.taskRow} disabled={busy} onClick={() => void openTask(t.id, true)}>
-                <span><strong>{t.orderNumber}</strong><span>{t.items.length} líneas · {t.slotStart}{t.priority > 0 ? ` · prioridad ${t.priority}` : ""}</span></span>
+                <span><strong>{t.orderNumber}{t.delivery ? ` · ${t.delivery.recipientName}` : ""}</strong><span>{t.delivery ? `${t.delivery.zoneName}${t.delivery.neighborhood ? ` · ${t.delivery.neighborhood}` : ""} · ${slotLabel(t.delivery)}` : `${t.items.length} líneas · ${t.slotStart}`}</span><span>{t.items.length} líneas{t.priority > 0 ? ` · prioridad ${t.priority}` : ""}</span></span>
                 <span className={styles.take}>Tomar</span>
               </button>
             ))}
