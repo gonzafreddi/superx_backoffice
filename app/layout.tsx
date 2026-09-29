@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
@@ -13,7 +13,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = { title: "SuperX · Backoffice", description: "Administración SuperX" };
+export const metadata: Metadata = { title: "SuperX · Backoffice", description: "Administración SuperX", applicationName: "SuperX Backoffice", appleWebApp: { capable: true, title: "SuperX BO", statusBarStyle: "default" } };
+export const viewport: Viewport = { themeColor: "#141B2D", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

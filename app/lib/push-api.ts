@@ -55,16 +55,38 @@ export async function deviceState(): Promise<DeviceState> {
   return (await registration?.pushManager.getSubscription()) ? "on" : "off";
 }
 
-/** Must run from a click: asks permission and registers this device for staff alerts. */
+/** iPhone/iPad only allow push from the installed (home screen) app. */
+export function iosNeedsInstall(): boolean {
+  if (typeof window === "undefined") return false;
+  const standalone = (typeof window.matchMedia === "function" && window.matchMedia("(display-mode: standalone)").matches) || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !standalone;
+}
+export function preloadPushConfig(): void { void pushConfig(); }
+
+/**
+ * Must run directly from a click: iOS only shows the permission prompt when it is requested
+ * synchronously inside the gesture, so the request goes out before any await.
+ */
 export async function enableDevice(): Promise<DeviceState> {
   if (!supported()) return "unsupported";
-  const config = await pushConfig(); if (!config.enabled || !config.publicKey) return "unavailable";
-  if ((await Notification.requestPermission()) !== "granted") return "denied";
+  const permissionRequest = Notification.permission === "granted" ? Promise.resolve<NotificationPermission>("granted") : Notification.requestPermission();
+  const [permission, config] = await Promise.all([permissionRequest, pushConfig()]);
+  if (!config.enabled || !config.publicKey) return "unavailable";
+  if (permission !== "granted") return "denied";
   let subscription: PushSubscription;
   try {
     const registration = await worker();
-    subscription = (await registration.pushManager.getSubscription()) ?? (await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(config.publicKey) }));
-  } catch { throw new Error("Este navegador no pudo registrarse para recibir avisos. Probá con Chrome, Edge o Safari actualizados."); }
+    const options = { userVisibleOnly: true, applicationServerKey: keyBytes(config.publicKey) };
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) subscription = existing;
+    else {
+      try { subscription = await registration.pushManager.subscribe(options); }
+      catch (cause) { const stale = await registration.pushManager.getSubscription(); if (!stale) throw cause; await stale.unsubscribe(); subscription = await registration.pushManager.subscribe(options); }
+    }
+  } catch (cause) {
+    const detail = cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause);
+    throw new Error(`Este navegador no pudo registrarse para recibir avisos (${detail.slice(0, 140)}).`);
+  }
   await call("/push/subscriptions", { method: "POST", body: JSON.stringify({ app: "backoffice", subscription: subscription.toJSON() }) }, "No pudimos activar los avisos.");
   return "on";
 }
