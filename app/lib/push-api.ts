@@ -1,9 +1,10 @@
 import { authFetch } from "./http";
 
+export type CampaignAudience = "all_marketing" | "all_customers";
 export type CampaignStatus = "DRAFT" | "SCHEDULED" | "SENDING" | "SENT" | "CANCELLED" | "FAILED";
-export type PushCampaign = { id: string; title: string; body: string; url: string; imageUrl: string | null; status: CampaignStatus; scheduledAt: string | null; sentAt: string | null; targeted: number; sent: number; failed: number; clicked: number; lastError: string | null; createdAt: string; updatedAt: string };
-export type CampaignInput = { title: string; body: string; url: string; imageUrl: string | null; scheduledAt?: string };
-export type AudienceSize = { users: number; devices: number; enabled: boolean; warning: string | null };
+export type PushCampaign = { id: string; title: string; body: string; url: string; imageUrl: string | null; audience: CampaignAudience; status: CampaignStatus; scheduledAt: string | null; sentAt: string | null; targeted: number; sent: number; failed: number; clicked: number; lastError: string | null; createdAt: string; updatedAt: string };
+export type CampaignInput = { title: string; body: string; url: string; imageUrl: string | null; audience: CampaignAudience; scheduledAt?: string };
+export type AudienceSize = { audience: CampaignAudience; users: number; devices: number; enabled: boolean; warning: string | null };
 export type DeviceState = "on" | "off" | "denied" | "unsupported" | "unavailable";
 
 const apiRoot = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL?.replace(/\/$/, "");
@@ -22,7 +23,7 @@ async function call<T>(path: string, init: RequestInit = {}, fallback = "No pudi
 
 export const campaignApi = {
   list: (status?: CampaignStatus | "", page = 1) => call<{ items: PushCampaign[]; total: number; page: number; pageSize: number }>(`/push/campaigns?${new URLSearchParams({ page: String(page), pageSize: "20", ...(status ? { status } : {}) })}`, {}, "No pudimos cargar las campañas."),
-  audience: () => call<AudienceSize>("/push/campaigns/audience-size"),
+  audience: (audience: CampaignAudience) => call<AudienceSize>(`/push/campaigns/audience-size?audience=${audience}`),
   create: (input: CampaignInput) => call<PushCampaign>("/push/campaigns", { method: "POST", body: JSON.stringify(input) }, "No pudimos guardar la campaña."),
   update: (id: string, input: Omit<CampaignInput, "scheduledAt">) => call<PushCampaign>(`/push/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(input) }, "No pudimos guardar la campaña."),
   schedule: (id: string, scheduledAt: string) => call<PushCampaign>(`/push/campaigns/${id}/schedule`, { method: "POST", body: JSON.stringify({ scheduledAt }) }, "No pudimos programar la campaña."),
