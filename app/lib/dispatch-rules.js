@@ -20,7 +20,7 @@ export function paymentHint(order) {
   if (order?.paymentStatus === "PENDING" && order?.paymentMethod === "BANK_TRANSFER") return "Transferencia pendiente de validar";
   if (order?.paymentStatus === "PENDING" && order?.paymentMethod === "MERCADO_PAGO") return "Mercado Pago pendiente de validar"; return "Revisar estado del pago";
 }
-export const routeOrders = (board) => [...(board?.outForDelivery ?? []), ...(board?.ready ?? [])].sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9));
+export const routeOrders = (board) => [...(board?.dispatched ?? []), ...(board?.outForDelivery ?? [])].sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9));
 export const filterOrders = (board, filter) => filter === "delivered" ? board.delivered : routeOrders(board);
 export const nextStop = (board, afterId) => { const pending = routeOrders(board); if (!afterId) return pending[0] ?? null; const index = pending.findIndex((order) => order.id === afterId); return pending[index + 1] ?? pending.find((order) => order.id !== afterId) ?? null; };
 export const progressLabel = (board, orderId) => { const all = [...routeOrders(board), ...(board?.delivered ?? [])].sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9)); const index = all.findIndex((order) => order.id === orderId); return `${Math.max(1, index + 1)} de ${all.length}`; };

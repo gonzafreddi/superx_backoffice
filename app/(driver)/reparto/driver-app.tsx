@@ -12,7 +12,7 @@ import styles from "./driver.module.css";
 const RouteMap = dynamic(() => import("./route-map"), { ssr: false, loading: () => <div className={styles.mapLoading}>Cargando mapa…</div> });
 type Filter = "route" | "pending" | "delivered";
 type Deps = { loadBoard?: (date?: string) => Promise<DispatchBoard>; saveSequence?: (ids: string[]) => Promise<DispatchBoard>; startDispatch?: (ids: string[]) => Promise<DispatchBoard>; deliver?: (id: string) => Promise<DispatchBoard | void>; reportIncident?: (id: string, reason: IncidentReason, note?: string) => Promise<DispatchBoard>; optimizeRoute?: (ids: string[], origin?: LatLng) => Promise<DispatchBoard>; estimateRoute?: (ids: string[], origin?: LatLng) => Promise<RouteEstimate> };
-const emptyBoard = (): DispatchBoard => ({ date: "", ready: [], outForDelivery: [], delivered: [], summary: { total: 0, pending: 0, delivered: 0, incidents: 0 } });
+const emptyBoard = (): DispatchBoard => ({ date: "", ready: [], dispatched: [], outForDelivery: [], delivered: [], summary: { total: 0, pending: 0, delivered: 0, incidents: 0 } });
 const reasons: Array<[IncidentReason, string]> = [["CUSTOMER_ABSENT", "Cliente ausente"], ["WRONG_ADDRESS", "Dirección incorrecta"], ["NO_ANSWER", "No responde"], ["ORDER_PROBLEM", "Problema con el pedido"], ["PAYMENT", "Pago"], ["OTHER", "Otro"]];
 const statusLabel = (order: DispatchOrder) => order.incident ? "Incidencia" : order.status === "READY" ? "Listo" : order.status === "OUT_FOR_DELIVERY" ? "En reparto" : "Entregado";
 const statusClass = (order: DispatchOrder) => order.incident ? styles.statusIncident : order.status === "READY" ? styles.statusReady : order.status === "OUT_FOR_DELIVERY" ? styles.statusOut : styles.statusDelivered;
