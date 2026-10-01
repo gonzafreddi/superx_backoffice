@@ -11,6 +11,11 @@ export type PickingItem = {
   locationSortOrder: number;
   status: PickingItemStatus;
   barcode?: string;
+  productImageUrl?: string | null;
+  barcodes?: string[];
+  brandName?: string | null;
+  unitName?: string | null;
+  note?: string;
   resolution?: "REPLACE_SIMILAR" | "CONTACT_ME" | "REMOVE_ITEM";
   substituteProductId?: string;
   substituteProductName?: string;
@@ -39,6 +44,7 @@ export type PickingTask = {
   slotDate: string;
   slotStart: string;
   assignedPickerId: string | null;
+  pickerName?: string | null;
   delivery?: PickingDelivery | null;
   items: PickingItem[];
 };
@@ -48,6 +54,7 @@ export type PickingApi = {
   listMyTasks(): Promise<PickingTask[]>;
   listAvailableTasks(): Promise<PickingTask[]>;
   getTask(id: string): Promise<PickingTask>;
+  takeTask(id: string): Promise<PickingTask>;
   assignToMe(id: string): Promise<PickingTask>;
   startTask(id: string): Promise<PickingTask>;
   pickItem(taskId: string, itemId: string, quantity: number, barcode?: string): Promise<PickingTask>;

@@ -1,38 +1,64 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { JSDOM } from "jsdom";
 import React from "react";
-import { PickingApp } from "../app/(backoffice)/picking/picking-app";
+import { PickingList } from "../app/(backoffice)/picking/picking-app";
+import { PickingApiError } from "../app/lib/picking-api";
+import { available, cleanup, deferred, fireEvent, render, screen, task, waitFor } from "./picking-test-utils";
 import type { PickingTask } from "../app/lib/picking-contract";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost" });
-Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, Node: dom.window.Node, MutationObserver: dom.window.MutationObserver, getComputedStyle: dom.window.getComputedStyle });
-Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { cleanup, fireEvent, render, screen } = require("@testing-library/react") as typeof import("@testing-library/react");
-
-const task: PickingTask = { id: "pt-1", orderNumber: "SX-2048", status: "IN_PROGRESS", priority: 0, slotDate: "2026-10-03", slotStart: "10:00:00", assignedPickerId: "me", delivery: { recipientName: "Ana Gómez", phone: "+54 11 5555 0101", addressLine: "Av. Cabildo 1820, 4° B", neighborhood: "Belgrano", postalCode: "1428", cityName: "CABA", addressNotes: "Timbre 4B", customerNotes: "Llamar al llegar", zoneName: "Norte", slotDate: "2026-10-03", slotStart: "10:00:00", slotEnd: "12:00:00" }, items: [{ id: "pi-1", productName: "Yerba", unitCode: "UN", quantityRequired: 1, quantityPicked: 0, locationCode: "A-1", locationSortOrder: 1, status: "PENDING" }] };
-
-afterEach(() => cleanup());
-
-test("picking muestra cliente, zona y franja en la lista y el detalle", async () => {
-  render(<PickingApp loadMine={async () => [structuredClone(task)]} loadAvailable={async () => []} loadTask={async () => structuredClone(task)} />);
-  await screen.findByText(/SX-2048 · Ana Gómez/);
-  assert.match(document.body.textContent ?? "", /Norte · Belgrano · sáb 3 oct 10:00–12:00/);
-  fireEvent.click(screen.getByRole("button", { name: /SX-2048/ }));
-  await screen.findByText("Cliente");
-  assert.match(document.body.textContent ?? "", /Av. Cabildo 1820, 4° B/);
-  assert.match(document.body.textContent ?? "", /Timbre 4B · Llamar al llegar/);
-  assert.equal(screen.getByRole("link", { name: "+54 11 5555 0101" }).getAttribute("href"), "tel:+541155550101");
+afterEach(cleanup);
+test("lista muestra resumen, secciones, cliente, ciudad y franja", async () => {
+  render(<PickingList loadMine={async () => [task]} loadAvailable={async () => []} />);
+  await screen.findByText("PX000008 · Ana Gómez");
+  assert.ok(screen.getByRole("heading", { name: "Tus tareas" }));
+  assert.ok(screen.getByRole("heading", { name: "En curso (1)" }));
+  assert.ok(screen.getByRole("heading", { name: "Disponibles (0)" }));
+  assert.match(screen.getByLabelText("Resumen de tareas").textContent ?? "", /En curso1Disponibles0/);
+  assert.ok(screen.getByText("CABA"));
+  assert.ok(screen.getByText("sáb 3 oct · 10:00–12:00"));
+  assert.ok(screen.getByText("0 / 1 productos"));
 });
-
-test("al completar informa que el pedido quedó listo para reparto", async () => {
-  const finished = structuredClone(task);
-  finished.items[0].status = "PICKED";
-  finished.items[0].quantityPicked = 1;
-  render(<PickingApp loadMine={async () => [finished]} loadAvailable={async () => []} loadTask={async () => finished} complete={async () => ({ ...finished, status: "COMPLETED" })} />);
-  fireEvent.click(await screen.findByRole("button", { name: /SX-2048/ }));
-  fireEvent.click(await screen.findByRole("button", { name: "Finalizar picking" }));
-  await screen.findByText("SX-2048 quedó listo para reparto.");
-  assert.ok(screen.getByRole("button", { name: "Volver a picking" }));
+test("lista vacía informa dónde aparecerán las tareas", async () => {
+  render(<PickingList loadMine={async () => []} loadAvailable={async () => []} />);
+  await screen.findByText("No tenés tareas asignadas.");
+  assert.ok(screen.getByText("Cuando tomes un pedido, va a aparecer acá para que puedas gestionarlo."));
+});
+test("Tomar usa take, bloquea doble envío, refetch de ambas listas y navega", async () => {
+  const response = deferred<PickingTask>(); let calls = 0, mineLoads = 0, availableLoads = 0, url = "", taken = false;
+  render(<PickingList loadMine={async () => { mineLoads++; return taken ? [task] : []; }} loadAvailable={async () => { availableLoads++; return taken ? [] : [available]; }} take={async (id) => { assert.equal(id, task.id); calls++; await response.promise; taken = true; return task; }} navigate={(path) => { url = path; }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Tomar" }));
+  assert.equal((screen.getByRole("button", { name: "Tomando…" }) as HTMLButtonElement).disabled, true);
+  fireEvent.click(screen.getByRole("button", { name: "Tomando…" }));
+  response.resolve(task);
+  await waitFor(() => assert.equal(url, "/picking/pt-1"));
+  assert.equal(calls, 1); assert.equal(mineLoads, 2); assert.equal(availableLoads, 2);
+  assert.ok(screen.getByRole("heading", { name: "En curso (1)" }));
+  assert.ok(screen.getByRole("heading", { name: "Disponibles (0)" }));
+});
+test("409 muestra mensaje y vuelve a consultar ambas listas", async () => {
+  let mineLoads = 0, availableLoads = 0, navigated = false;
+  render(<PickingList loadMine={async () => { mineLoads++; return []; }} loadAvailable={async () => { availableLoads++; return availableLoads === 1 ? [available] : []; }} take={async () => { throw new PickingApiError("Task already assigned", 409); }} navigate={() => { navigated = true; }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Tomar" }));
+  await screen.findByText("El pedido ya fue tomado por otro operario.");
+  await waitFor(() => assert.equal(availableLoads, 2));
+  assert.equal(mineLoads, 2); assert.equal(navigated, false);
+  assert.ok(screen.getByRole("heading", { name: "Disponibles (0)" }));
+});
+test("Continuar inicia tareas ASSIGNED antiguas antes de navegar", async () => {
+  let started = false, url = "";
+  render(<PickingList loadMine={async () => [{ ...task, status: "ASSIGNED" }]} loadAvailable={async () => []} start={async () => { started = true; return task; }} navigate={(path) => { assert.equal(started, true); url = path; }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Continuar picking" }));
+  await waitFor(() => assert.equal(url, "/picking/pt-1"));
+});
+test("error de carga permite reintentar y autenticación tiene ingreso", async () => {
+  let fail = true;
+  render(<PickingList loadMine={async () => { if (fail) throw new Error("technical"); return []; }} loadAvailable={async () => []} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Reintentar" }));
+  fail = false;
+  fireEvent.click(await screen.findByRole("button", { name: "Reintentar" }));
+  await screen.findByText("No tenés tareas asignadas.");
+  cleanup();
+  render(<PickingList loadMine={async () => { throw new PickingApiError("Unauthorized", 401); }} loadAvailable={async () => []} />);
+  await screen.findByRole("heading", { name: "Iniciá sesión" });
+  assert.ok(screen.getByRole("link", { name: "Ingresar" }));
 });

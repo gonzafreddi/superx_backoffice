@@ -1,6 +1,6 @@
 import { authFetch } from "@/app/lib/http";
 import type { PickingApi, PickingItem, PickingTask } from "./picking-contract";
-import { clampPickQuantity } from "./picking-rules";
+import { canCompleteTask, clampPickQuantity } from "./picking-rules";
 
 const wait = (ms = 250) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const base = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL;
@@ -24,6 +24,10 @@ const item = (id: string, name: string, req: number, code: string, sort: number,
   locationSortOrder: sort,
   status: "PENDING",
   barcode,
+  barcodes: barcode ? [barcode] : [],
+  productImageUrl: null,
+  brandName: null,
+  unitName: "unidades",
 });
 
 let fixtureTasks: PickingTask[] = [
@@ -35,6 +39,7 @@ let fixtureTasks: PickingTask[] = [
     slotDate: "2026-09-12",
     slotStart: "10:00",
     assignedPickerId: "me",
+    pickerName: "Operario de prueba",
     delivery: { recipientName: "Ana Gómez", phone: "+54 9 11 5555-0101", addressLine: "Av. Cabildo 1820, 4° B", neighborhood: "Belgrano", postalCode: "1428", cityName: "CABA", addressNotes: "Timbre 4B", customerNotes: "Llamar al llegar", zoneName: "Norte", slotDate: "2026-09-28", slotStart: "10:00:00", slotEnd: "12:00:00" },
     items: [
       item("pi-1", "Yerba mate tradicional 500 g", 2, "A-01-2", 12, "7791234567891"),
@@ -50,6 +55,7 @@ let fixtureTasks: PickingTask[] = [
     slotDate: "2026-09-12",
     slotStart: "12:00",
     assignedPickerId: null,
+    pickerName: null,
     delivery: { recipientName: "Marcos Ruiz", phone: "+54 9 11 5555-0102", addressLine: "Moldes 2480", neighborhood: "Colegiales", postalCode: "1428", cityName: "CABA", addressNotes: null, customerNotes: null, zoneName: "Norte", slotDate: "2026-10-03", slotStart: "12:00:00", slotEnd: "14:00:00" },
     items: [item("pi-4", "Jugo de naranja 1 L", 4, "A-03-1", 20, "7791234567892")],
   },
@@ -91,7 +97,14 @@ async function http(path: string, init?: RequestInit): Promise<PickingTask> {
     if (response.status === 400 && message === "Scanned barcode does not match this item.") {
       throw new PickingApiError("El código escaneado no corresponde a este producto.", 400, "barcode_mismatch");
     }
-    throw new PickingApiError(message, response.status);
+    const known: Record<string, string> = {
+      "Task not found.": "La tarea ya no está disponible.",
+      "Picking task not found.": "La tarea ya no está disponible.",
+      "Task has pending items.": "Todavía hay productos sin resolver.",
+      "Quantity exceeds required quantity.": "La cantidad supera las unidades requeridas.",
+    };
+    if (response.status === 409 && path.endsWith("/take")) throw new PickingApiError("El pedido ya fue tomado por otro operario.", 409, "already_taken");
+    throw new PickingApiError(known[message] ?? (response.status === 404 ? "La tarea ya no está disponible." : "No pudimos completar la acción. Actualizá la tarea e intentá de nuevo."), response.status);
   }
   return payload as PickingTask;
 }
@@ -133,6 +146,17 @@ export const pickingApi: PickingApi = {
     if (!base()) { await wait(); return clone(find(id)); }
     return http(`/picking/tasks/${encodeURIComponent(id)}`, { method: "GET" });
   },
+  async takeTask(id) {
+    if (!base()) {
+      await wait();
+      const task = find(id);
+      if (task.status !== "PENDING" || task.assignedPickerId) throw new PickingApiError("El pedido ya fue tomado por otro operario.", 409, "already_taken");
+      const next = { ...clone(task), status: "IN_PROGRESS" as const, assignedPickerId: "me", pickerName: "Operario de prueba" };
+      replace(next);
+      return clone(next);
+    }
+    return http(`/picking/tasks/${encodeURIComponent(id)}/take`, { method: "POST", body: "{}" });
+  },
   async assignToMe(id) {
     if (!base()) {
       await wait();
@@ -160,7 +184,8 @@ export const pickingApi: PickingApi = {
       const next = clone(task);
       const line = next.items.find((i) => i.id === itemId);
       if (!line) throw new PickingApiError("Línea no encontrada.", 404, "not_found");
-      if (barcode && barcode !== line.barcode) {
+      if (line.status === "SHORT" || line.status === "SUBSTITUTED") throw new PickingApiError("Esta incidencia ya está resuelta.", 409);
+      if (barcode && !(line.barcodes ?? [line.barcode]).includes(barcode)) {
         throw new PickingApiError("El código escaneado no corresponde a este producto.", 400, "barcode_mismatch");
       }
       if (quantity > line.quantityRequired) throw new PickingApiError(`No podés pickear más de ${line.quantityRequired}.`, 400, "over_pick");
@@ -180,6 +205,9 @@ export const pickingApi: PickingApi = {
       const next = clone(find(taskId));
       const line = next.items.find((i) => i.id === itemId);
       if (!line) throw new PickingApiError("Línea no encontrada.", 404, "not_found");
+      if (next.status !== "IN_PROGRESS" || line.quantityPicked >= line.quantityRequired) throw new PickingApiError("La cantidad disponible debe ser menor a la requerida.", 409);
+      if (resolution === "REPLACE_SIMILAR" && !substituteProductId) throw new PickingApiError("Elegí un producto sustituto.", 400);
+      line.note = note;
       const substitute = fixtureProducts.find((product) => product.id === substituteProductId);
       line.status = resolution === "REPLACE_SIMILAR" ? "SUBSTITUTED" : "SHORT";
       line.resolution = resolution;
@@ -205,7 +233,7 @@ export const pickingApi: PickingApi = {
     if (!base()) {
       await wait();
       const task = find(id);
-      if (task.items.some((i) => i.status === "PENDING")) throw new PickingApiError("Quedan líneas sin resolver.", 409, "pending_lines");
+      if (!canCompleteTask(task)) throw new PickingApiError("Quedan líneas sin resolver.", 409, "pending_lines");
       const next = { ...clone(task), status: "COMPLETED" as const };
       replace(next);
       return clone(next);

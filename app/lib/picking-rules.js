@@ -10,7 +10,7 @@ export function sequenceItems(task) {
 
 /** A line is resolved once it is no longer PENDING (picked in full, short or substituted). */
 export function isResolved(item) {
-  return item.status !== "PENDING";
+  return item.status === "SHORT" || item.status === "SUBSTITUTED" || (item.status === "PICKED" && item.quantityPicked === item.quantityRequired);
 }
 
 export function pendingLines(task) {
@@ -45,4 +45,23 @@ export function clampPickQuantity(item, quantity) {
   const value = Math.trunc(Number(quantity));
   if (!Number.isFinite(value) || value < 0) return 0;
   return Math.min(value, item.quantityRequired);
+}
+
+/** Local calendar date, never parsed as UTC (which shifts dates in Argentina). */
+export function pickingSlotLabel(task) {
+  const slot = task.delivery ?? task;
+  if (!slot.slotDate) return "Horario sin confirmar";
+  const [year, month, day] = slot.slotDate.slice(0, 10).split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  if (!Number.isFinite(date.getTime())) return "Horario sin confirmar";
+  const parts = new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short" }).formatToParts(date);
+  const part = (type) => parts.find((p) => p.type === type)?.value.replaceAll(".", "") ?? "";
+  const start = String(slot.slotStart ?? "").slice(0, 5), end = String(slot.slotEnd ?? "").slice(0, 5);
+  return `${part("weekday")} ${part("day")} ${part("month")}${start ? ` · ${start}${end ? `–${end}` : ""}` : ""}`;
+}
+
+export function sortPickingTasks(tasks, order = "slot") {
+  const oldest = (a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+  const slot = (task) => { const d = task.delivery ?? task; return `${d.slotDate || "9999"}T${d.slotStart || "99:99"}`; };
+  return [...tasks].sort((a, b) => (order === "lines" ? b.items.length - a.items.length : order === "oldest" ? 0 : slot(a).localeCompare(slot(b))) || oldest(a, b));
 }
