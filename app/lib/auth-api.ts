@@ -174,3 +174,18 @@ export async function updateUserRole(id: string, role: UserRole): Promise<Manage
   if (!response.ok) throw new AuthApiError(authMessage(payload), response.status);
   return payload as ManagedUser;
 }
+
+export type CreateUserInput = { email: string; password: string; name?: string; phone?: string; role: UserRole };
+
+export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
+  const url = baseUrl();
+  if (!url) return { id: crypto.randomUUID(), email: input.email, name: input.name ?? null, role: input.role, createdAt: new Date().toISOString() };
+  const response = await authFetch(`${url.replace(/\/$/, "")}/api/auth/users`, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) throw new AuthApiError(response.status === 409 ? "Ya existe un usuario con ese email." : authMessage(payload), response.status);
+  return payload as ManagedUser;
+}

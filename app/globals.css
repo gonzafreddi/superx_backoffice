@@ -1500,3 +1500,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .push-campaigns-page .location-table-panel>header{align-items:stretch;flex-direction:column}
   .push-campaigns-page .table-actions{justify-content:flex-end}
 }
+
+.user-create-modal { margin: auto; max-height: calc(100dvh - 32px); min-height: 0; width: min(480px, calc(100% - 32px)); }
+.user-create-modal::backdrop { background: rgb(12 18 31 / 58%); backdrop-filter: blur(10px); }
+.user-password-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.user-create-modal .button, .user-create-modal .icon-button { min-height: 44px; }
+.user-create-modal .field input, .user-create-modal .field select { min-width: 0; font-size: 16px; }
