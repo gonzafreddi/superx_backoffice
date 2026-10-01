@@ -1,11 +1,11 @@
 import type { UserRole } from "./product-contract";
 
 export type InventoryStatus = "ok" | "low" | "out";
-export type MovementType = "adjustment" | "receipt" | "sale" | "transfer";
+export type MovementType = "adjustment" | "receipt" | "sale" | "transfer" | "reservation" | "reservation_release";
 
 export type Warehouse = { id: string; name: string; code: string };
-export type InventoryMovement = { id: string; inventoryItemId: string; type: MovementType; quantity: number; reason: string; occurredAt: string; createdBy: string };
-export type InventoryItem = { id: string; snapshotId: string; productId: string; productName: string; sku: string; warehouseId: string; onHand: number; minimum: number; updatedAt: string; movements: InventoryMovement[] };
+export type InventoryMovement = { id: string; inventoryItemId: string; type: MovementType; reference?: string | null; quantity: number; reason: string; occurredAt: string; createdBy: string };
+export type InventoryItem = { id: string; snapshotId: string; productId: string; productName: string; sku: string; warehouseId: string; onHand: number; reserved?: number; available?: number; minimum: number; updatedAt: string; movements: InventoryMovement[] };
 export type InventoryFilters = { query?: string; warehouseId?: string; status?: "all" | InventoryStatus };
 export type InventoryMovementInput = { inventoryItemId: string; quantity: number; reason: string; createdBy: string };
 

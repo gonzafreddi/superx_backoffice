@@ -1,6 +1,6 @@
 import { authFetch } from "@/app/lib/http";
-import type { InventoryApi, InventoryFilters, InventoryItem, InventoryMovement, InventoryMovementInput, MovementType, Warehouse } from "./inventory-contract";
-import { getInventoryStatus } from "./inventory-rules";
+import type { InventoryApi, InventoryFilters, InventoryItem, InventoryMovement, InventoryMovementInput, Warehouse } from "./inventory-contract";
+import { getInventoryStatus, adaptInventoryMovement } from "./inventory-rules";
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 const warehouses: Warehouse[] = [{ id: "wh-central", name: "Depósito central", code: "CENTRAL" }, { id: "wh-norte", name: "Sucursal Norte", code: "NORTE" }, { id: "wh-sur", name: "Sucursal Sur", code: "SUR" }];
@@ -17,11 +17,9 @@ const itemId = (productId: string, warehouseId: string) => `${productId}:${wareh
 const parseItemId = (id: string) => { const [productId, warehouseId] = id.split(":"); return { productId, warehouseId }; };
 
 type RawWarehouse = { id: string; name: string };
-type RawSnapshot = { id: string; productId: string; warehouseId: string; quantityOnHand: number; reorderThreshold: number; updatedAt: string };
+type RawSnapshot = { id: string; productId: string; warehouseId: string; quantityOnHand: number; reserved: number; available: number; reorderThreshold: number; updatedAt: string };
 type RawProduct = { id: string; name: string; slug: string };
 type RawMovement = { id: string; type: string; quantity: number; reference: string | null; note: string | null; actorUserId: string; createdAt: string };
-
-const MOVEMENT_TYPE_MAP: Record<string, MovementType> = { PURCHASE: "receipt", RETURN: "receipt", SALE: "sale", ADJUSTMENT: "adjustment", TRANSFER_IN: "transfer", TRANSFER_OUT: "transfer" };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
   const response = await authFetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
@@ -35,15 +33,7 @@ async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> 
 
 /** No user directory endpoint exists (only "/me" for the current user), so movements can only be attributed by id. */
 function adaptMovement(raw: RawMovement): InventoryMovement {
-  return {
-    id: raw.id,
-    inventoryItemId: "",
-    type: MOVEMENT_TYPE_MAP[raw.type] ?? "adjustment",
-    quantity: (raw.type === "SALE" || raw.type === "TRANSFER_OUT" ? -1 : 1) * raw.quantity,
-    reason: raw.note ?? raw.reference ?? "—",
-    occurredAt: raw.createdAt,
-    createdBy: `Usuario #${raw.actorUserId}`,
-  };
+  return adaptInventoryMovement(raw) as InventoryMovement;
 }
 
 async function fetchMovements(root: string, productId: string, warehouseId: string): Promise<InventoryMovement[]> {
@@ -74,6 +64,8 @@ export const inventoryApi: InventoryApi = {
         sku: product?.slug.toUpperCase() ?? snapshot.productId,
         warehouseId: snapshot.warehouseId,
         onHand: snapshot.quantityOnHand,
+        reserved: snapshot.reserved,
+        available: snapshot.available,
         minimum: snapshot.reorderThreshold,
         updatedAt: snapshot.updatedAt,
         movements,
@@ -114,6 +106,8 @@ export const inventoryApi: InventoryApi = {
       sku: product?.slug.toUpperCase() ?? productId,
       warehouseId,
       onHand: snapshot?.quantityOnHand ?? 0,
+      reserved: snapshot?.reserved,
+      available: snapshot?.available,
       minimum: snapshot?.reorderThreshold ?? 0,
       updatedAt: snapshot?.updatedAt ?? new Date().toISOString(),
       movements,
@@ -142,6 +136,8 @@ export const inventoryApi: InventoryApi = {
       sku: product?.slug.toUpperCase() ?? productId,
       warehouseId,
       onHand: updatedSnapshot.quantityOnHand,
+      reserved: snapshot.reserved,
+      available: snapshot.available,
       minimum: updatedSnapshot.reorderThreshold,
       updatedAt: updatedSnapshot.updatedAt,
       movements,

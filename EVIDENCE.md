@@ -1,3 +1,33 @@
+# 2026-10-01 — Reservas de pedidos en inventario
+
+## Implementado y decisiones
+
+- Adaptador y contrato reconocen `RESERVATION` / `RESERVATION_RELEASE`: «Reserva (pedido)» y «Reserva liberada». Cantidades informativas «−2 reservado» / «+2 liberado», color neutro, referencia visible en una línea propia incluso si existe nota.
+- Mapeo y presentación en reglas puras testeables. `movementStockDelta` devuelve cero para ambos tipos. La pantalla existente no calcula saldo acumulado ni totales de movimientos y no ofrece filtro por tipo; sus KPIs de unidades físicas siguen tomando snapshots, nunca estas cantidades informativas.
+- API de stock consume `reserved` y `available`. Tarjetas, lista, detalle y alertas usan disponible; el detalle distingue físico y reservado. Ajustes conservan la cantidad física como base. El catálogo ya consume disponibilidad calculada por backend.
+- Se conserva el diseño existente. Se consultaron AGENTS/CONVENTIONS, documentación local de Next y la guía UI/UX para distinguir estados mediante texto y no sólo color; no se introducen APIs nuevas de Next.
+
+## Verificación
+
+- `pnpm install --frozen-lockfile --prefer-offline`, OK.
+- `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, OK: **130 pruebas**. Para typegen/build se exportó `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://localhost:3000`, requerida por `next.config.ts`; sin ella el primer intento falla antes de compilar.
+- Pruebas de reglas: mapeo, referencia, signos informativos, saldo físico sin reservas, disponible y validación de ajustes. Prueba de render del componente: etiquetas, referencia y clase neutra de ambos tipos.
+- No se realizó una inspección visual en navegador ni despliegue. Sin commit ni push.
+
+## Archivos
+
+- `tests/inventory-movements.test.tsx`
+- `app/components/inventory/inventory-detail-panel.tsx`
+- `app/components/inventory/inventory-grid.tsx`
+- `app/components/inventory/inventory-list.tsx`
+- `app/lib/inventory-api.ts`
+- `app/lib/inventory-contract.ts`
+- `app/lib/inventory-rules.js`
+- `tests/inventory-rules.test.mjs`
+- `EVIDENCE.md`
+
+---
+
 # Mobile — etapas 1–3 — 2026-09-28
 
 ## Implementado
