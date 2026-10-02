@@ -1,5 +1,6 @@
 export type AdminUser = { id: string; email: string; role: string; name: string | null };
-export type ManagedUser = AdminUser & { createdAt: string };
+export type ManagedUser = AdminUser & { phone: string | null; isActive: boolean; createdAt: string };
+import { userOperationError } from "./user-rules";
 export type UserRole = "customer" | "admin" | "picker" | "driver" | "warehouse";
 
 import { authFetch } from "./http";
@@ -135,6 +136,7 @@ export async function login(email: string, password: string, signal?: AbortSigna
     signal, credentials: "include",
   });
   const payload: unknown = await response.json().catch(() => undefined);
+  if (response.status === 403) throw new AuthApiError("Tu cuenta está desactivada. Comunicate con Administración para recuperar el acceso.", 403);
   if (response.status === 401) throw new AuthApiError("Email o contraseña incorrectos.", 401);
   if (!response.ok) throw new AuthApiError("No pudimos iniciar sesión. Intentá nuevamente.", response.status);
   if (!isRawLoginResponse(payload)) throw new AuthApiError("La respuesta de acceso no tiene el formato esperado.", response.status);
@@ -157,9 +159,10 @@ function authMessage(payload: unknown): string {
   return typeof message === "string" ? message : Array.isArray(message) ? message.filter((part): part is string => typeof part === "string").join(" ") : "No pudimos completar la operación.";
 }
 
-export async function listUsers(filters: { q?: string; role?: UserRole | ""; page?: number; pageSize?: number } = {}): Promise<{ items: ManagedUser[]; total: number; page: number; pageSize: number }> {
-  if (!baseUrl()) return { items: [{ id: "fixture-admin", email: "admin@superx.local", name: "Administración", role: "admin", createdAt: new Date().toISOString() }, { id: "fixture-warehouse", email: "deposito@superx.local", name: "Equipo Depósito", role: "warehouse", createdAt: new Date().toISOString() }], total: 2, page: 1, pageSize: 20 };
+export async function listUsers(filters: { q?: string; role?: UserRole | ""; status?: "active" | "inactive" | ""; page?: number; pageSize?: number } = {}): Promise<{ items: ManagedUser[]; total: number; page: number; pageSize: number }> {
+  if (!baseUrl()) return { items: [{ id: "fixture-admin", email: "admin@superx.local", name: "Administración", role: "admin", phone: null, isActive: true, createdAt: new Date().toISOString() }, { id: "fixture-warehouse", email: "deposito@superx.local", name: "Equipo Depósito", role: "warehouse", phone: null, isActive: true, createdAt: new Date().toISOString() }], total: 2, page: 1, pageSize: 20 };
   const params = new URLSearchParams({ page: String(filters.page ?? 1), pageSize: String(filters.pageSize ?? 50) });
+  if (filters.status) params.set("status", filters.status);
   if (filters.q) params.set("q", filters.q); if (filters.role) params.set("role", filters.role);
   const response = await authFetch(`${baseUrl()!.replace(/\/$/, "")}/api/auth/users?${params}`, { headers: { Accept: "application/json" } });
   const payload: unknown = await response.json().catch(() => undefined);
@@ -168,10 +171,10 @@ export async function listUsers(filters: { q?: string; role?: UserRole | ""; pag
 }
 
 export async function updateUserRole(id: string, role: UserRole): Promise<ManagedUser> {
-  if (!baseUrl()) return { id, email: id === "fixture-admin" ? "admin@superx.local" : "deposito@superx.local", name: null, role, createdAt: new Date().toISOString() };
+  if (!baseUrl()) return { id, email: id === "fixture-admin" ? "admin@superx.local" : "deposito@superx.local", name: null, role, phone: null, isActive: true, createdAt: new Date().toISOString() };
   const response = await authFetch(`${baseUrl()!.replace(/\/$/, "")}/api/auth/users/${encodeURIComponent(id)}/role`, { method: "PATCH", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
   const payload: unknown = await response.json().catch(() => undefined);
-  if (!response.ok) throw new AuthApiError(authMessage(payload), response.status);
+  if (!response.ok) throw new AuthApiError(userOperationError(response.status, "role"), response.status);
   return payload as ManagedUser;
 }
 
@@ -179,7 +182,7 @@ export type CreateUserInput = { email: string; password: string; name?: string; 
 
 export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
   const url = baseUrl();
-  if (!url) return { id: crypto.randomUUID(), email: input.email, name: input.name ?? null, role: input.role, createdAt: new Date().toISOString() };
+  if (!url) return { id: crypto.randomUUID(), email: input.email, name: input.name ?? null, role: input.role, phone: input.phone ?? null, isActive: true, createdAt: new Date().toISOString() };
   const response = await authFetch(`${url.replace(/\/$/, "")}/api/auth/users`, {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -188,4 +191,24 @@ export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
   const payload: unknown = await response.json().catch(() => undefined);
   if (!response.ok) throw new AuthApiError(response.status === 409 ? "Ya existe un usuario con ese email." : authMessage(payload), response.status);
   return payload as ManagedUser;
+}
+
+export type UpdateUserInput = { email?: string; name?: string | null; phone?: string | null };
+async function manageUser(id: string, path: string, method: string, input: object, operation: string): Promise<ManagedUser | undefined> {
+  if (!baseUrl()) throw new AuthApiError("Configurá la API para gestionar usuarios.");
+  const response = await authFetch(`${baseUrl()!.replace(/\/$/, "")}/api/auth/users/${encodeURIComponent(id)}${path}`, {
+    method, headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new AuthApiError(userOperationError(response.status, operation), response.status);
+  if (response.status === 204) return;
+  return await response.json() as ManagedUser;
+}
+export async function updateUser(id: string, input: UpdateUserInput): Promise<ManagedUser> {
+  return (await manageUser(id, "", "PATCH", input, "edit"))!;
+}
+export async function updateUserStatus(id: string, active: boolean): Promise<ManagedUser> {
+  return (await manageUser(id, "/status", "PATCH", { active }, "status"))!;
+}
+export async function resetUserPassword(id: string, password: string): Promise<void> {
+  await manageUser(id, "/password", "POST", { password }, "password");
 }

@@ -946,3 +946,24 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 - `pnpm lint`: PASS.
 - `pnpm test`: PASS — 116 tests.
 - `pnpm build`: PASS — `/combos` prerenderizada correctamente con Next.js 16.3.4.
+
+## 2026-10-02 — Gestión de usuarios y arrepentimientos (launch-gaps)
+
+- `/usuarios`: estado Activo/Inactivo y filtro; edición de email, nombre y teléfono en modal (campos vacíos envían `null`); activación/desactivación con confirmación; restablecimiento de contraseña con validación de longitud y confirmación. Mensajes de éxito y errores 400/409/403 en español, incluida la protección del último administrador activo al cambiar rol o estado.
+- Login: el 403 informa que la cuenta está desactivada y permite contactar a Administración.
+- `/arrepentimientos`: listado por estado con paginación de 20 solicitudes, detalle con contacto/pedido/motivo/fechas y actualización de estado/nota (hasta 1000 caracteres, nota vacía permite borrarla). Reintento ante errores y protección contra respuestas de carga fuera de orden.
+- Menú: Arrepentimientos sigue el patrón de ítems exclusivos de Administración, disponible también en navegación mobile y búsqueda de secciones. UI reutiliza tablas transformadas en tarjetas en celular, modales nativos con foco restaurado y controles táctiles.
+- Contrato confirmado leyendo el backend sin modificarlo: auth usa `/api/auth/users`; arrepentimientos usa `/withdrawal-requests`. Nuevos módulos `*-api.ts`, `*-contract.ts`, `*-rules.js` y declaraciones de tipos.
+- Tests nuevos: 20 casos de reglas, contratos HTTP, errores traducidos y componentes (edición con borrado de datos, confirmación de contraseña, cancelación de desactivación, paginación/filtro y guardado de resolución). Las pruebas de componentes usan JSDOM; no se realizó inspección visual con navegador real, porque Playwright no está instalado en este entorno.
+
+### Verificación
+
+Comando: `export NEXT_PUBLIC_SUPERX_API_BASE_URL=http://localhost:3000` y `pnpm typecheck && pnpm lint && pnpm test && pnpm build`. La variable es obligatoria por la configuración existente de producción; sin ella también falla `next typegen`.
+
+- `pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test`: PASS — 168 tests, sin fallos.
+- `pnpm build`: PASS — Next.js 16.3.4; `/usuarios` y `/arrepentimientos` prerenderizadas correctamente.
+- `git diff --check`: PASS.
+
+Sin commit ni push. Backend sin modificaciones.

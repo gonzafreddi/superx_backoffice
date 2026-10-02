@@ -57,7 +57,7 @@ const navGroups = [
       { href: "/tesoreria", label: "Tesorería", icon: "treasury" },
     ],
   },
-  { label: "Administración", items: [{ href: "/usuarios", label: "Usuarios", icon: "users" }, { href: "/notificaciones", label: "Notificaciones", icon: "bell" }, { href: "/medios-de-pago", label: "Medios de pago", icon: "payment" }] },
+  { label: "Administración", items: [{ href: "/usuarios", label: "Usuarios", icon: "users" }, { href: "/arrepentimientos", label: "Arrepentimientos", icon: "receipt" }, { href: "/notificaciones", label: "Notificaciones", icon: "bell" }, { href: "/medios-de-pago", label: "Medios de pago", icon: "payment" }] },
 ];
 type NavItem = { href: string; label: string; icon: string; roles?: string[] };
 /** Items without `roles` are admin-only. Without a backend (fixture mode) everyone is treated as admin. */

@@ -1506,3 +1506,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .user-password-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .user-create-modal .button, .user-create-modal .icon-button { min-height: 44px; }
 .user-create-modal .field input, .user-create-modal .field select { min-width: 0; font-size: 16px; }
+
+.user-management-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.user-management-actions .button { min-height: 44px; white-space: normal; }
+.withdrawal-details { display: grid; gap: 12px; }
+.withdrawal-details dt { font-weight: 600; }
+.withdrawal-details dd { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.user-create-modal > p { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .user-management-actions { width: 100%; }
+  .user-management-actions .button { flex: 1 1 120px; }
+}
