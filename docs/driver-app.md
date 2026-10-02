@@ -1,28 +1,33 @@
-# Panel móvil de repartidor
+# Reparto: carga y ruta
 
-Ruta `/reparto` (fuera del shell de administración: pantalla completa, mobile-first, para usar con una mano).
+La ruta `/reparto` es la pantalla operativa de conductores y administradores. Vive fuera del shell administrativo y adapta el mismo flujo a escritorio, tablet y móvil.
 
-## Uso para el repartidor
+## Flujo de dos fases
 
-1. La pantalla lista **tus entregas** asignadas, en el orden sugerido manual (`sortOrder` — no es ruteo automático ni usa geolocalización, es un orden fijo que carga quien asigna).
-2. Cada tarjeta muestra: código de pedido, cliente, dirección y zona, teléfono (tocable, abre el marcador), un enlace **Cómo llegar** (deep-link universal a Google Maps con la dirección y la zona — abre la app si está instalada, o el mapa en el navegador si no; sin ruteo ni optimización automática, es una sola ubicación), forma de pago y monto, estado actual y el historial de cambios con fecha/hora y nota.
-3. Acciones según el estado:
-   - **Pendiente** → **Iniciar** (acción directa, sin confirmación, pasa a *En camino*).
-   - **En camino** → **Entregado** (abre un panel con nota opcional antes de confirmar) o **Incidencia** (abre un panel con motivo obligatorio de una lista corta — Cliente ausente / Dirección incorrecta / Rechazado por el cliente / Otro — y nota opcional).
-   - **Entregado** / **Con incidencia** son estados terminales: no quedan acciones disponibles.
-4. Sin conexión, la pantalla lo indica y ofrece reintentar (mismo patrón que `/pedidos`).
+1. **Por cargar:** los pedidos `READY` aparecen ordenados por ventana horaria y número. El conductor selecciona los que subió al vehículo y confirma **Cargar**. `POST /dispatch/assign { orderIds }` cambia todos los seleccionados a `DISPATCHED`.
+2. **Cargados:** los pedidos `DISPATCHED` pueden reordenarse antes de salir con teclado (↑/↓) o los botones táctiles **Subir** y **Bajar**. En móvil, **Ver ruta para iniciar** abre el mapa y la confirmación de salida. **Iniciar ruta** llama `POST /dispatch/start { orderIds }` y los cambia a `OUT_FOR_DELIVERY`. En reparto se puede completar con `POST /dispatch/:id/delivered` o registrar una novedad con `POST /dispatch/:id/incident`.
+3. **En reparto:** los pedidos iniciados se muestran separados de los cargados.
+4. **Entregados:** esta fase conserva el historial del día en estado `DELIVERED`.
 
-## Estado de integración
+La transición completa es `READY → DISPATCHED → OUT_FOR_DELIVERY → DELIVERED`. Cargar no equivale a iniciar la ruta: permite preparar el vehículo en una o varias tandas sin declarar todavía los pedidos en reparto.
 
-`app/lib/driver-api.ts` es un adaptador 100% fixture, marcado como tal (`Mock TEMPORAL`). A diferencia de `/picking` (cuyo backend ya existe desde PK-002..006), el backend de LG-001 (`superx_back`, módulo `drivers`) sólo expone lectura para el repartidor (`GET /delivery-assignments`, `GET /orders/:id/assignment`); **no** tiene todavía mutaciones para iniciar, entregar o reportar una incidencia — esas son las tarjetas LG-003 (transición a reparto) y LG-004 (entrega e incidencias). Por eso esta pantalla no llama a ningún endpoint real todavía: el fixture simula tanto la lectura como las tres acciones. Cuando LG-003/LG-004 agreguen esos endpoints, `driver-api.ts` se reemplaza por una implementación HTTP siguiendo el mismo contrato (`DriverApi` en `app/lib/driver-contract.ts`), igual que está documentado como pendiente para `order-api.ts`/`picking-api.ts`.
+## Visibilidad por rol
 
-`app/lib/driver-rules.js` contiene toda la lógica pura: `sortDeliveries` (orden sugerido), `getAvailableActions`/`canStartDelivery`/`canMarkDelivered`/`canReportIncident` (guards de transición — no se puede entregar ni reportar incidencia sin haber iniciado), `validateIncidentInput` (motivo obligatorio de la lista permitida, nota ≤280 caracteres), `describeDeliveryProgress`, `formatPaymentSummary` (copy operativo) y `buildMapsUrl` (arma `https://www.google.com/maps/search/?api=1&query=<dirección + zona>`; devuelve `null` si no hay dirección). No hay reglas de negocio en el componente.
+- **Admin:** `GET /dispatch` muestra todos los pedidos operativos de la fecha y permite inspeccionar el flujo completo.
+- **Driver:** ve los listos para cargar y los pedidos que devuelve el backend. La UI permite ordenar e iniciar únicamente sus propios cargados, muestra quién cargó los ajenos y deja a ADMIN iniciar cualquier cargado. El backend valida nuevamente los permisos.
 
-No hay migraciones en este cambio (el modelo de `drivers`/`delivery_assignments` es de LG-001, en `superx_back`).
+El detalle permite cargar directamente un pedido `READY`, informa cuando uno está `DISPATCHED`, y habilita entrega e incidencia únicamente para `OUT_FOR_DELIVERY`. La interfaz nunca presenta montos: sólo comunica el estado operativo del pago.
 
-## Evidencia de verificación
+## Reglas puras
 
-- Reglas testeadas (`tests/driver-rules.test.mjs`, 5 tests): orden sugerido sin mutar el array de entrada, guards de transición y acciones disponibles por estado, validación de incidencia (motivo + longitud de nota), copy de estado y de forma de pago, `buildMapsUrl` (arma la URL con dirección+zona, sólo dirección, y `null` sin dirección).
-- `pnpm typecheck`, `pnpm lint`, `pnpm test` (37 tests en todo el repo) y `pnpm build` finalizaron correctamente; `/reparto` se prerenderiza.
-- Verificación manual: `pnpm dev` + `curl http://localhost:3000/reparto` devuelve 200 con el shell de la pantalla (eyebrow "REPARTO", título "Tus entregas", skeleton de carga) en el HTML servido por el servidor; el contenido de las tarjetas se carga del lado del cliente desde el fixture (no hay navegador disponible en este entorno para una verificación visual completa).
-- Pendiente con navegador real: confirmar que **Iniciar** habilita **Entregado**/**Incidencia**, que el panel de incidencia no deja confirmar sin motivo, y que el enlace de teléfono abre el marcador en un dispositivo móvil.
+`app/lib/dispatch-rules.js` mantiene fuera del componente las reglas reutilizables:
+
+- `defaultPhase(board)` elige Por cargar, Cargados, En reparto o Entregados al abrir una fecha.
+- `phaseOrders(board, phase)` ordena los pedidos visibles de cada fase.
+- `routeOrders(board)` combina `DISPATCHED` y `OUT_FOR_DELIVERY` por posición.
+- `unitCount(order)` suma las unidades de los ítems.
+- `moveItem`, `nextStop`, `progressLabel`, `paymentHint`, `timeRange`, `mapsUrl` y los formateadores resuelven reordenamiento, navegación y copy sin lógica de negocio en React.
+
+La elección manual de fase se conserva durante refrescos de la misma fecha. Al cambiar de fecha se recalcula; al cargar el último pedido listo o iniciar una ruta se avanza automáticamente a Cargados o En reparto, respectivamente.
+
+Los errores 409 y 403 muestran instrucciones en español. Después de un conflicto, **Actualizar tablero** permite volver a seleccionar los pedidos con el estado vigente.

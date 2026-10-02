@@ -19,6 +19,7 @@ const statusCards = [
   { key: "confirmed", label: "Confirmados", icon: "check", statuses: ["CONFIRMED", "PAID"] },
   { key: "picking", label: "Picking", icon: "items", statuses: ["PICKING", "PACKED"] },
   { key: "ready", label: "Listos", icon: "orders", statuses: ["READY"] },
+  { key: "dispatched", label: "Cargados", icon: "delivery", statuses: ["DISPATCHED"] },
   { key: "delivery", label: "Reparto", icon: "delivery", statuses: ["OUT_FOR_DELIVERY"] },
   { key: "delivered", label: "Entregados", icon: "check", statuses: ["DELIVERED"] },
   { key: "cancelled", label: "Cancelados", icon: "close", statuses: ["CANCELLED"] },

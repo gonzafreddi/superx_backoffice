@@ -20,9 +20,16 @@ export function paymentHint(order) {
   if (order?.paymentStatus === "PENDING" && order?.paymentMethod === "BANK_TRANSFER") return "Transferencia pendiente de validar";
   if (order?.paymentStatus === "PENDING" && order?.paymentMethod === "MERCADO_PAGO") return "Mercado Pago pendiente de validar"; return "Revisar estado del pago";
 }
-export const routeOrders = (board) => [...(board?.outForDelivery ?? []), ...(board?.ready ?? [])].sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9));
-export const filterOrders = (board, filter) => filter === "delivered" ? board.delivered : routeOrders(board);
-export const nextStop = (board, afterId) => { const pending = routeOrders(board); if (!afterId) return pending[0] ?? null; const index = pending.findIndex((order) => order.id === afterId); return pending[index + 1] ?? pending.find((order) => order.id !== afterId) ?? null; };
-export const progressLabel = (board, orderId) => { const all = [...routeOrders(board), ...(board?.delivered ?? [])].sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9)); const index = all.findIndex((order) => order.id === orderId); return `${Math.max(1, index + 1)} de ${all.length}`; };
+export const routeOrders = (board) => [...(board?.dispatched ?? []), ...(board?.outForDelivery ?? [])].sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9));
+export const defaultPhase = (board) => board?.outForDelivery?.length ? "delivery" : board?.ready?.length ? "load" : board?.dispatched?.length ? "route" : board?.delivered?.length ? "delivered" : "load";
+export const phaseOrders = (board, phase) => phase === "load" ? [...(board?.ready ?? [])].sort((a, b) => String(a.delivery?.slotStart ?? "").localeCompare(String(b.delivery?.slotStart ?? "")) || String(a.orderNumber ?? "").localeCompare(String(b.orderNumber ?? ""))) : phase === "route" ? [...(board?.dispatched ?? [])].sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9)) : phase === "delivery" ? routeOrders(board).filter((order) => order.status === "OUT_FOR_DELIVERY") : [...(board?.delivered ?? [])];
+export const navigationOrders = (board, order) => order?.status === "READY" ? phaseOrders(board, "load") : [...routeOrders(board), ...(board?.delivered ?? [])].sort((a, b) => (a.position ?? 1e9) - (b.position ?? 1e9));
+export const unitCount = (order) => (order?.items ?? []).reduce((total, item) => total + (Number(item.quantity) || 0), 0);
+export const nextStop = (board, afterId) => { const pending = routeOrders(board).filter((order) => order.status === "OUT_FOR_DELIVERY"); if (!afterId) return pending[0] ?? null; const index = pending.findIndex((order) => order.id === afterId); return pending[index + 1] ?? pending.find((order) => order.id !== afterId) ?? null; };
+export const progressLabel = (board, orderId) => { const order = [...(board?.ready ?? []), ...routeOrders(board), ...(board?.delivered ?? [])].find((value) => value.id === orderId); const all = navigationOrders(board, order); const index = all.findIndex((value) => value.id === orderId); return `${Math.max(1, index + 1)} de ${all.length}`; };
 export const formatDistance = (meters) => meters >= 1000 ? `${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 }).format(meters / 1000)} km` : `${Math.round(meters)} m`;
 export const formatDuration = (seconds) => { const minutes = Math.round(seconds / 60); return minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`; };
+
+export const canStartOrder = (order, user) => order?.status === "DISPATCHED" && (user?.role === "admin" || Boolean(user?.id && order.dispatchedBy?.id === user.id));
+export const loaderLabel = (order, user) => order?.dispatchedBy && order.dispatchedBy.id !== user?.id ? `Cargado por ${order.dispatchedBy.name || "otro chofer"}` : order?.status === "DISPATCHED" && !order.dispatchedBy ? "Sin chofer de carga registrado" : null;
+export const dispatchErrorMessage = (error, fallback) => error?.status === 409 ? "Los pedidos cambiaron de estado. Actualizá el tablero y volvé a seleccionar los pedidos." : error?.status === 403 ? "No tenés permiso para esta acción. Solo podés iniciar los pedidos que cargaste vos." : fallback;

@@ -4,9 +4,17 @@ export function slotLabel(delivery: Pick<DispatchDelivery, "slotDate" | "slotSta
 export function timeRange(delivery: Pick<DispatchDelivery, "slotStart" | "slotEnd"> | null | undefined): string;
 export function mapsUrl(delivery: Pick<DispatchDelivery, "addressLine" | "cityName" | "postalCode"> | null | undefined, location?: LatLng | null): string | null;
 export function paymentHint(order: Pick<DispatchOrder, "paymentMethod" | "paymentStatus">): string;
-export function routeOrders(board: Pick<DispatchBoard, "ready" | "outForDelivery">): DispatchOrder[];
-export function filterOrders(board: DispatchBoard, filter: "route" | "pending" | "delivered"): DispatchOrder[];
+export function routeOrders(board: Pick<DispatchBoard, "dispatched" | "outForDelivery">): DispatchOrder[];
+export type DispatchPhase = "load" | "route" | "delivery" | "delivered";
+export function defaultPhase(board: DispatchBoard): DispatchPhase;
+export function phaseOrders(board: DispatchBoard, phase: DispatchPhase): DispatchOrder[];
+export function navigationOrders(board: DispatchBoard, order: DispatchOrder | null | undefined): DispatchOrder[];
+export function unitCount(order: Pick<DispatchOrder, "items">): number;
 export function nextStop(board: DispatchBoard, afterId?: string): DispatchOrder | null;
 export function progressLabel(board: DispatchBoard, orderId: string): string;
 export function formatDistance(meters: number): string;
 export function formatDuration(seconds: number): string;
+
+export function canStartOrder(order: DispatchOrder, user: { id: string; role: string } | null): boolean;
+export function loaderLabel(order: DispatchOrder, user: { id: string } | null): string | null;
+export function dispatchErrorMessage(error: { status?: number }, fallback: string): string;

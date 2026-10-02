@@ -1517,3 +1517,4 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .user-management-actions { width: 100%; }
   .user-management-actions .button { flex: 1 1 120px; }
 }
+.order-status-badge.order-dispatched { color: #755414; background: #fff3cd; }
