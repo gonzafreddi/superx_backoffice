@@ -1,6 +1,6 @@
 export const ORDER_PERMISSIONS = { viewer: { transition: false, cancel: false }, operator: { transition: true, cancel: false }, admin: { transition: true, cancel: true } };
-export const ORDER_STATUS_LABELS = { CREATED: "Pendiente", CONFIRMED: "Confirmado", PAID: "Pagado", PICKING: "En picking", PACKED: "Empacado", READY: "Listo", OUT_FOR_DELIVERY: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
-export const ORDER_TRANSITIONS = { CREATED: ["CONFIRMED", "CANCELLED"], CONFIRMED: ["PICKING", "CANCELLED"], PAID: ["PICKING", "CANCELLED"], PICKING: ["PACKED", "CANCELLED"], PACKED: ["READY"], READY: ["OUT_FOR_DELIVERY"], OUT_FOR_DELIVERY: ["DELIVERED"], DELIVERED: [], CANCELLED: [] };
+export const ORDER_STATUS_LABELS = { CREATED: "Pendiente", CONFIRMED: "Confirmado", PAID: "Pagado", PICKING: "En picking", PACKED: "Empacado", READY: "Listo", DISPATCHED: "Cargado", OUT_FOR_DELIVERY: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
+export const ORDER_TRANSITIONS = { CREATED: ["CONFIRMED", "CANCELLED"], CONFIRMED: ["PICKING", "CANCELLED"], PAID: ["PICKING", "CANCELLED"], PICKING: ["PACKED", "CANCELLED"], PACKED: ["READY"], READY: ["DISPATCHED"], DISPATCHED: ["OUT_FOR_DELIVERY"], OUT_FOR_DELIVERY: ["DELIVERED"], DELIVERED: [], CANCELLED: [] };
 
 export function getOrderPermissions(role) { return ORDER_PERMISSIONS[role] ?? ORDER_PERMISSIONS.viewer; }
 export function getAvailableOrderTransitions(order) { return ORDER_TRANSITIONS[order.status] ?? []; }
@@ -12,7 +12,7 @@ export function requiresPackingChecklist(order, nextStatus) { return order.statu
 export function isPackingChecklistComplete(checklist) { return Boolean(checklist) && PACKING_CHECKLIST_FIELDS.every((field) => checklist[field] === true); }
 /** Final submission gate: blocks an inconsistent close even if the action button was reachable. */
 export function canSubmitOrderTransition(order, nextStatus, checklist) { return canTransitionOrder(order, nextStatus) && (!requiresPackingChecklist(order, nextStatus) || isPackingChecklistComplete(checklist)); }
-export function getOrderDashboardStatus(status) { if (status === "CREATED") return "pending"; if (status === "CONFIRMED" || status === "PAID") return "confirmed"; if (status === "PICKING" || status === "PACKED") return "picking"; if (status === "READY") return "ready"; if (status === "OUT_FOR_DELIVERY") return "delivery"; if (status === "DELIVERED") return "delivered"; return "cancelled"; }
+export function getOrderDashboardStatus(status) { if (status === "CREATED") return "pending"; if (status === "CONFIRMED" || status === "PAID") return "confirmed"; if (status === "PICKING" || status === "PACKED") return "picking"; if (status === "READY") return "ready"; if (status === "DISPATCHED") return "dispatched"; if (status === "OUT_FOR_DELIVERY") return "delivery"; if (status === "DELIVERED") return "delivered"; return "cancelled"; }
 
 export const ORDER_PAYMENT_METHOD_LABELS = { CASH: "Efectivo", BANK_TRANSFER: "Transferencia", MERCADO_PAGO: "Mercado Pago" };
 export const ORDER_PAYMENT_STATUS_LABELS = { PENDING: "Pago pendiente", PAID: "Pago acreditado", FAILED: "Pago rechazado", REFUNDED: "Pago reintegrado" };

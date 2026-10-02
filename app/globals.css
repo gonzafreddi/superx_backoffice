@@ -1506,3 +1506,5 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .user-password-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .user-create-modal .button, .user-create-modal .icon-button { min-height: 44px; }
 .user-create-modal .field input, .user-create-modal .field select { min-width: 0; font-size: 16px; }
+
+.order-status-badge.order-dispatched { color: #755414; background: #fff3cd; }

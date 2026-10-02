@@ -12,8 +12,8 @@ import { canRoleTransitionOrder, formatDeliveryWindow, getAvailableOrderTransiti
 import { ConfirmOrderPayment, ConfirmOrderRefund, ConfirmOrderTransition, dateTime, getOrderAlerts, money, OrderIcon, OrderPaymentBadge, OrderStatusBadge } from "./order-shared";
 
 const actors: Record<UserRole, string> = { viewer: "Usuario de consulta", operator: "Operador actual", admin: "Administración actual" };
-const flow: Array<{ status: OrderStatus; label: string }> = [{ status: "CREATED", label: "Pendiente" }, { status: "CONFIRMED", label: "Confirmado" }, { status: "PICKING", label: "Picking" }, { status: "READY", label: "Listo" }, { status: "OUT_FOR_DELIVERY", label: "Reparto" }, { status: "DELIVERED", label: "Entregado" }];
-const ranks: Record<OrderStatus, number> = { CREATED: 0, CONFIRMED: 1, PAID: 1, PICKING: 2, PACKED: 2, READY: 3, OUT_FOR_DELIVERY: 4, DELIVERED: 5, CANCELLED: -1 };
+const flow: Array<{ status: OrderStatus; label: string }> = [{ status: "CREATED", label: "Pendiente" }, { status: "CONFIRMED", label: "Confirmado" }, { status: "PICKING", label: "Picking" }, { status: "READY", label: "Listo" }, { status: "DISPATCHED", label: "Cargado" }, { status: "OUT_FOR_DELIVERY", label: "Reparto" }, { status: "DELIVERED", label: "Entregado" }];
+const ranks: Record<OrderStatus, number> = { CREATED: 0, CONFIRMED: 1, PAID: 1, PICKING: 2, PACKED: 2, READY: 3, DISPATCHED: 4, OUT_FOR_DELIVERY: 5, DELIVERED: 6, CANCELLED: -1 };
 type NoticeState = { kind: "success" | "error"; text: string } | null;
 
 export function OrderDetailWorkspace({ id, returnQuery }: { id: string; returnQuery?: string }) {

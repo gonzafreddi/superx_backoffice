@@ -59,3 +59,10 @@ test("reintegro: acepta coma decimal y no supera lo adeudado", () => {
   assert.equal(validateRefundAmount("abc", 100).valid, false);
   assert.match(validateRefundAmount("100.01", 100).error, /supera/);
 });
+
+test("Cargado es una etapa propia y READY no puede saltear la carga", () => {
+  assert.equal(getOrderDashboardStatus("DISPATCHED"), "dispatched");
+  assert.deepEqual(getAvailableOrderTransitions({ status: "READY" }), ["DISPATCHED"]);
+  assert.deepEqual(getAvailableOrderTransitions({ status: "DISPATCHED" }), ["OUT_FOR_DELIVERY"]);
+  assert.equal(canRoleTransitionOrder("admin", { status: "READY" }, "OUT_FOR_DELIVERY"), false);
+});

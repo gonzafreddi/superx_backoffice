@@ -1,6 +1,6 @@
 import type { UserRole } from "./product-contract";
 
-export type OrderStatus = "CREATED" | "CONFIRMED" | "PAID" | "PICKING" | "PACKED" | "READY" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED";
+export type OrderStatus = "CREATED" | "CONFIRMED" | "PAID" | "PICKING" | "PACKED" | "READY" | "DISPATCHED" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED";
 export type OrderPaymentMethod = "CASH" | "BANK_TRANSFER" | "MERCADO_PAGO";
 export type OrderPaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
 export type OrderPaymentMethodSetting = { method: OrderPaymentMethod; enabled: boolean; updatedAt?: string };
@@ -56,8 +56,8 @@ export type OrderPermissions = { transition: boolean; cancel: boolean };
 export type OrderRole = UserRole;
 
 export const ORDER_PERMISSIONS = { viewer: { transition: false, cancel: false }, operator: { transition: true, cancel: false }, admin: { transition: true, cancel: true } };
-export const ORDER_STATUS_LABELS = { CREATED: "Pendiente", CONFIRMED: "Confirmado", PAID: "Pagado", PICKING: "En picking", PACKED: "Empacado", READY: "Listo", OUT_FOR_DELIVERY: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
-export const ORDER_TRANSITIONS = { CREATED: ["CONFIRMED", "CANCELLED"], CONFIRMED: ["PICKING", "CANCELLED"], PAID: ["PICKING", "CANCELLED"], PICKING: ["PACKED", "CANCELLED"], PACKED: ["READY"], READY: ["OUT_FOR_DELIVERY"], OUT_FOR_DELIVERY: ["DELIVERED"], DELIVERED: [], CANCELLED: [] };
+export const ORDER_STATUS_LABELS = { CREATED: "Pendiente", CONFIRMED: "Confirmado", PAID: "Pagado", PICKING: "En picking", PACKED: "Empacado", READY: "Listo", DISPATCHED: "Cargado", OUT_FOR_DELIVERY: "En reparto", DELIVERED: "Entregado", CANCELLED: "Cancelado" };
+export const ORDER_TRANSITIONS = { CREATED: ["CONFIRMED", "CANCELLED"], CONFIRMED: ["PICKING", "CANCELLED"], PAID: ["PICKING", "CANCELLED"], PICKING: ["PACKED", "CANCELLED"], PACKED: ["READY"], READY: ["DISPATCHED"], DISPATCHED: ["OUT_FOR_DELIVERY"], OUT_FOR_DELIVERY: ["DELIVERED"], DELIVERED: [], CANCELLED: [] };
 export const ORDER_PAYMENT_METHOD_LABELS = { CASH: "Efectivo", BANK_TRANSFER: "Transferencia", MERCADO_PAGO: "Mercado Pago" };
 export const ORDER_PAYMENT_STATUS_LABELS = { PENDING: "Pago pendiente", PAID: "Pago acreditado", FAILED: "Pago rechazado", REFUNDED: "Pago reintegrado" };
 export const ORDER_SUBSTITUTION_LABELS = { REPLACE_SIMILAR: "Reemplazar por un producto similar", CONTACT_ME: "Contactar al cliente antes de reemplazar", REMOVE_ITEM: "Quitar el producto del pedido" };

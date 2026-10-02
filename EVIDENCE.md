@@ -946,3 +946,33 @@ Con backend real: los mismos pasos, pero además verificá en `/pedidos` (o vía
 - `pnpm lint`: PASS.
 - `pnpm test`: PASS — 116 tests.
 - `pnpm build`: PASS — `/combos` prerenderizada correctamente con Next.js 16.3.4.
+
+# Despacho en dos fases (/reparto) — 2026-10-02
+
+## Implementado
+
+- Se revisó el diff staged heredado y se conservó la base de selección, carga, navegación mobile y pruebas, completando el flujo READY → DISPATCHED → OUT_FOR_DELIVERY → DELIVERED.
+- El contrato de despacho ya incluía DISPATCHED, dispatched y assign(); se confirmó contra dispatch.service.ts y dispatch.controller.ts del backend, consultados sólo en lectura.
+- /reparto distingue **Por cargar**, **Cargados**, **En reparto** y **Entregados**. Permite cargar una selección o un pedido desde el detalle, ordenar cargados con teclado o controles táctiles e iniciar únicamente pedidos DISPATCHED.
+- Los choferes sólo pueden ordenar e iniciar sus propios cargados; ADMIN puede operar cualquier cargado. Los pedidos ajenos muestran quién los cargó. El modo fixture registra el dueño al cargar, conserva esa propiedad al salir y reproduce conflictos 409 y permisos 403.
+- Los errores 409/403 se muestran en español, también en la confirmación y el detalle; Actualizar tablero recupera los estados vigentes y limpia la selección. La próxima entrega sólo considera pedidos OUT_FOR_DELIVERY.
+- Se agregó DISPATCHED = **Cargado** a contratos, etiquetas, badges, filtros, resumen por estado, timeline y transiciones generales de pedidos; READY ya no ofrece saltar directamente a OUT_FOR_DELIVERY.
+- La vista ADMIN usa el mismo tablero /reparto. /entregas administra zonas y horarios, sin un tablero operativo separado. Se mantiene la ausencia de importes para choferes.
+- Se actualizó docs/driver-app.md y se ampliaron las pruebas del tablero, reglas de despacho, estados de pedidos y adapter HTTP/fixture. Cubren el recorrido completo, selección exacta, propiedad, excepción ADMIN, rechazo de READY en start, reordenamiento por teclado/táctil, errores y ausencia de dinero en las cuatro fases.
+
+## Verificación ejecutada
+
+Se ejecutó la cadena completa con salida 0:
+
+```sh
+export NEXT_PUBLIC_SUPERX_API_BASE_URL=http://localhost:3000
+pnpm typecheck && pnpm lint && pnpm test && pnpm build
+```
+
+- pnpm typecheck: PASS.
+- pnpm lint: PASS, sin advertencias.
+- pnpm test: PASS — 168 tests, 0 fallos.
+- pnpm build: PASS — Next.js 16.3.4; 39 páginas estáticas generadas, incluyendo /reparto.
+- git diff --check: PASS.
+
+La URL local satisface la variable obligatoria de next.config.ts para typegen/build; no se modificaron archivos de configuración ni se desplegó. Las pruebas de UI usan jsdom y las del adapter usan HTTP simulado/fixtures; no se realizó una prueba integrada con un backend activo ni una revisión visual en navegador real. No se modificó el backend ni se hizo commit o push; los cambios quedan en el árbol, conservando el staging previo.
