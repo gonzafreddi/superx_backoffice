@@ -1127,7 +1127,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .poe-lines small.poe-warning { color: #7a5a00; text-align: left; }
 .poe-empty { padding: 28px !important; color: var(--muted); text-align: center !important; }
 .poe-add-line { min-height: 36px; margin: 12px 16px; border-style: dashed; }
-.poe-product-results { position: fixed; z-index: 60; max-height: 280px; overflow: auto; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: var(--shadow-sm); }
+.poe-product-results { position: fixed; z-index: 45; max-height: 280px; overflow: auto; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: var(--shadow-sm); }
 .poe-product-results button { display: block; width: 100%; min-height: 38px; padding: 7px 9px; border: 0; border-radius: 6px; background: #fff; color: var(--ink); font: inherit; font-size: 13px; text-align: left; }
 .poe-product-results button:hover { background: var(--green-soft); }
 .poe-product-results > span { display: block; padding: 8px 9px; color: var(--muted); font-size: 13px; }

@@ -59,6 +59,8 @@ export function OrderLines({
 }) {
   const packRefs = useRef<Array<HTMLInputElement | null>>([]);
   const productRefs = useRef<Array<HTMLInputElement | null>>([]);
+  // Results only float while their input (or a result) has focus, so they never linger over the page or a dialog.
+  const [searching, setSearching] = useState<number | null>(null);
   useEffect(() => { if (focusPacks) packRefs.current[focusPacks.index]?.focus(); }, [focusPacks]);
   return (
     <section className="poe-lines">
@@ -92,23 +94,27 @@ export function OrderLines({
                 const preview = previewPurchaseOrderLine({ ...line, ...(taxCatalogAvailable ? { taxes: taxes.filter((tax) => line.taxIds.includes(tax.id)) } : {}) });
                 return (
                   <tr key={index}>
-                    <td>
+                    <td
+                      onFocus={() => setSearching(index)}
+                      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSearching((current) => (current === index ? null : current)); }}
+                      onKeyDown={(event) => { if (event.key === "Escape" && searching === index) { event.stopPropagation(); setSearching(null); } }}
+                    >
                       <input
                         ref={(element) => { productRefs.current[index] = element; }}
                         aria-label={`Producto línea ${index + 1}`}
                         disabled={readOnly}
                         value={line.query}
                         placeholder="Buscar producto"
-                        onChange={(event) => onSearch(index, event.target.value)}
+                        onChange={(event) => { setSearching(index); onSearch(index, event.target.value); }}
                       />
-                      {line.query.trim() && !line.product && (
+                      {searching === index && line.query.trim() && !line.product && (
                         <ProductResults anchors={productRefs} index={index}>
                           {line.results.length ? line.results.map((product) => (
-                            <button type="button" key={product.id} onClick={() => onSelectProduct(index, product)}>
+                            <button type="button" key={product.id} onMouseDown={(event) => event.preventDefault()} onClick={() => { setSearching(null); onSelectProduct(index, product); }}>
                               {product.name}
                             </button>
                           )) : <span>Sin resultados</span>}
-                          <button type="button" className="poe-create-product" onMouseDown={(event) => { event.preventDefault(); onCreateProduct(index, line.query.trim(), event.currentTarget.closest("td")?.querySelector("input") as HTMLInputElement); }}>＋ Crear producto «{line.query.trim()}»</button>
+                          <button type="button" className="poe-create-product" onMouseDown={(event) => { event.preventDefault(); setSearching(null); onCreateProduct(index, line.query.trim(), event.currentTarget.closest("td")?.querySelector("input") as HTMLInputElement); }}>＋ Crear producto «{line.query.trim()}»</button>
                         </ProductResults>
                       )}
                       {errors[`item-${index}-product`] && <small>{errors[`item-${index}-product`]}</small>}
