@@ -32,6 +32,20 @@ export function InventoryManager() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, []); useEffect(() => { if (Object.keys(errors).length) errorRef.current?.focus(); }, [errors]);
+  // Fetch the opened product's movements (all its positions) once per product/update.
+  const movementsKey = selected ? items.filter((item) => item.productId === selected.productId).map((item) => `${item.id}@${item.updatedAt}`).join("|") : "";
+  useEffect(() => {
+    if (!movementsKey) return;
+    let cancelled = false;
+    const productItems = items.filter((item) => movementsKey.split("|").some((key) => key.startsWith(`${item.id}@`)));
+    void Promise.all(productItems.map(async (item) => [item.id, await inventoryApi.listMovements(item)] as const)).then((loaded) => {
+      if (cancelled) return;
+      const byId = new Map(loaded);
+      setItems((current) => current.map((item) => byId.has(item.id) ? { ...item, movements: byId.get(item.id)! } : item));
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movementsKey]);
   useEffect(() => { const user = getStoredUser(); // eslint-disable-next-line react-hooks/set-state-in-effect
     setRole(user?.role === "admin" ? "admin" : "viewer"); }, []);
   const visible = useMemo(() => { const normalized = query.trim().toLocaleLowerCase("es-AR"); return items.filter((item) => (!normalized || [item.productName, item.sku].some((value) => value.toLocaleLowerCase("es-AR").includes(normalized))) && (!warehouseId || item.warehouseId === warehouseId) && (status === "all" || getInventoryStatus(item) === status)); }, [items, query, warehouseId, status]);

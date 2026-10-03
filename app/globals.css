@@ -1518,3 +1518,5 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .user-management-actions .button { flex: 1 1 120px; }
 }
 .order-status-badge.order-dispatched { color: #755414; background: #fff3cd; }
+
+.inventory-product-image.has-image,.inventory-list-mark.has-image,.inventory-detail-image.has-image{overflow:hidden;background:#fff;border:1px solid var(--line)}.inventory-product-image img,.inventory-list-mark img,.inventory-detail-image img{width:100%;height:100%;object-fit:contain}

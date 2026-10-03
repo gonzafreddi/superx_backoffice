@@ -18,7 +18,7 @@ const parseItemId = (id: string) => { const [productId, warehouseId] = id.split(
 
 type RawWarehouse = { id: string; name: string };
 type RawSnapshot = { id: string; productId: string; warehouseId: string; quantityOnHand: number; reserved: number; available: number; reorderThreshold: number; updatedAt: string };
-type RawProduct = { id: string; name: string; slug: string };
+type RawProduct = { id: string; name: string; slug: string; images?: Array<{ url?: string; isPrimary?: boolean; sortOrder?: number }> };
 type RawMovement = { id: string; type: string; quantity: number; reference: string | null; note: string | null; actorUserId: string; createdAt: string };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
@@ -42,38 +42,63 @@ async function fetchMovements(root: string, productId: string, warehouseId: stri
   return items.map((raw) => ({ ...adaptMovement(raw), inventoryItemId: itemId(productId, warehouseId) }));
 }
 
+// The catalog caps pageSize at 100, so read every page to name (and picture) all stocked products.
+async function fetchAllProducts(root: string): Promise<RawProduct[]> {
+  const all: RawProduct[] = [];
+  for (let page = 1; page <= 50; page += 1) {
+    const payload = (await fetchJson(`${root}/products?pageSize=100&page=${page}&includeInactive=true`)) as { items?: RawProduct[]; total?: number };
+    const items = payload.items ?? [];
+    all.push(...items);
+    if (items.length < 100 || (typeof payload.total === "number" && all.length >= payload.total)) break;
+  }
+  return all;
+}
+
+function primaryImage(product?: RawProduct): string | undefined {
+  const images = [...(product?.images ?? [])].filter((image) => typeof image.url === "string" && image.url);
+  images.sort((a, b) => Number(Boolean(b.isPrimary)) - Number(Boolean(a.isPrimary)) || (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  return images[0]?.url;
+}
+
 export const inventoryApi: InventoryApi = {
   async listInventory(filters: InventoryFilters = {}) {
     const url = baseUrl();
     if (!url) { await wait(); return inventory.filter((item) => (!filters.query?.trim() || [item.productName, item.sku].some((value) => value.toLocaleLowerCase("es-AR").includes(filters.query!.trim().toLocaleLowerCase("es-AR")))) && (!filters.warehouseId || item.warehouseId === filters.warehouseId) && (!filters.status || filters.status === "all" || getInventoryStatus(item) === filters.status)); }
     const root = url.replace(/\/$/, "");
-    const [snapshotsPayload, productsPayload] = await Promise.all([
+    const [snapshotsPayload, productList] = await Promise.all([
       fetchJson(`${root}/inventory/stock${filters.warehouseId ? `?warehouseId=${filters.warehouseId}` : ""}`),
-      fetchJson(`${root}/products?pageSize=100&includeInactive=true`),
+      fetchAllProducts(root),
     ]);
     const snapshots = Array.isArray(snapshotsPayload) ? (snapshotsPayload as RawSnapshot[]) : [];
-    const products = new Map(((productsPayload as { items?: RawProduct[] }).items ?? []).map((product) => [product.id, product]));
-    const items = await Promise.all(snapshots.map(async (snapshot) => {
+    const products = new Map(productList.map((product) => [product.id, product]));
+    // Movements load on demand (listMovements) when a position is opened: one request per
+    // product here would exceed the API rate limit as the catalog grows.
+    const items = snapshots.map((snapshot) => {
       const product = products.get(snapshot.productId);
-      const movements = await fetchMovements(root, snapshot.productId, snapshot.warehouseId);
       const item: InventoryItem = {
         id: itemId(snapshot.productId, snapshot.warehouseId),
         snapshotId: snapshot.id,
         productId: snapshot.productId,
         productName: product?.name ?? `Producto #${snapshot.productId}`,
         sku: product?.slug.toUpperCase() ?? snapshot.productId,
+        imageUrl: primaryImage(product),
         warehouseId: snapshot.warehouseId,
         onHand: snapshot.quantityOnHand,
         reserved: snapshot.reserved,
         available: snapshot.available,
         minimum: snapshot.reorderThreshold,
         updatedAt: snapshot.updatedAt,
-        movements,
+        movements: [],
       };
       return item;
-    }));
+    });
     const query = filters.query?.trim().toLocaleLowerCase("es-AR") ?? "";
     return items.filter((item) => (!query || [item.productName, item.sku].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.status || filters.status === "all" || getInventoryStatus(item) === filters.status));
+  },
+  async listMovements(item: InventoryItem) {
+    const url = baseUrl();
+    if (!url) { await wait(); return inventory.find((candidate) => candidate.id === item.id)?.movements ?? []; }
+    return fetchMovements(url.replace(/\/$/, ""), item.productId, item.warehouseId);
   },
   async listWarehouses() {
     const url = baseUrl();

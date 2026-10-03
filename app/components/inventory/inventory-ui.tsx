@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import type { InventoryStatus } from "@/app/lib/inventory-contract";
 
 export const statusLabels: Record<InventoryStatus, string> = { ok: "Disponible", low: "Stock bajo", out: "Sin stock" };
@@ -25,4 +26,9 @@ export function InventoryIcon({ name }: { name: IconName }) {
 
 export function StockStatusBadge({ status }: { status: InventoryStatus }) {
   return <span className={`inventory-status inventory-status-${status}`}><i aria-hidden="true" />{statusLabels[status]}</span>;
+}
+
+/** Product photo when it has one, the generic box icon otherwise. */
+export function InventoryThumb({ className, imageUrl }: { className: string; imageUrl?: string }) {
+  return <span className={`${className}${imageUrl ? " has-image" : ""}`}>{imageUrl ? <img src={imageUrl} alt="" loading="lazy" decoding="async" /> : <InventoryIcon name="boxes" />}</span>;
 }
