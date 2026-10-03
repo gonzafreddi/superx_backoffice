@@ -20,7 +20,7 @@ const PAGE_SIZE = 20;
 export function CampaignManager() {
   const [items, setItems] = useState<PushCampaign[]>([]), [total, setTotal] = useState(0), [page, setPage] = useState(1), [status, setStatus] = useState<CampaignStatus | "">(""), [sizes, setSizes] = useState<Record<CampaignAudience, AudienceSize> | null>(null);
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(""), [error, setError] = useState(""), [success, setSuccess] = useState("");
-  const [editing, setEditing] = useState<PushCampaign | null | undefined>(undefined), [form, setForm] = useState<Form>(emptyForm), [formError, setFormError] = useState("");
+  const [editing, setEditing] = useState<PushCampaign | null | undefined>(undefined), [form, setForm] = useState<Form>(emptyForm), [formError, setFormError] = useState(""), [resending, setResending] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,10 +32,11 @@ export function CampaignManager() {
   // Refresh while something is being sent so stats show up without reloading.
   useEffect(() => { if (!items.some((item) => item.status === "SENDING" || (item.status === "SCHEDULED" && item.scheduledAt && new Date(item.scheduledAt).getTime() < Date.now() + 60_000))) return; const timer = setInterval(() => void load(), 5000); return () => clearInterval(timer); }, [items, load]);
 
-  const open = (item?: PushCampaign) => {
-    setFormError(""); setEditing(item ?? null);
+  /** With `resend`, the item is only a template: saving creates a new campaign so each send keeps its own stats. */
+  const open = (item?: PushCampaign, resend = false) => {
+    setFormError(""); setEditing(resend ? null : item ?? null); setResending(resend);
     const preset = item ? DESTINATIONS.find(([value]) => value === item.url)?.[0] : undefined;
-    setForm(item ? { title: item.title, body: item.body, audience: item.audience ?? "all_marketing", destination: preset ?? "custom", customUrl: preset ? "" : item.url, imageUrl: item.imageUrl ?? "", when: item.status === "SCHEDULED" ? "schedule" : "draft", scheduledAt: item.scheduledAt ? toLocalInput(item.scheduledAt) : "" } : emptyForm);
+    setForm(item ? { title: item.title, body: item.body, audience: item.audience ?? "all_marketing", destination: preset ?? "custom", customUrl: preset ? "" : item.url, imageUrl: item.imageUrl ?? "", when: resend ? "now" : item.status === "SCHEDULED" ? "schedule" : "draft", scheduledAt: !resend && item.scheduledAt ? toLocalInput(item.scheduledAt) : "" } : emptyForm);
   };
   const set = <K extends keyof Form>(key: K, value: Form[K]) => { setForm((current) => ({ ...current, [key]: value })); setFormError(""); };
   const url = form.destination === "custom" ? form.customUrl.trim() : form.destination;
@@ -83,11 +84,11 @@ export function CampaignManager() {
         <td data-label="Estado"><StatusBadge tone={STATUS[item.status].tone} label={STATUS[item.status].label} />{item.lastError && <small className="field-error">{item.lastError}</small>}</td>
         <td data-label="Cuándo">{item.sentAt ? `Enviada ${dateTime.format(new Date(item.sentAt))}` : item.scheduledAt && item.status === "SCHEDULED" ? dateTime.format(new Date(item.scheduledAt)) : "—"}</td>
         <td data-label="Resultados">{item.status === "SENT" || item.status === "SENDING" ? <span>{item.sent} enviadas · {item.clicked} clics{item.sent ? ` (${Math.round((item.clicked / item.sent) * 100)}%)` : ""}{item.failed ? ` · ${item.failed} fallidas` : ""}</span> : "—"}</td>
-        <td data-label="Acciones"><div className="table-actions">{editable && <button className="button ghost" type="button" onClick={() => open(item)}>Editar</button>}<button className="button ghost" type="button" disabled={Boolean(busy)} onClick={() => void act(item, "test")}>Probar en mi dispositivo</button>{editable && <button className="button secondary" type="button" disabled={Boolean(busy)} onClick={() => void act(item, "send")}>Enviar ahora</button>}{editable && <button className="danger-text" type="button" disabled={Boolean(busy)} onClick={() => void act(item, "cancel")}>Cancelar</button>}</div></td>
+        <td data-label="Acciones"><div className="table-actions">{editable && <button className="button ghost" type="button" onClick={() => open(item)}>Editar</button>}<button className="button ghost" type="button" disabled={Boolean(busy)} onClick={() => void act(item, "test")}>Probar en mi dispositivo</button>{editable && <button className="button secondary" type="button" disabled={Boolean(busy)} onClick={() => void act(item, "send")}>Enviar ahora</button>}{editable && <button className="danger-text" type="button" disabled={Boolean(busy)} onClick={() => void act(item, "cancel")}>Cancelar</button>}{(item.status === "SENT" || item.status === "FAILED" || item.status === "CANCELLED") && <button className="button secondary" type="button" disabled={Boolean(busy)} onClick={() => open(item, true)}>Volver a enviar</button>}</div></td>
       </tr>; })}</tbody></table></div>}
       <TablePagination page={page} pageSize={PAGE_SIZE} total={total} label={`${total} campañas`} onPrev={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} buttonClassName="button ghost" loading={loading} />
     </section>
-    {editing !== undefined && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditing(undefined); }}><section className="modal push-campaign-modal" role="dialog" aria-modal="true" aria-labelledby="campaign-title"><header><div><span className="eyebrow">{editing ? "Editar" : "Nueva"}</span><h2 id="campaign-title">{editing ? editing.title : "Nueva campaña"}</h2></div><button className="icon-button" type="button" aria-label="Cerrar" onClick={() => setEditing(undefined)}>×</button></header><form onSubmit={submit} noValidate>
+    {editing !== undefined && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditing(undefined); }}><section className="modal push-campaign-modal" role="dialog" aria-modal="true" aria-labelledby="campaign-title"><header><div><span className="eyebrow">{editing ? "Editar" : resending ? "Volver a enviar" : "Nueva"}</span><h2 id="campaign-title">{editing ? editing.title : resending ? form.title || "Nueva campaña" : "Nueva campaña"}</h2></div><button className="icon-button" type="button" aria-label="Cerrar" onClick={() => setEditing(undefined)}>×</button></header><form onSubmit={submit} noValidate>
       {formError && <Notice kind="error" role="alert">{formError}</Notice>}
       <div className="push-campaign-editor"><div className="form-grid">
         <label className="field field-wide"><span>Título <small>{form.title.length}/60</small></span><input value={form.title} maxLength={60} onChange={(event) => set("title", event.target.value)} placeholder="🔥 Ofertas de fin de semana" /></label>
