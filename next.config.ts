@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   // This VPS is reached by IP, not localhost — Next 16 blocks dev-mode
   // HMR/asset requests from any other origin by default.
   allowedDevOrigins: ["66.97.37.248"],
@@ -25,6 +26,7 @@ const nextConfig: NextConfig = {
     ].join("; ");
     return [{ source: "/:path*", headers: [
       { key: "Content-Security-Policy", value: csp },
+      { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "X-Frame-Options", value: "DENY" },

@@ -576,7 +576,7 @@ Cliente pide → admin confirma → picker arma y completa la tarea → admin ma
 CREATED → CONFIRMED → PICKING → PACKED → READY → OUT_FOR_DELIVERY → DELIVERED
 ```
 
-Cuentas de prueba nuevas: `picker1@superx.local` / `picker-pass-123` (rol picker), `driver1@superx.local` / `driver-pass-123` (rol driver, `Driver.id=4` alineado a mano). Pedido de prueba: id `3` (`PX000003`), ya en `DELIVERED`.
+Cuentas de prueba nuevas: `picker1@superx.local` (contraseña fuera del repo) (rol picker), `driver1@superx.local` (contraseña fuera del repo) (rol driver, `Driver.id=4` alineado a mano). Pedido de prueba: id `3` (`PX000003`), ya en `DELIVERED`.
 
 | Command | Result |
 | --- | --- |
