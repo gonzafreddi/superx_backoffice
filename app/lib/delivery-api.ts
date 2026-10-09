@@ -1,3 +1,4 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "@/app/lib/http";
 import type { DeliveryApi, DeliveryWindow, DeliveryZone, WindowInput, ZoneUpdateInput } from "./delivery-contract";
 import { validateWindowInput, validateZoneInput } from "./delivery-rules";
@@ -26,7 +27,7 @@ function assertValid(errors: object) {
   if (message) throw new Error(message);
 }
 
-function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; }
+function baseUrl(): string | undefined { return apiBaseUrl(); }
 
 type RawCity = { id: string; name: string };
 type RawZone = { id: string; cityId: string; name: string; postalCodes: string[]; neighborhoods: string[]; deliveryFee: string; freeDeliveryThreshold: string | null; priority: number; isActive: boolean };
@@ -79,8 +80,8 @@ function adaptWindow(raw: RawWindow): DeliveryWindow {
 export const deliveryApi: DeliveryApi = {
   async listZones() {
     const url = baseUrl();
-    if (!url) { await wait(); return [...zones].sort((a, b) => b.priority - a.priority || a.name.localeCompare(b.name, "es-AR")).map(cloneZone); }
-    const root = url.replace(/\/$/, "");
+    if (fixturesEnabled()) { await wait(); return [...zones].sort((a, b) => b.priority - a.priority || a.name.localeCompare(b.name, "es-AR")).map(cloneZone); }
+    const root = url!.replace(/\/$/, "");
     const [zonesPayload, cities] = await Promise.all([fetchJson(`${root}/delivery-zones?includeInactive=true`), listCities(root)]);
     const cityById = new Map(cities.map((city) => [city.id, city.name]));
     const list = Array.isArray(zonesPayload) ? (zonesPayload as RawZone[]) : [];
@@ -88,7 +89,7 @@ export const deliveryApi: DeliveryApi = {
   },
   async createZone(input: ZoneUpdateInput) {
     const url = baseUrl();
-    if (!url) {
+    if (fixturesEnabled()) {
       await wait();
       assertValid(validateZoneInput(input));
       const now = new Date().toISOString();
@@ -98,7 +99,7 @@ export const deliveryApi: DeliveryApi = {
       return cloneZone(zone);
     }
     assertValid(validateZoneInput(input));
-    const root = url.replace(/\/$/, "");
+    const root = url!.replace(/\/$/, "");
     const cityId = await resolveCityId(root, input.cityName);
     const payload = await fetchJson(`${root}/delivery-zones`, {
       method: "POST",
@@ -108,7 +109,7 @@ export const deliveryApi: DeliveryApi = {
   },
   async updateZone(id: string, input: ZoneUpdateInput) {
     const url = baseUrl();
-    if (!url) {
+    if (fixturesEnabled()) {
       await wait();
       const zone = zones.find((candidate) => candidate.id === id);
       if (!zone) throw new Error("La zona ya no existe. Actualizá el listado.");
@@ -122,7 +123,7 @@ export const deliveryApi: DeliveryApi = {
       return cloneZone(updated);
     }
     assertValid(validateZoneInput(input));
-    const root = url.replace(/\/$/, "");
+    const root = url!.replace(/\/$/, "");
     // UpdateDeliveryZoneDto has no cityId field — a zone's city can't change
     // after creation. Still resolve it so a typo surfaces the same clear
     // error as createZone, instead of silently succeeding with a stale name.
@@ -135,20 +136,20 @@ export const deliveryApi: DeliveryApi = {
   },
   async listWindows() {
     const url = baseUrl();
-    if (!url) { await wait(); return [...windows].sort(byStart).map(cloneWindow); }
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/delivery/windows`);
+    if (fixturesEnabled()) { await wait(); return [...windows].sort(byStart).map(cloneWindow); }
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/delivery/windows`);
     return (Array.isArray(payload) ? (payload as RawWindow[]) : []).map(adaptWindow).sort(byStart);
   },
   async createWindow(input: WindowInput) {
     const url = baseUrl();
-    if (!url) {
+    if (fixturesEnabled()) {
       await wait();
       assertValid(validateWindowInput(input, windows));
       const window: DeliveryWindow = { id: `window-${uid()}`, ...input, weekdays: [...input.weekdays] };
       windows = [...windows, window];
       return cloneWindow(window);
     }
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/delivery/windows`, {
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/delivery/windows`, {
       method: "POST",
       body: JSON.stringify({ startTime: input.startTime, endTime: input.endTime, weekdays: input.weekdays, isActive: input.active }),
     });
@@ -156,14 +157,14 @@ export const deliveryApi: DeliveryApi = {
   },
   async updateWindow(id: string, input: WindowInput) {
     const url = baseUrl();
-    if (!url) {
+    if (fixturesEnabled()) {
       await wait();
       if (!windows.some((window) => window.id === id)) throw new Error("El horario ya no existe. Actualizá el listado.");
       assertValid(validateWindowInput(input, windows, id));
       windows = windows.map((window) => (window.id === id ? { id, ...input, weekdays: [...input.weekdays] } : window));
       return cloneWindow(windows.find((window) => window.id === id)!);
     }
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/delivery/windows/${encodeURIComponent(id)}`, {
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/delivery/windows/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify({ startTime: input.startTime, endTime: input.endTime, weekdays: input.weekdays, isActive: input.active }),
     });
@@ -171,7 +172,7 @@ export const deliveryApi: DeliveryApi = {
   },
   async deleteWindow(id: string) {
     const url = baseUrl();
-    if (!url) { await wait(); windows = windows.filter((window) => window.id !== id); return; }
-    await fetchJson(`${url.replace(/\/$/, "")}/delivery/windows/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (fixturesEnabled()) { await wait(); windows = windows.filter((window) => window.id !== id); return; }
+    await fetchJson(`${url!.replace(/\/$/, "")}/delivery/windows/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
 };

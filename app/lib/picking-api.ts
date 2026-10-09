@@ -1,9 +1,10 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "@/app/lib/http";
 import type { PickingApi, PickingItem, PickingTask } from "./picking-contract";
 import { canCompleteTask, clampPickQuantity } from "./picking-rules";
 
 const wait = (ms = 250) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-const base = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL;
+const base = () => apiBaseUrl();
 
 export class PickingApiError extends Error {
   constructor(message: string, readonly status?: number, readonly code?: string) {
@@ -83,7 +84,7 @@ const find = (id: string): PickingTask => {
 
 async function http(path: string, init?: RequestInit): Promise<PickingTask> {
   const url = base()!;
-  const response = await authFetch(`${url.replace(/\/$/, "")}${path}`, {
+  const response = await authFetch(`${url!.replace(/\/$/, "")}${path}`, {
     ...init,
     headers: { Accept: "application/json", ...(init?.body ? { "Content-Type": "application/json" } : {}) },
   });
@@ -111,7 +112,7 @@ async function http(path: string, init?: RequestInit): Promise<PickingTask> {
 
 async function httpList(path: string): Promise<PickingTask[]> {
   const url = base()!;
-  const response = await authFetch(`${url.replace(/\/$/, "")}${path}`, { headers: { Accept: "application/json" } });
+  const response = await authFetch(`${url!.replace(/\/$/, "")}${path}`, { headers: { Accept: "application/json" } });
   if (response.status === 401) throw new PickingApiError("Iniciá sesión para trabajar en picking.", 401, "unauthenticated");
   if (!response.ok) throw new PickingApiError("No pudimos cargar las tareas.", response.status);
   const payload: unknown = await response.json().catch(() => undefined);
@@ -121,7 +122,7 @@ async function httpList(path: string): Promise<PickingTask[]> {
 async function searchProductsHttp(query: string): Promise<Array<{ id: string; name: string }>> {
   try {
     const url = base()!;
-    const response = await authFetch(`${url.replace(/\/$/, "")}/products?q=${encodeURIComponent(query)}`, {
+    const response = await authFetch(`${url!.replace(/\/$/, "")}/products?q=${encodeURIComponent(query)}`, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) return [];
@@ -135,19 +136,19 @@ async function searchProductsHttp(query: string): Promise<Array<{ id: string; na
 
 export const pickingApi: PickingApi = {
   async listMyTasks() {
-    if (!base()) { await wait(); return fixtureTasks.filter((t) => t.assignedPickerId === "me" && t.status !== "COMPLETED" && t.status !== "CANCELLED").map(clone); }
+    if (fixturesEnabled()) { await wait(); return fixtureTasks.filter((t) => t.assignedPickerId === "me" && t.status !== "COMPLETED" && t.status !== "CANCELLED").map(clone); }
     return httpList("/picking/tasks?assignedTo=me");
   },
   async listAvailableTasks() {
-    if (!base()) { await wait(); return fixtureTasks.filter((t) => t.status === "PENDING").map(clone); }
+    if (fixturesEnabled()) { await wait(); return fixtureTasks.filter((t) => t.status === "PENDING").map(clone); }
     return httpList("/picking/tasks?assignedTo=unassigned&status=PENDING");
   },
   async getTask(id) {
-    if (!base()) { await wait(); return clone(find(id)); }
+    if (fixturesEnabled()) { await wait(); return clone(find(id)); }
     return http(`/picking/tasks/${encodeURIComponent(id)}`, { method: "GET" });
   },
   async takeTask(id) {
-    if (!base()) {
+    if (fixturesEnabled()) {
       await wait();
       const task = find(id);
       if (task.status !== "PENDING" || task.assignedPickerId) throw new PickingApiError("El pedido ya fue tomado por otro operario.", 409, "already_taken");
@@ -158,7 +159,7 @@ export const pickingApi: PickingApi = {
     return http(`/picking/tasks/${encodeURIComponent(id)}/take`, { method: "POST", body: "{}" });
   },
   async assignToMe(id) {
-    if (!base()) {
+    if (fixturesEnabled()) {
       await wait();
       const task = find(id);
       const next = { ...clone(task), status: "ASSIGNED" as const, assignedPickerId: "me" };
@@ -168,7 +169,7 @@ export const pickingApi: PickingApi = {
     return http(`/picking/tasks/${encodeURIComponent(id)}/assign`, { method: "POST", body: "{}" });
   },
   async startTask(id) {
-    if (!base()) {
+    if (fixturesEnabled()) {
       await wait();
       const next = { ...clone(find(id)), status: "IN_PROGRESS" as const };
       replace(next);
@@ -177,7 +178,7 @@ export const pickingApi: PickingApi = {
     return http(`/picking/tasks/${encodeURIComponent(id)}/start`, { method: "POST", body: "{}" });
   },
   async pickItem(taskId, itemId, quantity, barcode) {
-    if (!base()) {
+    if (fixturesEnabled()) {
       await wait(150);
       const task = find(taskId);
       if (task.status !== "IN_PROGRESS") throw new PickingApiError("Empezá la tarea antes de registrar cantidades.", 409, "not_started");
@@ -200,7 +201,7 @@ export const pickingApi: PickingApi = {
     });
   },
   async reportShortage(taskId, itemId, resolution, substituteProductId, note) {
-    if (!base()) {
+    if (fixturesEnabled()) {
       await wait();
       const next = clone(find(taskId));
       const line = next.items.find((i) => i.id === itemId);
@@ -222,7 +223,7 @@ export const pickingApi: PickingApi = {
     });
   },
   async searchProducts(query) {
-    if (!base()) {
+    if (fixturesEnabled()) {
       await wait();
       const normalizedQuery = query.trim().toLocaleLowerCase();
       return fixtureProducts.filter((product) => product.name.toLocaleLowerCase().includes(normalizedQuery));
@@ -230,7 +231,7 @@ export const pickingApi: PickingApi = {
     return searchProductsHttp(query);
   },
   async completeTask(id) {
-    if (!base()) {
+    if (fixturesEnabled()) {
       await wait();
       const task = find(id);
       if (!canCompleteTask(task)) throw new PickingApiError("Quedan líneas sin resolver.", 409, "pending_lines");

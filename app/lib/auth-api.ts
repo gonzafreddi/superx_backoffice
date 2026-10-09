@@ -1,3 +1,4 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 export type AdminUser = { id: string; email: string; role: string; name: string | null };
 export type ManagedUser = AdminUser & { phone: string | null; isActive: boolean; createdAt: string };
 import { userOperationError } from "./user-rules";
@@ -34,7 +35,7 @@ function removePersisted(key: string): void {
 }
 
 function baseUrl(): string | undefined {
-  return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL;
+  return apiBaseUrl();
 }
 
 export function getAccessToken(): string | null {
@@ -69,8 +70,8 @@ export function storeSession(accessToken: string, rawUser?: unknown): void {
 /** Validates the browser session and role against the backend before rendering protected pages. */
 export async function validateBackofficeSession(signal?: AbortSignal): Promise<AdminUser | null> {
   const url = baseUrl();
-  if (!url) return getStoredUser() ?? { id: "fixture-admin", email: "admin@fixture.local", role: "admin", name: "Administración" };
-  const response = await authFetch(`${url.replace(/\/$/, "")}/api/auth/me`, {
+  if (fixturesEnabled()) return getStoredUser() ?? { id: "fixture-admin", email: "admin@fixture.local", role: "admin", name: "Administración" };
+  const response = await authFetch(`${url!.replace(/\/$/, "")}/api/auth/me`, {
     headers: { Accept: "application/json" }, signal,
   });
   if (!response.ok) {
@@ -95,7 +96,7 @@ export async function validateBackofficeSession(signal?: AbortSignal): Promise<A
 export function logout(): void {
   const url = baseUrl();
   if (url) {
-    void fetch(`${url.replace(/\/$/, "")}/api/auth/logout`, {
+    void fetch(`${url!.replace(/\/$/, "")}/api/auth/logout`, {
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -123,13 +124,13 @@ function isRawLoginResponse(value: unknown): value is ValidRawLoginResponse {
  */
 export async function login(email: string, password: string, signal?: AbortSignal): Promise<AdminUser> {
   const url = baseUrl();
-  if (!url) {
+  if (fixturesEnabled()) {
     const user: AdminUser = { id: "fixture-admin", email, role: "admin", name: "Administración (fixture)" };
     persist(TOKEN_KEY, "fixture-token");
     persist(USER_KEY, JSON.stringify(user));
     return user;
   }
-  const response = await fetch(`${url.replace(/\/$/, "")}/api/auth/login`, {
+  const response = await fetch(`${url!.replace(/\/$/, "")}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ email, password }),
@@ -160,7 +161,7 @@ function authMessage(payload: unknown): string {
 }
 
 export async function listUsers(filters: { q?: string; role?: UserRole | ""; status?: "active" | "inactive" | ""; page?: number; pageSize?: number } = {}): Promise<{ items: ManagedUser[]; total: number; page: number; pageSize: number }> {
-  if (!baseUrl()) return { items: [{ id: "fixture-admin", email: "admin@superx.local", name: "Administración", role: "admin", phone: null, isActive: true, createdAt: new Date().toISOString() }, { id: "fixture-warehouse", email: "deposito@superx.local", name: "Equipo Depósito", role: "warehouse", phone: null, isActive: true, createdAt: new Date().toISOString() }], total: 2, page: 1, pageSize: 20 };
+  if (fixturesEnabled()) return { items: [{ id: "fixture-admin", email: "admin@superx.local", name: "Administración", role: "admin", phone: null, isActive: true, createdAt: new Date().toISOString() }, { id: "fixture-warehouse", email: "deposito@superx.local", name: "Equipo Depósito", role: "warehouse", phone: null, isActive: true, createdAt: new Date().toISOString() }], total: 2, page: 1, pageSize: 20 };
   const params = new URLSearchParams({ page: String(filters.page ?? 1), pageSize: String(filters.pageSize ?? 50) });
   if (filters.status) params.set("status", filters.status);
   if (filters.q) params.set("q", filters.q); if (filters.role) params.set("role", filters.role);
@@ -171,7 +172,7 @@ export async function listUsers(filters: { q?: string; role?: UserRole | ""; sta
 }
 
 export async function updateUserRole(id: string, role: UserRole): Promise<ManagedUser> {
-  if (!baseUrl()) return { id, email: id === "fixture-admin" ? "admin@superx.local" : "deposito@superx.local", name: null, role, phone: null, isActive: true, createdAt: new Date().toISOString() };
+  if (fixturesEnabled()) return { id, email: id === "fixture-admin" ? "admin@superx.local" : "deposito@superx.local", name: null, role, phone: null, isActive: true, createdAt: new Date().toISOString() };
   const response = await authFetch(`${baseUrl()!.replace(/\/$/, "")}/api/auth/users/${encodeURIComponent(id)}/role`, { method: "PATCH", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
   const payload: unknown = await response.json().catch(() => undefined);
   if (!response.ok) throw new AuthApiError(userOperationError(response.status, "role"), response.status);
@@ -182,8 +183,8 @@ export type CreateUserInput = { email: string; password: string; name?: string; 
 
 export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
   const url = baseUrl();
-  if (!url) return { id: crypto.randomUUID(), email: input.email, name: input.name ?? null, role: input.role, phone: input.phone ?? null, isActive: true, createdAt: new Date().toISOString() };
-  const response = await authFetch(`${url.replace(/\/$/, "")}/api/auth/users`, {
+  if (fixturesEnabled()) return { id: crypto.randomUUID(), email: input.email, name: input.name ?? null, role: input.role, phone: input.phone ?? null, isActive: true, createdAt: new Date().toISOString() };
+  const response = await authFetch(`${url!.replace(/\/$/, "")}/api/auth/users`, {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(input),

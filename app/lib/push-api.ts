@@ -1,3 +1,4 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "./http";
 
 export type CampaignAudience = "all_marketing" | "all_customers";
@@ -7,7 +8,7 @@ export type CampaignInput = { title: string; body: string; url: string; imageUrl
 export type AudienceSize = { audience: CampaignAudience; users: number; devices: number; enabled: boolean; warning: string | null };
 export type DeviceState = "on" | "off" | "denied" | "unsupported" | "unavailable";
 
-const apiRoot = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL?.replace(/\/$/, "");
+const apiRoot = () => apiBaseUrl()?.replace(/\/$/, "");
 const json = { Accept: "application/json", "Content-Type": "application/json" };
 
 async function call<T>(path: string, init: RequestInit = {}, fallback = "No pudimos completar la operación."): Promise<T> {
@@ -36,7 +37,7 @@ export const campaignApi = {
 
 let configPromise: Promise<{ enabled: boolean; publicKey: string | null }> | null = null;
 function pushConfig() {
-  const root = apiRoot(); if (!root) return Promise.resolve({ enabled: false, publicKey: null });
+  const root = apiRoot(); if (fixturesEnabled()) return Promise.resolve({ enabled: false, publicKey: null });
   configPromise ??= fetch(`${root}/push/config`).then((response) => response.ok ? response.json() as Promise<{ enabled: boolean; publicKey: string | null }> : { enabled: false, publicKey: null }).catch(() => { configPromise = null; return { enabled: false, publicKey: null }; });
   return configPromise;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { fixturesEnabled } from "@/app/lib/api-mode";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -23,7 +25,7 @@ export function WarehouseIcon({ name }: { name: "warehouse" | "grid" | "list" | 
 }
 
 export function WarehousesPageHeader({ role, onRole, canCreate, onCreate }: { role: UserRole; onRole: (role: UserRole) => void; canCreate: boolean; onCreate: () => void }) {
-  return <header className="warehouses-header"><div><p className="eyebrow">OPERACIONES / UBICACIONES</p><h1>Depósitos</h1><p className="subtitle">Gestioná depósitos, ubicaciones, capacidad y recorrido de picking.</p></div><div className="warehouses-header-actions">{!process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL && <RolePicker role={role} onChange={onRole} />}{canCreate && <button className="button primary" onClick={onCreate}><WarehouseIcon name="plus" /> Nuevo depósito</button>}</div></header>;
+  return <header className="warehouses-header"><div><p className="eyebrow">OPERACIONES / UBICACIONES</p><h1>Depósitos</h1><p className="subtitle">Gestioná depósitos, ubicaciones, capacidad y recorrido de picking.</p></div><div className="warehouses-header-actions">{fixturesEnabled() && <RolePicker role={role} onChange={onRole} />}{canCreate && <button className="button primary" onClick={onCreate}><WarehouseIcon name="plus" /> Nuevo depósito</button>}</div></header>;
 }
 
 export function WarehouseStats({ warehouses, stats }: { warehouses: LocationWarehouse[]; stats: WarehouseStats[] }) {

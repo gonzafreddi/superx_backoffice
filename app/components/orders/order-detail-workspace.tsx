@@ -1,5 +1,7 @@
 "use client";
 
+import { OrderAssignmentPanel } from "./order-assignment-panel";
+import { fixturesEnabled } from "@/app/lib/api-mode";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ListSkeleton } from "@/app/components/list-skeleton";
@@ -27,7 +29,7 @@ export function OrderDetailWorkspace({ id, returnQuery }: { id: string; returnQu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
   useEffect(() => { const user = getStoredUser(); // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRole(user?.role === "admin" ? "admin" : "viewer"); }, []);
+    setRole(fixturesEnabled() || user?.role === "admin" ? "admin" : "viewer"); }, []);
   const transition = async (note?: string, checklist?: PackingChecklist) => { if (!order || !pendingStatus) return; setPending(true); setNotice(null); try { const updated = await orderApi.transitionOrder(order.id, { status: pendingStatus, performedBy: actors[role], performedByRole: role, note, checklist }); setOrder(updated); setNotice({ kind: "success", text: `${updated.code} quedó ${ORDER_STATUS_LABELS[updated.status].toLocaleLowerCase("es-AR")}.` }); } catch (caught) { setNotice({ kind: "error", text: caught instanceof Error ? caught.message : "No se pudo actualizar el pedido." }); } finally { setPending(false); setPendingStatus(null); } };
   const confirmRefund = async (amount: string, treasuryAccountId: string, note?: string) => { if (!order) return; setPending(true); setNotice(null); try { const updated = await orderApi.createRefund(order.id, { amount, treasuryAccountId, note }); setOrder(updated); setNotice({ kind: "success", text: `Registramos el reintegro de ${money.format(Number(amount))} para ${updated.code}.` }); } catch (caught) { setNotice({ kind: "error", text: caught instanceof Error ? caught.message : "No se pudo registrar el reintegro." }); } finally { setPending(false); setRefundModal(false); } };
   const confirmPayment = async (paymentMethod: OrderPaymentMethod, treasuryAccountId: string, note?: string) => { if (!order) return; setPending(true); setNotice(null); try { const updated = await orderApi.updatePayment(order.id, { status: "PAID", paymentMethod, treasuryAccountId, note }); setOrder(updated); setNotice({ kind: "success", text: `El pago de ${updated.code} fue acreditado en Tesorería sin modificar su estado logístico.` }); } catch (caught) { setNotice({ kind: "error", text: caught instanceof Error ? caught.message : "No se pudo acreditar el pago." }); } finally { setPending(false); setPaymentModal(false); } };
@@ -40,6 +42,7 @@ export function OrderDetailWorkspace({ id, returnQuery }: { id: string; returnQu
     {alerts.length > 0 && <div className="order-alert-strip"><OrderIcon name="alert" /><strong>Atención operativa</strong><span>{alerts.join(" · ")}</span></div>}
     <OrderSummary order={order} />
     <section className="order-detail-layout"><main><OrderTimeline order={order} /><OrderItems order={order} /></main><aside><CustomerCard order={order} /><AddressCard order={order} /><PaymentCard order={order} canManage={role === "admin"} onPay={() => setPaymentModal(true)} onRefund={() => setRefundModal(true)} /><OrderActions order={order} role={role} transitions={transitions} onTransition={setPendingStatus} /></aside></section>
+    <OrderAssignmentPanel orderId={order.id} status={order.status} canManage={role === "admin"} />
     <OrderHistory order={order} />
     {pendingStatus && <ConfirmOrderTransition order={order} status={pendingStatus} pending={pending} onCancel={() => setPendingStatus(null)} onConfirm={(note, checklist) => void transition(note, checklist)} />}{paymentModal && <ConfirmOrderPayment order={order} pending={pending} onCancel={() => setPaymentModal(false)} onConfirm={(paymentMethod, treasuryAccountId, note) => void confirmPayment(paymentMethod, treasuryAccountId, note)} />}{refundModal && <ConfirmOrderRefund order={order} pending={pending} onCancel={() => setRefundModal(false)} onConfirm={(amount, treasuryAccountId, note) => void confirmRefund(amount, treasuryAccountId, note)} />}
   </section>;

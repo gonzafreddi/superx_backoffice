@@ -1,5 +1,7 @@
 "use client";
 
+import { assertApiConfigured, fixturesEnabled } from "@/app/lib/api-mode";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -16,6 +18,7 @@ const navGroups = [
       { href: "/tablero", label: "Tablero", icon: "chart" },
       { href: "/pedidos", label: "Pedidos", icon: "receipt" },
       { href: "/clientes", label: "Clientes", icon: "users" },
+      { href: "/repartidores", label: "Repartidores", icon: "truck" },
       { href: "/entregas", label: "Entregas", icon: "truck" },
     ],
   },
@@ -184,6 +187,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [configurationError, setConfigurationError] = useState("");
   const [user, setUser] = useState<AdminUser | null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -200,7 +204,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     setCommandQuery("");
   };
   // Role is read after mount (`ready`); the shell renders nothing before that, so there's no hydration mismatch.
-  const role = process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL ? (user?.role ?? "customer") : "admin";
+  const role = fixturesEnabled() ? "admin" : (user?.role ?? "customer");
   const items = allItems.filter((item) => canSee(item, role));
   const visibleGroups = navGroups
     .map((group) => ({ ...group, items: group.items.filter((item) => canSee(item, role)) }))
@@ -227,7 +231,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
       setUser(validatedUser);
       setReady(true);
     }).catch(() => {
-      if (!controller.signal.aborted) router.replace("/login");
+      if (!controller.signal.aborted) {
+        try { assertApiConfigured(); router.replace("/login"); }
+        catch (error) { setConfigurationError(error instanceof Error ? error.message : "No pudimos validar la configuración."); }
+      }
     });
     return () => controller.abort();
   }, [router]);
@@ -273,6 +280,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     };
   }, [pathname, ready, canSeeReceipts]);
 
+  if (configurationError) return <main className="workspace"><p className="notice error" role="alert">{configurationError}</p></main>;
   if (!ready) return null;
 
   const isActive = (href: string) => {

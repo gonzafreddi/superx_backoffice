@@ -1,3 +1,4 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "@/app/lib/http";
 import type { InventoryApi, InventoryFilters, InventoryItem, InventoryMovement, InventoryMovementInput, Warehouse } from "./inventory-contract";
 import { getInventoryStatus, adaptInventoryMovement } from "./inventory-rules";
@@ -12,7 +13,7 @@ let inventory: InventoryItem[] = [
 ];
 const unavailable = () => new Error("La posición de stock ya no está disponible. Actualizá el listado e intentá nuevamente.");
 
-function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; }
+function baseUrl(): string | undefined { return apiBaseUrl(); }
 const itemId = (productId: string, warehouseId: string) => `${productId}:${warehouseId}`;
 const parseItemId = (id: string) => { const [productId, warehouseId] = id.split(":"); return { productId, warehouseId }; };
 
@@ -63,8 +64,8 @@ function primaryImage(product?: RawProduct): string | undefined {
 export const inventoryApi: InventoryApi = {
   async listInventory(filters: InventoryFilters = {}) {
     const url = baseUrl();
-    if (!url) { await wait(); return inventory.filter((item) => (!filters.query?.trim() || [item.productName, item.sku].some((value) => value.toLocaleLowerCase("es-AR").includes(filters.query!.trim().toLocaleLowerCase("es-AR")))) && (!filters.warehouseId || item.warehouseId === filters.warehouseId) && (!filters.status || filters.status === "all" || getInventoryStatus(item) === filters.status)); }
-    const root = url.replace(/\/$/, "");
+    if (fixturesEnabled()) { await wait(); return inventory.filter((item) => (!filters.query?.trim() || [item.productName, item.sku].some((value) => value.toLocaleLowerCase("es-AR").includes(filters.query!.trim().toLocaleLowerCase("es-AR")))) && (!filters.warehouseId || item.warehouseId === filters.warehouseId) && (!filters.status || filters.status === "all" || getInventoryStatus(item) === filters.status)); }
+    const root = url!.replace(/\/$/, "");
     const [snapshotsPayload, productList] = await Promise.all([
       fetchJson(`${root}/inventory/stock${filters.warehouseId ? `?warehouseId=${filters.warehouseId}` : ""}`),
       fetchAllProducts(root),
@@ -97,19 +98,19 @@ export const inventoryApi: InventoryApi = {
   },
   async listMovements(item: InventoryItem) {
     const url = baseUrl();
-    if (!url) { await wait(); return inventory.find((candidate) => candidate.id === item.id)?.movements ?? []; }
-    return fetchMovements(url.replace(/\/$/, ""), item.productId, item.warehouseId);
+    if (fixturesEnabled()) { await wait(); return inventory.find((candidate) => candidate.id === item.id)?.movements ?? []; }
+    return fetchMovements(url!.replace(/\/$/, ""), item.productId, item.warehouseId);
   },
   async listWarehouses() {
     const url = baseUrl();
-    if (!url) { await wait(); return warehouses; }
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/warehouses`);
+    if (fixturesEnabled()) { await wait(); return warehouses; }
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/warehouses`);
     return Array.isArray(payload) ? (payload as RawWarehouse[]).map((item) => ({ id: item.id, name: item.name, code: item.name })) : [];
   },
   async createMovement(input: InventoryMovementInput) {
     const url = baseUrl();
-    if (!url) { await wait(); const item = inventory.find((candidate) => candidate.id === input.inventoryItemId); if (!item) throw unavailable(); if (!Number.isInteger(input.quantity) || input.quantity === 0 || !input.reason.trim()) throw new Error("El movimiento informado no es válido."); if (item.onHand + input.quantity < 0) throw new Error("El movimiento no puede dejar el stock por debajo de cero."); const movement = { id: `mov-${crypto.randomUUID()}`, inventoryItemId: item.id, type: "adjustment" as const, quantity: input.quantity, reason: input.reason.trim(), occurredAt: new Date().toISOString(), createdBy: input.createdBy }; const updated: InventoryItem = { ...item, onHand: item.onHand + input.quantity, updatedAt: movement.occurredAt, movements: [movement, ...item.movements] }; inventory = inventory.map((candidate) => candidate.id === item.id ? updated : candidate); return updated; }
-    const root = url.replace(/\/$/, "");
+    if (fixturesEnabled()) { await wait(); const item = inventory.find((candidate) => candidate.id === input.inventoryItemId); if (!item) throw unavailable(); if (!Number.isInteger(input.quantity) || input.quantity === 0 || !input.reason.trim()) throw new Error("El movimiento informado no es válido."); if (item.onHand + input.quantity < 0) throw new Error("El movimiento no puede dejar el stock por debajo de cero."); const movement = { id: `mov-${crypto.randomUUID()}`, inventoryItemId: item.id, type: "adjustment" as const, quantity: input.quantity, reason: input.reason.trim(), occurredAt: new Date().toISOString(), createdBy: input.createdBy }; const updated: InventoryItem = { ...item, onHand: item.onHand + input.quantity, updatedAt: movement.occurredAt, movements: [movement, ...item.movements] }; inventory = inventory.map((candidate) => candidate.id === item.id ? updated : candidate); return updated; }
+    const root = url!.replace(/\/$/, "");
     const { productId, warehouseId } = parseItemId(input.inventoryItemId);
     if (!Number.isInteger(input.quantity) || input.quantity === 0 || !input.reason.trim()) throw new Error("El movimiento informado no es válido.");
     await fetchJson(`${root}/inventory/movements`, {
@@ -141,8 +142,8 @@ export const inventoryApi: InventoryApi = {
   async updateReorderThreshold(itemId: string, threshold: number) {
     if (!Number.isInteger(threshold) || threshold < 0) throw new Error("El umbral debe ser un número entero mayor o igual a cero.");
     const url = baseUrl();
-    if (!url) { await wait(); const item = inventory.find((candidate) => candidate.id === itemId); if (!item) throw unavailable(); const updated: InventoryItem = { ...item, minimum: threshold }; inventory = inventory.map((candidate) => candidate.id === itemId ? updated : candidate); return updated; }
-    const root = url.replace(/\/$/, "");
+    if (fixturesEnabled()) { await wait(); const item = inventory.find((candidate) => candidate.id === itemId); if (!item) throw unavailable(); const updated: InventoryItem = { ...item, minimum: threshold }; inventory = inventory.map((candidate) => candidate.id === itemId ? updated : candidate); return updated; }
+    const root = url!.replace(/\/$/, "");
     const { productId, warehouseId } = parseItemId(itemId);
     const [snapshotPayload, productPayload, movements] = await Promise.all([
       fetchJson(`${root}/inventory/stock?productId=${productId}&warehouseId=${warehouseId}`),

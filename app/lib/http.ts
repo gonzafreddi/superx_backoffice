@@ -1,7 +1,8 @@
+import { apiBaseUrl } from "./api-mode";
 import { clearSession, getAccessToken, storeSession } from "./auth-api";
 import { createAuthFetch } from "./http-core.js";
 
-const apiRoot = () => (process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL ?? "").replace(/\/$/, "");
+const apiRoot = () => (apiBaseUrl() ?? "").replace(/\/$/, "");
 
 export const authFetch = createAuthFetch({
   fetchImpl: (...args) => fetch(...args),

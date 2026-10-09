@@ -1,3 +1,4 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "@/app/lib/http";
 import type { Order, OrderApi, OrderEvent, OrderFilters, OrderLine, OrderPaymentMethodSetting, OrderTransitionInput } from "./order-contract";
 import { buildOrderTransitionEvent, canSubmitOrderTransition, canTransitionOrder } from "./order-rules";
@@ -21,7 +22,7 @@ let orders: Order[] = [
 const notFound = () => new Error("El pedido ya no está disponible. Actualizá el listado e intentá nuevamente.");
 const clone = (order: Order): Order => ({ ...order, payment: { ...order.payment }, charges: { ...order.charges }, deliverySlot: order.deliverySlot ? { ...order.deliverySlot } : null, lines: order.lines.map((item) => ({ ...item, substitution: item.substitution ? { ...item.substitution } : null })), events: order.events.map((entry) => ({ ...entry })) });
 
-function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; }
+function baseUrl(): string | undefined { return apiBaseUrl(); }
 
 type RawOrderItem = { id: string; productName: string; quantity: number; unitPrice: string };
 type RawOrder = {
@@ -87,24 +88,24 @@ async function fetchOrderWithEvents(root: string, id: string): Promise<Order> {
 export const orderApi: OrderApi = {
   async listPaymentMethods() {
     const url = baseUrl();
-    if (!url) return (["CASH", "BANK_TRANSFER", "MERCADO_PAGO"] as const).map((method) => ({ method, enabled: method !== "MERCADO_PAGO" } satisfies OrderPaymentMethodSetting));
-    return fetchJson(`${url.replace(/\/$/, "")}/payment-methods`) as Promise<OrderPaymentMethodSetting[]>;
+    if (fixturesEnabled()) return (["CASH", "BANK_TRANSFER", "MERCADO_PAGO"] as const).map((method) => ({ method, enabled: method !== "MERCADO_PAGO" } satisfies OrderPaymentMethodSetting));
+    return fetchJson(`${url!.replace(/\/$/, "")}/payment-methods`) as Promise<OrderPaymentMethodSetting[]>;
   },
   async setPaymentMethodEnabled(method, enabled) {
     const url = baseUrl();
-    if (!url) return { method, enabled };
-    return fetchJson(`${url.replace(/\/$/, "")}/payment-methods/${method}`, { method: "PATCH", body: JSON.stringify({ enabled }) }) as Promise<OrderPaymentMethodSetting>;
+    if (fixturesEnabled()) return { method, enabled };
+    return fetchJson(`${url!.replace(/\/$/, "")}/payment-methods/${method}`, { method: "PATCH", body: JSON.stringify({ enabled }) }) as Promise<OrderPaymentMethodSetting>;
   },
   async listOrders(filters: OrderFilters = {}) {
     const url = baseUrl();
-    if (!url) {
+    if (fixturesEnabled()) {
       await wait();
       const query = filters.query?.trim().toLocaleLowerCase("es-AR") ?? "";
       return orders
         .filter((order) => (!query || [order.code, order.customerName].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.status || filters.status === "all" || order.status === filters.status) && (!filters.from || order.createdAt.slice(0, 10) >= filters.from) && (!filters.to || order.createdAt.slice(0, 10) <= filters.to))
         .map(clone);
     }
-    const root = url.replace(/\/$/, "");
+    const root = url!.replace(/\/$/, "");
     const params = new URLSearchParams({ scope: "all", pageSize: "100" });
     if (filters.status && filters.status !== "all") params.set("status", filters.status);
     const payload = (await fetchJson(`${root}/orders?${params}`)) as { items?: RawOrder[] };
@@ -118,12 +119,12 @@ export const orderApi: OrderApi = {
   },
   async getOrder(id: string) {
     const url = baseUrl();
-    if (!url) { await wait(); const order = orders.find((candidate) => candidate.id === id); if (!order) throw notFound(); return clone(order); }
-    return fetchOrderWithEvents(url.replace(/\/$/, ""), id);
+    if (fixturesEnabled()) { await wait(); const order = orders.find((candidate) => candidate.id === id); if (!order) throw notFound(); return clone(order); }
+    return fetchOrderWithEvents(url!.replace(/\/$/, ""), id);
   },
   async transitionOrder(id: string, input: OrderTransitionInput) {
     const url = baseUrl();
-    if (!url) {
+    if (fixturesEnabled()) {
       await wait();
       const order = orders.find((candidate) => candidate.id === id);
       if (!order) throw notFound();
@@ -135,31 +136,31 @@ export const orderApi: OrderApi = {
       orders = orders.map((candidate) => (candidate.id === id ? updated : candidate));
       return clone(updated);
     }
-    const root = url.replace(/\/$/, "");
+    const root = url!.replace(/\/$/, "");
     await fetchJson(`${root}/orders/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify({ status: input.status, ...(input.note?.trim() ? { note: input.note.trim() } : {}), ...(input.checklist ? { checklist: input.checklist } : {}) }) });
     return fetchOrderWithEvents(root, id);
   },
   async updatePayment(id, input) {
     const url = baseUrl();
-    if (!url) {
+    if (fixturesEnabled()) {
       await wait(); const order = orders.find((candidate) => candidate.id === id); if (!order) throw notFound();
       const updated: Order = { ...order, payment: { method: input.paymentMethod ?? order.payment.method, status: input.status }, paymentRequired: input.status !== "PAID", updatedAt: new Date().toISOString() };
       orders = orders.map((candidate) => candidate.id === id ? updated : candidate); return clone(updated);
     }
-    const root = url.replace(/\/$/, "");
+    const root = url!.replace(/\/$/, "");
     await fetchJson(`${root}/orders/${encodeURIComponent(id)}/payment`, { method: "PATCH", body: JSON.stringify(input) });
     return fetchOrderWithEvents(root, id);
   },
   async createRefund(id, input) {
     const url = baseUrl();
-    if (!url) {
+    if (fixturesEnabled()) {
       await wait(); const order = orders.find((candidate) => candidate.id === id); if (!order) throw notFound();
       const amount = Number(input.amount); const current = order.refund ?? { paid: order.total, refunded: 0, due: 0 };
       if (!(amount > 0) || amount > current.due + 0.001) throw new Error("El reintegro supera lo que se le debe al cliente.");
       const updated: Order = { ...order, refund: { ...current, refunded: current.refunded + amount, due: current.due - amount }, updatedAt: new Date().toISOString() };
       orders = orders.map((candidate) => candidate.id === id ? updated : candidate); return clone(updated);
     }
-    const root = url.replace(/\/$/, "");
+    const root = url!.replace(/\/$/, "");
     await fetchJson(`${root}/orders/${encodeURIComponent(id)}/refunds`, { method: "POST", body: JSON.stringify({ amount: input.amount, treasuryAccountId: Number(input.treasuryAccountId), ...(input.note?.trim() ? { note: input.note.trim() } : {}) }) });
     return fetchOrderWithEvents(root, id);
   },

@@ -1,4 +1,6 @@
 "use client";
+
+import { fixturesEnabled } from "@/app/lib/api-mode";
 /* eslint-disable @next/next/no-img-element -- remote product images, same as the rest of the backoffice */
 /* eslint-disable react-hooks/set-state-in-effect */
 import Link from "next/link";
@@ -74,7 +76,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
 
   useEffect(() => {
     const user = getStoredUser();
-    if (!process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL) setAccess("ready");
+    if (fixturesEnabled()) setAccess("ready");
     else if (!user) setAccess("auth");
     else setAccess(user.role === "admin" || user.role === "warehouse" ? "ready" : "forbidden");
     try {

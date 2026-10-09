@@ -1,4 +1,6 @@
 "use client";
+
+import { fixturesEnabled } from "@/app/lib/api-mode";
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/immutability */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -140,7 +142,7 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
   const readOnly = order?.status === "CONFIRMED";
   useEffect(() => {
     const user = getStoredUser();
-    setAccess(!process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL || user?.role === "admin" ? "ready" : "denied");
+    setAccess(fixturesEnabled() || user?.role === "admin" ? "ready" : "denied");
   }, []);
   useEffect(() => {
     if (access !== "ready") return;

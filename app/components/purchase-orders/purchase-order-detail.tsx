@@ -1,4 +1,6 @@
 "use client";
+
+import { fixturesEnabled } from "@/app/lib/api-mode";
 /* eslint-disable react-hooks/set-state-in-effect */
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -15,7 +17,7 @@ const actorName = (id: string | null | undefined, order: PurchaseOrder) => { if 
 
 export function PurchaseOrderDetail({ orderId }: { orderId: string }) {
   const [access, setAccess] = useState<"loading" | "ready" | "denied">("loading"), [order, setOrder] = useState<PurchaseOrder | null>(null), [receipts, setReceipts] = useState<GoodsReceipt[]>([]), [locations, setLocations] = useState<Record<string, string>>({}), [loading, setLoading] = useState(true), [pending, setPending] = useState(false), [error, setError] = useState("");
-  useEffect(() => { setAccess(!process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL || getStoredUser()?.role === "admin" ? "ready" : "denied"); }, []);
+  useEffect(() => { setAccess(fixturesEnabled() || getStoredUser()?.role === "admin" ? "ready" : "denied"); }, []);
   const load = useCallback(async () => { if (access !== "ready") return; setLoading(true); try { const current = await purchaseOrderApi.get(orderId); const history = await purchaseOrderApi.receipts(orderId); setOrder(current); setReceipts(history); void locationApi.listLocations(current.warehouseId).then((rows) => setLocations(Object.fromEntries(rows.map((row) => [row.id, row.code])))).catch(() => undefined); setError(""); } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo cargar la orden."); } finally { setLoading(false); } }, [access, orderId]);
   useEffect(() => { void load(); }, [load]);
   const transition = async (kind: "confirm" | "cancel" | "close") => { if (!order || !window.confirm(kind === "confirm" ? "¿Confirmar esta orden?" : kind === "cancel" ? "¿Cancelar esta orden?" : "¿Cerrar esta orden?")) return; const hasPending = order.items.some((item) => item.receivedPackageQuantity < item.packageQuantity); const reason = kind === "close" && hasPending ? window.prompt("Motivo de cierre obligatorio:") : undefined; if (kind === "close" && hasPending && !reason?.trim()) return; setPending(true); try { if (kind === "confirm") await purchaseOrderApi.confirm(order.id); else if (kind === "cancel") await purchaseOrderApi.cancel(order.id); else await purchaseOrderApi.close(order.id, reason); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo actualizar la orden."); } finally { setPending(false); } };

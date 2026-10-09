@@ -1,8 +1,9 @@
+import { apiBaseUrl } from "./api-mode";
 import { authFetch } from "./http";
 import type { CategoryApi, CategoryImage, ManagedCategory } from "./category-contract";
 
 type Raw = Record<string, unknown>;
-const apiBase = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL?.replace(/\/$/, "");
+const apiBase = () => apiBaseUrl()?.replace(/\/$/, "");
 export const categoryImageUrl = (url: string | null | undefined) => !url ? "" : /^https?:\/\//i.test(url) ? url : `${apiBase() ?? ""}${url.startsWith("/") ? url : `/${url}`}`;
 const image = (raw: Raw): CategoryImage => ({ id: String(raw.id ?? ""), url: String(raw.url ?? ""), altText: typeof raw.altText === "string" ? raw.altText : null, sortOrder: Number(raw.sortOrder ?? 0), isPrimary: raw.isPrimary === true });
 const category = (raw: Raw): ManagedCategory => ({ id: String(raw.id ?? ""), name: String(raw.name ?? ""), slug: String(raw.slug ?? ""), parentId: raw.parentId == null ? null : String(raw.parentId), sortOrder: Number(raw.sortOrder ?? 0), isActive: raw.isActive !== false, images: Array.isArray(raw.images) ? raw.images.map((item) => image(item as Raw)).sort((a, b) => a.sortOrder - b.sortOrder) : [], imageUrl: typeof raw.imageUrl === "string" ? raw.imageUrl : null, ...(typeof raw.productCount === "number" ? { productCount: raw.productCount } : {}) });

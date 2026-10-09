@@ -1,7 +1,8 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "./http";
 import type { WithdrawalPage, WithdrawalRequest, WithdrawalStatus, WithdrawalUpdate } from "./withdrawal-contract";
 import { validateWithdrawalUpdate } from "./withdrawal-rules";
-const baseUrl = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL?.replace(/\/$/, "");
+const baseUrl = () => apiBaseUrl()?.replace(/\/$/, "");
 async function request(path: string, init?: RequestInit) {
   const response = await authFetch(`${baseUrl()}${path}`, { ...init, headers: { Accept: "application/json", "Content-Type": "application/json" } });
   if (!response.ok) {
@@ -13,7 +14,7 @@ async function request(path: string, init?: RequestInit) {
 export const withdrawalApi = {
   async list(filters: { status?: WithdrawalStatus | ""; page?: number; pageSize?: number } = {}): Promise<WithdrawalPage> {
     const page = filters.page ?? 1, pageSize = filters.pageSize ?? 20;
-    if (!baseUrl()) return { items: [], total: 0, page, pageSize };
+    if (fixturesEnabled()) return { items: [], total: 0, page, pageSize };
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (filters.status) params.set("status", filters.status);
     return request(`/withdrawal-requests?${params}`);

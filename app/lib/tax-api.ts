@@ -1,7 +1,8 @@
+import { apiBaseUrl } from "./api-mode";
 import { authFetch } from "./http";
 import type { Tax, TaxApi, TaxInput, TaxPatch } from "./tax-contract";
 
-const baseUrl = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL;
+const baseUrl = () => apiBaseUrl();
 type Raw = Record<string, unknown>;
 const adapt = (raw: Raw): Tax => ({ id: String(raw.id ?? ""), name: String(raw.name ?? ""), type: raw.type as Tax["type"], rate: Number(raw.rate ?? 0), includeInCost: raw.includeInCost === true, isDefault: raw.isDefault === true, isActive: raw.isActive !== false, createdAt: String(raw.createdAt ?? ""), updatedAt: String(raw.updatedAt ?? "") });
 async function fetchJson(path: string, init: RequestInit = {}) { if (!baseUrl()) throw Object.assign(new Error("El catálogo de impuestos requiere conexión con la API."), { status: 404 }); const response = await authFetch(`${baseUrl()!.replace(/\/$/, "")}${path}`, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } }); const payload: unknown = await response.json().catch(() => undefined); if (!response.ok) throw Object.assign(new Error(response.status === 409 ? "Ya existe un impuesto con ese nombre." : response.status === 401 || response.status === 403 ? "No tenés permiso para gestionar impuestos." : "No pudimos completar la operación."), { status: response.status }); return payload; }

@@ -1,5 +1,7 @@
 "use client";
 
+import { fixturesEnabled } from "@/app/lib/api-mode";
+
 import { Notice } from "@/app/components/ui/notice";
 /* eslint-disable react-hooks/set-state-in-effect */
 
@@ -16,7 +18,7 @@ export const SupplierStatusBadge = ({ status }: { status: SupplierStatus }) => <
 
 export function SupplierList() {
   const router = useRouter(); const [access, setAccess] = useState<Access>("loading"); const [items, setItems] = useState<Supplier[]>([]); const [balances, setBalances] = useState<SupplierBalance[]>([]); const [total, setTotal] = useState(0); const [query, setQuery] = useState(""); const [debouncedQuery, setDebouncedQuery] = useState(""); const [status, setStatus] = useState<SupplierStatus | "">(""); const [hasDebt, setHasDebt] = useState(false); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [dialog, setDialog] = useState(false); const [pending, setPending] = useState(false);
-  useEffect(() => { const user = getStoredUser(); if (!process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL) setAccess("ready"); else if (!user) setAccess("unauthenticated"); else setAccess(user.role === "admin" ? "ready" : "forbidden"); }, []);
+  useEffect(() => { const user = getStoredUser(); if (fixturesEnabled()) setAccess("ready"); else if (!user) setAccess("unauthenticated"); else setAccess(user.role === "admin" ? "ready" : "forbidden"); }, []);
   useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query), 350); return () => window.clearTimeout(timer); }, [query]);
   const load = useCallback(async () => { if (access !== "ready") return; setLoading(true); setError(""); try { const result = await supplierApi.listSuppliers({ q: debouncedQuery, status, page: 1, pageSize: 50 }); const nextBalances = await supplierApi.balances(result.items.map((supplier) => supplier.id)); setItems(result.items); setBalances(nextBalances); setTotal(result.total); } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudieron cargar los proveedores."); } finally { setLoading(false); } }, [access, debouncedQuery, status]);
   useEffect(() => { void load(); }, [load]);

@@ -1,4 +1,6 @@
 "use client";
+
+import { fixturesEnabled } from "@/app/lib/api-mode";
 import { Notice } from "@/app/components/ui/notice";
 /* eslint-disable react-hooks/set-state-in-effect */
 import Link from "next/link";
@@ -13,7 +15,7 @@ type Access = "loading" | "ready" | "unauthenticated" | "forbidden";
 const blank = (): CreateTreasuryAccountDto => ({ name: "", type: "CASH", currency: "ARS", openingBalance: "0", openingDate: new Date().toISOString().slice(0, 10), allowNegative: false });
 export function TreasuryManager() {
   const [access, setAccess] = useState<Access>("loading"), [data, setData] = useState<TreasuryAccountsResponse>({ items: [], totalsByCurrency: [] }), [loading, setLoading] = useState(true), [error, setError] = useState(""), [editor, setEditor] = useState<TreasuryAccount | "new" | null>(null), [form, setForm] = useState<CreateTreasuryAccountDto>(blank()), [saving, setSaving] = useState(false);
-  useEffect(() => { const user = getStoredUser(); if (!process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL) setAccess("ready"); else if (!user) setAccess("unauthenticated"); else setAccess(user.role === "admin" ? "ready" : "forbidden"); }, []);
+  useEffect(() => { const user = getStoredUser(); if (fixturesEnabled()) setAccess("ready"); else if (!user) setAccess("unauthenticated"); else setAccess(user.role === "admin" ? "ready" : "forbidden"); }, []);
   const load = useCallback(async () => { if (access !== "ready") return; setLoading(true); try { setData(await treasuryApi.listAccounts()); setError(""); } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudieron cargar las cuentas."); } finally { setLoading(false); } }, [access]);
   useEffect(() => { void load(); }, [load]);
   const open = (account?: TreasuryAccount) => { setEditor(account ?? "new"); setForm(account ? { name: account.name, type: account.type, currency: account.currency, allowNegative: account.allowNegative } : blank()); };

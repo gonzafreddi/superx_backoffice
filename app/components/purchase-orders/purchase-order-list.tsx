@@ -1,4 +1,6 @@
 "use client";
+
+import { fixturesEnabled } from "@/app/lib/api-mode";
 /* eslint-disable react-hooks/set-state-in-effect */
 import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -18,7 +20,7 @@ export function PurchaseOrderList() {
   const [access, setAccess] = useState<"loading" | "ready" | "unauthenticated" | "forbidden">("loading"), [items, setItems] = useState<PurchaseOrderSummary[]>([]), [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]), [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
   const [query, setQuery] = useState(""), [supplierId, setSupplierId] = useState(""), [warehouseId, setWarehouseId] = useState(""), [status, setStatus] = useState<PurchaseOrderStatus | "">(""), [receiptFilter, setReceiptFilter] = useState<ReceiptStatus | "differences" | "">(""), [from, setFrom] = useState(""), [to, setTo] = useState("");
   const [page, setPage] = useState(1), [total, setTotal] = useState(0), [pageSize, setPageSize] = useState(50), [loading, setLoading] = useState(true), [error, setError] = useState("");
-  useEffect(() => { const user = getStoredUser(); setAccess(!process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL ? "ready" : !user ? "unauthenticated" : user.role === "admin" ? "ready" : "forbidden"); }, []);
+  useEffect(() => { const user = getStoredUser(); setAccess(fixturesEnabled() ? "ready" : !user ? "unauthenticated" : user.role === "admin" ? "ready" : "forbidden"); }, []);
   const load = useCallback(async () => { if (access !== "ready") return; setLoading(true); try { const [orders, supplierResult, warehouseResult] = await Promise.all([purchaseOrderApi.list({ supplierId, warehouseId, status, receiptStatus: receiptFilter === "differences" ? "" : receiptFilter, receiptDifferences: receiptFilter === "differences", from, to, q: query.trim() || undefined, page, pageSize: 50 }), supplierApi.listSuppliers({ status: "ACTIVE", pageSize: 100 }), locationApi.listWarehouses()]); setItems(orders.items); setTotal(orders.total); setPage(orders.page); setPageSize(orders.pageSize); setSuppliers(supplierResult.items.map(({ id, name }) => ({ id, name }))); setWarehouses(warehouseResult.filter((item) => item.isActive !== false).map(({ id, name }) => ({ id, name }))); setError(""); } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudieron cargar las órdenes."); } finally { setLoading(false); } }, [access, from, page, query, receiptFilter, status, supplierId, to, warehouseId]);
   useEffect(() => { const timer = setTimeout(() => void load(), 250); return () => clearTimeout(timer); }, [load]);
   if (access !== "ready") return <section className="workspace"><div className="state error-state"><strong>{access === "unauthenticated" ? "Necesitás iniciar sesión" : access === "forbidden" ? "No autorizado" : "Verificando acceso…"}</strong>{access === "unauthenticated" && <Link className="button primary" href="/login?next=/compras">Iniciar sesión</Link>}</div></section>;

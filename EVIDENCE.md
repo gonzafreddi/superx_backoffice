@@ -996,3 +996,16 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm build
 - git diff --check: PASS.
 
 La URL local satisface la variable obligatoria de next.config.ts para typegen/build; no se modificaron archivos de configuración ni se desplegó. Las pruebas de UI usan jsdom y las del adapter usan HTTP simulado/fixtures; no se realizó una prueba integrada con un backend activo ni una revisión visual en navegador real. No se modificó el backend ni se hizo commit o push; los cambios quedan en el árbol, conservando el staging previo.
+
+
+# Repartidores y modo API
+
+- Contrato leído completo; perfiles conservan `drivers.id == users.id`. Adapter admin separado de `/dispatch`, con authFetch, IDs numéricos en POST, normalización de IDs recibidos, errores backend y fixtures mutables.
+- `/repartidores`: listado y detalle, alta desde candidatos, edición, activación/desactivación y enlace a Usuarios cuando no hay candidatos. Navegación en Operación, admin.
+- Pedidos: panel Reparto con asignación activa e historial; asignar/reasignar en READY/DISPATCHED y asignar en OUT_FOR_DELIVERY sin activa, según regla existente. Lista calcula Sin repartidor con una llamada colectiva a delivery-assignments por carga.
+- `api-mode.ts`: fixtures solo sin URL en desarrollo o con opt-in explícito; guard central aplicado a getters de todos los adapters y http. Componentes usan fixturesEnabled para accesos demo y avisos. Tablero mantiene `/metrics/overview` real.
+- Tests nuevos: api-mode y driver-admin (reglas y contrato HTTP).
+- Archivos nuevos: `app/lib/api-mode.ts`, `driver-admin-contract.ts`, `driver-admin-api.ts`, `driver-admin-rules.ts`; `app/components/driver-manager.tsx`, `orders/order-assignment-panel.tsx`; `app/(backoffice)/repartidores/page.tsx`; `tests/api-mode.test.tsx`, `tests/driver-admin.test.tsx`. Cambios mecánicos en todos los `*-api.ts`, `http.ts` y componentes con checks directos de URL; integración en ambos workspaces de pedidos y admin-shell; flag documentado en `.env.example`.
+- Verificación final: `pnpm typecheck` PASS; `pnpm lint` PASS sin warnings; `pnpm test` PASS (196 tests, 0 fallos, sin NEXT_PUBLIC_SUPERX_API_BASE_URL); `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm build` PASS (41 páginas estáticas, incluye `/repartidores`); `git diff --check` PASS.
+- `admin-shell` muestra el error de configuración de producción sin ocultarlo tras una redirección a login. Con URL configurada conserva la validación de sesión y comportamiento existentes.
+- Las verificaciones HTTP usan fetch simulado; no se probó contra el backend que se está implementando en paralelo ni en navegador real. Sin commit ni push.

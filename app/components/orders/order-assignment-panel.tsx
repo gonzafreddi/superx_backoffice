@@ -1,0 +1,20 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import { assignOrder, getOrderAssignment, listDrivers } from "@/app/lib/driver-admin-api";
+import type { Driver, OrderAssignmentsView } from "@/app/lib/driver-admin-contract";
+import { canAssignOrder } from "@/app/lib/driver-admin-rules";
+import { dateTime } from "./order-shared";
+
+const statuses = { ACTIVE: "Activa", REASSIGNED: "Reasignada", COMPLETED: "Completada", CANCELLED: "Cancelada" };
+export function OrderAssignmentPanel({ orderId, status, canManage }: { orderId: string; status: string; canManage: boolean }) {
+  const [view, setView] = useState<OrderAssignmentsView | null>(null), [drivers, setDrivers] = useState<Driver[]>([]), [error, setError] = useState("");
+  const [loading, setLoading] = useState(true), [pending, setPending] = useState(false), [modal, setModal] = useState(false), [driverId, setDriverId] = useState(""), [note, setNote] = useState("");
+  const load = useCallback(async () => { setLoading(true); setError(""); try { const [assignments, profiles] = await Promise.all([getOrderAssignment(orderId), listDrivers()]); setView(assignments); setDrivers(profiles); } catch (e) { setError(e instanceof Error ? e.message : "No pudimos cargar el reparto."); } finally { setLoading(false); } }, [orderId]);
+  useEffect(() => { const timer = setTimeout(() => { void load(); }, 0); return () => clearTimeout(timer); }, [load, status]);
+  const name = (id: string) => drivers.find(d => d.id === id)?.name ?? `Repartidor #${id}`;
+  const save = async () => { setPending(true); setError(""); try { await assignOrder(orderId, driverId, note.trim() || undefined); setModal(false); await load(); } catch (e) { setError(e instanceof Error ? e.message : "No pudimos asignar el repartidor."); } finally { setPending(false); } };
+  return <section className="order-section-card"><header><h2>Reparto</h2></header>{loading ? <p role="status">Cargando reparto…</p> : view && <><p>{view.active ? <><strong>{name(view.active.driverId)}</strong> · Desde {dateTime.format(new Date(view.active.assignedAt))}{view.active.note && <span> · {view.active.note}</span>}</> : "Sin repartidor asignado."}</p>{canManage && canAssignOrder(status, Boolean(view.active)) && <button className="button secondary" onClick={() => { setDriverId(""); setNote(""); setModal(true); }}>{view.active ? "Reasignar" : "Asignar"}</button>}<h3>Historial de asignaciones</h3>{view.history.length ? <ol>{view.history.map(a => <li key={a.id}><strong>{name(a.driverId)}</strong> · {statuses[a.status]} · {dateTime.format(new Date(a.assignedAt))}{a.endedAt && <> · Hasta {dateTime.format(new Date(a.endedAt))}</>}{a.note && <p>{a.note}</p>}</li>)}</ol> : <p>Sin asignaciones anteriores.</p>}</>}
+    {error && <p role="alert">{error} {!modal && <button className="button secondary" onClick={() => void load()}>Reintentar</button>}</p>}
+    {modal && <div className="modal-backdrop"><form className="modal" role="dialog" aria-modal="true" aria-labelledby="assignment-title" onSubmit={e => { e.preventDefault(); void save(); }}><header><h2 id="assignment-title">{view?.active ? "Reasignar" : "Asignar"} repartidor</h2></header><label className="field">Repartidor activo<select autoFocus required value={driverId} onChange={e => setDriverId(e.target.value)}><option value="">Elegí un repartidor</option>{drivers.filter(d => d.active && d.id !== view?.active?.driverId).map(d => <option key={d.id} value={d.id}>{d.name} · {d.activeAssignments} entregas activas</option>)}</select></label>{!drivers.some(d => d.active && d.id !== view?.active?.driverId) && <p>No hay repartidores activos disponibles.</p>}<label className="field">Nota (opcional)<textarea maxLength={280} value={note} onChange={e => setNote(e.target.value)}/></label>{error && <p role="alert">{error}</p>}<footer><button type="button" className="button secondary" disabled={pending} onClick={() => setModal(false)}>Cancelar</button><button className="button primary" disabled={pending || !driverId}>{pending ? "Asignando…" : "Confirmar"}</button></footer></form></div>}
+  </section>;
+}

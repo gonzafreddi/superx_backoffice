@@ -1,3 +1,4 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "@/app/lib/http";
 import type { PaymentMethod } from "./payment-contract";
 
@@ -20,7 +21,7 @@ export type PurchaseOrderPaymentSummary = {
 };
 export type PayPurchaseOrderInput = { treasuryAccountId: string; method: PaymentMethod; amount: string; paidAt?: string; reference?: string; notes?: string; idempotencyKey: string };
 
-const baseUrl = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL?.replace(/\/$/, "");
+const baseUrl = () => apiBaseUrl()?.replace(/\/$/, "");
 
 async function fetchJson(path: string, init: RequestInit = {}) {
   const base = baseUrl();
@@ -37,7 +38,7 @@ async function fetchJson(path: string, init: RequestInit = {}) {
 
 export const purchaseOrderPaymentApi = {
   async summary(orderId: string): Promise<PurchaseOrderPaymentSummary | null> {
-    if (!baseUrl()) return null;
+    if (fixturesEnabled()) return null;
     return (await fetchJson(`/purchase-orders/${encodeURIComponent(orderId)}/payments`)) as PurchaseOrderPaymentSummary;
   },
   async pay(orderId: string, input: PayPurchaseOrderInput): Promise<PurchaseOrderPaymentSummary> {

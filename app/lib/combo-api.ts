@@ -1,9 +1,10 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "./http";
 import type { Combo, ComboApi, ComboInput } from "./combo-contract";
 
 const now = new Date().toISOString();
 let fixtures: Combo[] = [];
-const base = () => process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL?.replace(/\/$/, "");
+const base = () => apiBaseUrl()?.replace(/\/$/, "");
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 160));
 
 async function json(url: string, init: RequestInit = {}) {
@@ -44,17 +45,17 @@ function fixtureFromInput(id: string, input: ComboInput, previous?: Combo): Comb
 export const comboApi: ComboApi = {
   async listAdmin() {
     const root = base();
-    if (!root) { await wait(); return [...fixtures].sort((a, b) => a.sortOrder - b.sortOrder); }
+    if (fixturesEnabled()) { await wait(); return [...fixtures].sort((a, b) => a.sortOrder - b.sortOrder); }
     return await json(`${root}/combos/admin`) as Combo[];
   },
   async create(input) {
     const root = base();
-    if (!root) { await wait(); const combo = fixtureFromInput(String(Date.now()), input); fixtures = [combo, ...fixtures]; return combo; }
+    if (fixturesEnabled()) { await wait(); const combo = fixtureFromInput(String(Date.now()), input); fixtures = [combo, ...fixtures]; return combo; }
     return await json(`${root}/combos`, { method: "POST", body: JSON.stringify(input) }) as Combo;
   },
   async update(id, input) {
     const root = base();
-    if (!root) {
+    if (fixturesEnabled()) {
       await wait();
       const previous = fixtures.find((item) => item.id === id);
       if (!previous) throw new Error("El combo ya no está disponible.");
@@ -76,7 +77,7 @@ export const comboApi: ComboApi = {
   },
   async uploadImage(id, file) {
     const root = base();
-    if (!root) {
+    if (fixturesEnabled()) {
       await wait();
       const combo = fixtures.find((item) => item.id === id);
       if (!combo) throw new Error("El combo ya no está disponible.");
@@ -87,7 +88,7 @@ export const comboApi: ComboApi = {
   },
   async deleteImage(id) {
     const root = base();
-    if (!root) {
+    if (fixturesEnabled()) {
       await wait();
       const combo = fixtures.find((item) => item.id === id);
       if (!combo) throw new Error("El combo ya no está disponible.");

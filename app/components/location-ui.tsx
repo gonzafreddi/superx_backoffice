@@ -1,5 +1,7 @@
 "use client";
 
+import { fixturesEnabled } from "@/app/lib/api-mode";
+
 import type { FormEvent, RefObject } from "react";
 import type { LocationInput } from "@/app/lib/location-contract";
 import type { UserRole } from "@/app/lib/product-contract";
@@ -38,7 +40,7 @@ export function LocationIcon({ name }: { name: "warehouse" | "plus" | "edit" | "
 }
 
 export function RolePicker({ role, onChange }: { role: UserRole; onChange: (role: UserRole) => void }) {
-  if (process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL) return null;
+  if (!fixturesEnabled()) return null;
   return <label className="role-picker">Rol activo<select value={role} onChange={(event) => onChange(event.target.value as UserRole)}>{Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>;
 }
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { fixturesEnabled } from "@/app/lib/api-mode";
+
 import { Notice } from "@/app/components/ui/notice";
 /* eslint-disable react-hooks/set-state-in-effect */
 import Link from "next/link";
@@ -19,7 +21,7 @@ const money = (value: string, currency: string) => new Intl.NumberFormat("es-AR"
 const tabs: Array<[Tab, string]> = [["summary", "Resumen"], ["purchases", "Compras"], ["invoices", "Facturas"], ["payments", "Pagos"], ["account", "Cuenta corriente"], ["data", "Datos"], ["history", "Historial"]];
 export function SupplierDetail({ supplierId }: { supplierId: string }) {
   const [access, setAccess] = useState<Access>("loading"), [supplier, setSupplier] = useState<SupplierData | null>(null), [account, setAccount] = useState<SupplierAccount | null>(null), [movements, setMovements] = useState<PaginatedSupplierMovements | null>(null), [orders, setOrders] = useState<Awaited<ReturnType<typeof purchaseOrderApi.list>>["items"]>([]), [invoices, setInvoices] = useState<Awaited<ReturnType<typeof invoiceApi.list>>["items"]>([]), [payments, setPayments] = useState<Awaited<ReturnType<typeof paymentApi.list>>["items"]>([]), [events, setEvents] = useState<SupplierEvent[]>([]), [tab, setTab] = useState<Tab>("summary"), [currency, setCurrency] = useState("ARS"), [from, setFrom] = useState(""), [to, setTo] = useState(""), [loading, setLoading] = useState(true), [error, setError] = useState(""), [editing, setEditing] = useState(false), [pending, setPending] = useState(false);
-  useEffect(() => { const user = getStoredUser(); setAccess(!process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL || user?.role === "admin" ? "ready" : user ? "forbidden" : "unauthenticated"); }, []);
+  useEffect(() => { const user = getStoredUser(); setAccess(fixturesEnabled() || user?.role === "admin" ? "ready" : user ? "forbidden" : "unauthenticated"); }, []);
   const load = useCallback(async () => { if (access !== "ready") return; setLoading(true); setError(""); try { const detail = await supplierApi.getSupplier(supplierId); const [nextAccount, nextOrders, nextInvoices, nextPayments, nextEvents] = await Promise.all([supplierApi.account(supplierId), purchaseOrderApi.list({ supplierId, pageSize: 50 }), invoiceApi.list({ supplierId, pageSize: 50 }), paymentApi.list({ supplierId, pageSize: 50 }), supplierApi.events(supplierId)]); setSupplier(detail); setAccount(nextAccount); setCurrency((current) => nextAccount.currencies.some((item) => item.currency === current) ? current : (nextAccount.currencies[0]?.currency ?? "ARS")); setOrders(nextOrders.items); setInvoices(nextInvoices.items); setPayments(nextPayments.items); setEvents(nextEvents); } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo cargar el proveedor."); } finally { setLoading(false); } }, [access, supplierId]);
   const loadMovements = useCallback(async () => { if (access !== "ready") return; try { setMovements(await supplierApi.movements(supplierId, { currency, from: from || undefined, to: to || undefined, pageSize: 100 })); } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo cargar la cuenta corriente."); } }, [access, currency, from, supplierId, to]);
   useEffect(() => { void load(); }, [load]); useEffect(() => { if (tab === "account") void loadMovements(); }, [loadMovements, tab]);

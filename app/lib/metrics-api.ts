@@ -1,8 +1,9 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "@/app/lib/http";
 import type { KpiSnapshot, MetricsApi, MetricsRange } from "./metrics-contract";
 import { rangeDays, validateRange } from "./metrics-rules";
 
-function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; }
+function baseUrl(): string | undefined { return apiBaseUrl(); }
 
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 
@@ -50,8 +51,8 @@ export const metricsApi: MetricsApi = {
     const message = Object.values(validateRange(range))[0] as string | undefined;
     if (message) throw new Error(message);
     const url = baseUrl();
-    if (!url) { await wait(); return seeded(range); }
-    const root = url.replace(/\/$/, "");
+    if (fixturesEnabled()) { await wait(); return seeded(range); }
+    const root = url!.replace(/\/$/, "");
     const response = await authFetch(`${root}/metrics/overview?from=${range.from}&to=${range.to}`, { headers: { Accept: "application/json" } });
     const payload: unknown = await response.json().catch(() => undefined);
     if (!response.ok) {

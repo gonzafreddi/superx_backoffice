@@ -1,3 +1,4 @@
+import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "@/app/lib/http";
 import { productImageError } from "./product-image-rules.js";
 import type { Brand, Category, Product, ProductApi, ProductFilters, ProductImage, ProductInput, ProductPage, Unit } from "./product-contract";
@@ -13,7 +14,7 @@ let products: Product[] = [
 const wait = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
 const missing = () => new Error("El producto ya no está disponible. Actualizá el listado e intentá nuevamente.");
 
-function baseUrl(): string | undefined { return process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; }
+function baseUrl(): string | undefined { return apiBaseUrl(); }
 
 type RawCategory = { id: string; name: string };
 type RawBrand = { id: string; name: string };
@@ -89,8 +90,8 @@ export const productApi: ProductApi = {
   },
   async listProductPage(filters: ProductFilters = {}): Promise<ProductPage> {
     const url = baseUrl();
-    if (!url) { await wait(); const query = filters.query?.toLocaleLowerCase("es-AR").trim() ?? ""; let items = products.filter((p) => (!query || [p.name, p.sku, p.barcode].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.categoryId || p.categoryId === filters.categoryId) && (!filters.brandId || p.brandId === filters.brandId) && (!filters.status || filters.status === "all" || (filters.status === "active" ? p.active : !p.active)) && (!filters.stock || filters.stock === "all" || (filters.stock === "in_stock" ? (p.availableStock ?? 0) > 0 : (p.availableStock ?? 0) === 0))); const pageSize = filters.pageSize ?? 25; const page = filters.page ?? 1; if (filters.sort === "name_asc") items = [...items].sort((a, b) => a.name.localeCompare(b.name, "es-AR")); if (filters.sort === "name_desc") items = [...items].sort((a, b) => b.name.localeCompare(a.name, "es-AR")); if (filters.sort === "newest") items = [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); if (filters.sort === "oldest") items = [...items].sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)); return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pageSize }; }
-    const root = url.replace(/\/$/, "");
+    if (fixturesEnabled()) { await wait(); const query = filters.query?.toLocaleLowerCase("es-AR").trim() ?? ""; let items = products.filter((p) => (!query || [p.name, p.sku, p.barcode].some((value) => value.toLocaleLowerCase("es-AR").includes(query))) && (!filters.categoryId || p.categoryId === filters.categoryId) && (!filters.brandId || p.brandId === filters.brandId) && (!filters.status || filters.status === "all" || (filters.status === "active" ? p.active : !p.active)) && (!filters.stock || filters.stock === "all" || (filters.stock === "in_stock" ? (p.availableStock ?? 0) > 0 : (p.availableStock ?? 0) === 0))); const pageSize = filters.pageSize ?? 25; const page = filters.page ?? 1; if (filters.sort === "name_asc") items = [...items].sort((a, b) => a.name.localeCompare(b.name, "es-AR")); if (filters.sort === "name_desc") items = [...items].sort((a, b) => b.name.localeCompare(a.name, "es-AR")); if (filters.sort === "newest") items = [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); if (filters.sort === "oldest") items = [...items].sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)); return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pageSize }; }
+    const root = url!.replace(/\/$/, "");
     const params = new URLSearchParams({ pageSize: String(filters.pageSize ?? 25), page: String(filters.page ?? 1), includeInactive: "true", sort: filters.sort ?? "name_asc" });
     if (filters.query?.trim()) params.set("q", filters.query.trim());
     if (filters.categoryId) params.set("categoryId", filters.categoryId);
@@ -114,35 +115,35 @@ export const productApi: ProductApi = {
   },
   async getProduct(slug) {
     const url = baseUrl();
-    if (!url) { await wait(); const found = products.find((item) => item.slug === slug || item.id === slug); if (!found) throw missing(); return found; }
-    const root = url.replace(/\/$/, "");
+    if (fixturesEnabled()) { await wait(); const found = products.find((item) => item.slug === slug || item.id === slug); if (!found) throw missing(); return found; }
+    const root = url!.replace(/\/$/, "");
     const [payload, unitsList] = await Promise.all([fetchJson(`${root}/products/${encodeURIComponent(slug)}?includeInactive=true`), this.listUnits()]);
     return adaptProduct(payload as RawProduct, new Map(unitsList.map((unit) => [unit.id, unit])));
   },
   async listCategories() {
     const url = baseUrl();
-    if (!url) { await wait(); return categories; }
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/categories?includeInactive=true`);
+    if (fixturesEnabled()) { await wait(); return categories; }
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/categories?includeInactive=true`);
     return Array.isArray(payload) ? (payload as RawCategory[]).map((item) => ({ id: item.id, name: item.name })) : [];
   },
   async listBrands() {
     const url = baseUrl();
-    if (!url) { await wait(); return brands; }
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/brands?includeInactive=true`);
+    if (fixturesEnabled()) { await wait(); return brands; }
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/brands?includeInactive=true`);
     return Array.isArray(payload) ? (payload as RawBrand[]).map((item) => ({ id: item.id, name: item.name })) : [];
   },
   async listUnits() {
     const url = baseUrl();
-    if (!url) { await wait(); return units; }
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/units?includeInactive=true`);
+    if (fixturesEnabled()) { await wait(); return units; }
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/units?includeInactive=true`);
     return Array.isArray(payload) ? (payload as RawUnit[]).map((item) => ({ id: item.id, code: item.code, name: item.name })) : [];
   },
   async createBrand(input) {
     const name = input.name.trim();
     if (!name) throw new Error("Ingresá el nombre de la marca.");
     const url = baseUrl();
-    if (!url) { await wait(); const brand = { id: crypto.randomUUID(), name }; brands.push(brand); return brand; }
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/brands`, { method: "POST", body: JSON.stringify({ name }) });
+    if (fixturesEnabled()) { await wait(); const brand = { id: crypto.randomUUID(), name }; brands.push(brand); return brand; }
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/brands`, { method: "POST", body: JSON.stringify({ name }) });
     const brand = payload as RawBrand;
     return { id: brand.id, name: brand.name };
   },
@@ -150,8 +151,8 @@ export const productApi: ProductApi = {
     const name = input.name.trim();
     if (!name) throw new Error("Ingresá el nombre de la categoría.");
     const url = baseUrl();
-    if (!url) { await wait(); const category = { id: crypto.randomUUID(), name }; categories.push(category); return category; }
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/categories`, { method: "POST", body: JSON.stringify({ name }) });
+    if (fixturesEnabled()) { await wait(); const category = { id: crypto.randomUUID(), name }; categories.push(category); return category; }
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/categories`, { method: "POST", body: JSON.stringify({ name }) });
     const category = payload as RawCategory;
     return { id: category.id, name: category.name };
   },
@@ -161,64 +162,64 @@ export const productApi: ProductApi = {
     if (!name) throw new Error("Ingresá el nombre de la unidad.");
     if (!code) throw new Error("Ingresá el código de la unidad.");
     const url = baseUrl();
-    if (!url) { await wait(); const unit = { id: crypto.randomUUID(), name, code }; units.push(unit); return unit; }
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/units`, { method: "POST", body: JSON.stringify({ name, code }) });
+    if (fixturesEnabled()) { await wait(); const unit = { id: crypto.randomUUID(), name, code }; units.push(unit); return unit; }
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/units`, { method: "POST", body: JSON.stringify({ name, code }) });
     const unit = payload as RawUnit;
     return { id: unit.id, name: unit.name, code: unit.code };
   },
   async createProduct(input) {
     const url = baseUrl();
-    if (!url) { await wait(); const number = products.length + 1; const category = categories.find((item) => item.id === input.categoryId); const brand = brands.find((item) => item.id === input.brandId); const product: Product = { ...input, images: [], id: `prd-${String(number).padStart(3, "0")}`, slug: input.name.toLocaleLowerCase("es-AR").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""), sku: `SUP-${String(number).padStart(4, "0")}`, categoryName: category?.name ?? "Sin categoría", brandName: brand?.name ?? "Sin marca", updatedAt: new Date().toISOString(), availableStock: 0 }; products = [product, ...products]; return product; }
+    if (fixturesEnabled()) { await wait(); const number = products.length + 1; const category = categories.find((item) => item.id === input.categoryId); const brand = brands.find((item) => item.id === input.brandId); const product: Product = { ...input, images: [], id: `prd-${String(number).padStart(3, "0")}`, slug: input.name.toLocaleLowerCase("es-AR").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""), sku: `SUP-${String(number).padStart(4, "0")}`, categoryName: category?.name ?? "Sin categoría", brandName: brand?.name ?? "Sin marca", updatedAt: new Date().toISOString(), availableStock: 0 }; products = [product, ...products]; return product; }
     const unitsList = await this.listUnits();
     const unit = unitsList.find((candidate) => candidate.code === input.unit);
     if (!unit) throw new Error("Seleccioná una unidad de venta válida.");
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/products`, { method: "POST", body: JSON.stringify(buildCreateBody(input, unit.id)) });
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/products`, { method: "POST", body: JSON.stringify(buildCreateBody(input, unit.id)) });
     const unitById = new Map(unitsList.map((u) => [u.id, u]));
     return adaptProduct(payload as RawProduct, unitById);
   },
   async updateProduct(id, input) {
     const url = baseUrl();
-    if (!url) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); const updated = { ...found, ...input, updatedAt: new Date().toISOString() }; products = products.map((p) => p.id === id ? updated : p); return updated; }
+    if (fixturesEnabled()) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); const updated = { ...found, ...input, updatedAt: new Date().toISOString() }; products = products.map((p) => p.id === id ? updated : p); return updated; }
     const unitsList = await this.listUnits();
     const unit = unitsList.find((candidate) => candidate.code === input.unit);
     if (!unit) throw new Error("Seleccioná una unidad de venta válida.");
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/products/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(buildUpdateBody(input, unit.id)) });
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/products/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(buildUpdateBody(input, unit.id)) });
     const unitById = new Map(unitsList.map((u) => [u.id, u]));
     return adaptProduct(payload as RawProduct, unitById);
   },
   async setProductStatus(id, active) {
     const url = baseUrl();
-    if (!url) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); const updated = { ...found, active, updatedAt: new Date().toISOString() }; products = products.map((p) => p.id === id ? updated : p); return updated; }
+    if (fixturesEnabled()) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); const updated = { ...found, active, updatedAt: new Date().toISOString() }; products = products.map((p) => p.id === id ? updated : p); return updated; }
     const unitsList = await this.listUnits();
-    const payload = await fetchJson(`${url.replace(/\/$/, "")}/products/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ isActive: active }) });
+    const payload = await fetchJson(`${url!.replace(/\/$/, "")}/products/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ isActive: active }) });
     const unitById = new Map(unitsList.map((u) => [u.id, u]));
     return adaptProduct(payload as RawProduct, unitById);
   },
   async uploadProductImage(id, file, alt) {
     const url = baseUrl();
-    if (!url) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); const image: ProductImage = { id: crypto.randomUUID(), url: URL.createObjectURL(file), altText: alt?.trim() || null, sortOrder: found.images.length, isPrimary: found.images.length === 0 }; found.images = [...found.images, image]; found.imageUrl = found.images[0]?.url ?? ""; return found.images; }
+    if (fixturesEnabled()) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); const image: ProductImage = { id: crypto.randomUUID(), url: URL.createObjectURL(file), altText: alt?.trim() || null, sortOrder: found.images.length, isPrimary: found.images.length === 0 }; found.images = [...found.images, image]; found.imageUrl = found.images[0]?.url ?? ""; return found.images; }
     const form = new FormData(); form.append("file", file); if (alt?.trim()) form.append("alt", alt.trim());
-    const response = await authFetch(`${url.replace(/\/$/, "")}/products/${encodeURIComponent(id)}/images`, { method: "POST", body: form, headers: { Accept: "application/json" } });
+    const response = await authFetch(`${url!.replace(/\/$/, "")}/products/${encodeURIComponent(id)}/images`, { method: "POST", body: form, headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error(productImageError(response.status));
     return adaptImages(await response.json() as RawImage[]);
   },
   async deleteProductImage(id, imageId) {
     const url = baseUrl();
-    if (!url) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); found.images = found.images.filter((image) => image.id !== imageId).map((image, index) => ({ ...image, sortOrder: index, isPrimary: index === 0 })); found.imageUrl = found.images[0]?.url ?? ""; return found.images; }
-    const response = await authFetch(`${url.replace(/\/$/, "")}/products/${encodeURIComponent(id)}/images/${encodeURIComponent(imageId)}`, { method: "DELETE", headers: { Accept: "application/json" } });
+    if (fixturesEnabled()) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); found.images = found.images.filter((image) => image.id !== imageId).map((image, index) => ({ ...image, sortOrder: index, isPrimary: index === 0 })); found.imageUrl = found.images[0]?.url ?? ""; return found.images; }
+    const response = await authFetch(`${url!.replace(/\/$/, "")}/products/${encodeURIComponent(id)}/images/${encodeURIComponent(imageId)}`, { method: "DELETE", headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error(productImageError(response.status));
     return adaptImages(await response.json() as RawImage[]);
   },
   async reorderProductImages(id, imageIds) {
     const url = baseUrl();
-    if (!url) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); const byId = new Map(found.images.map((image) => [image.id, image])); found.images = imageIds.map((imageId, index) => ({ ...byId.get(imageId)!, sortOrder: index, isPrimary: index === 0 })); found.imageUrl = found.images[0]?.url ?? ""; return found.images; }
-    const response = await authFetch(`${url.replace(/\/$/, "")}/products/${encodeURIComponent(id)}/images/order`, { method: "PATCH", body: JSON.stringify({ imageIds }), headers: { Accept: "application/json", "Content-Type": "application/json" } });
+    if (fixturesEnabled()) { await wait(); const found = products.find((p) => p.id === id); if (!found) throw missing(); const byId = new Map(found.images.map((image) => [image.id, image])); found.images = imageIds.map((imageId, index) => ({ ...byId.get(imageId)!, sortOrder: index, isPrimary: index === 0 })); found.imageUrl = found.images[0]?.url ?? ""; return found.images; }
+    const response = await authFetch(`${url!.replace(/\/$/, "")}/products/${encodeURIComponent(id)}/images/order`, { method: "PATCH", body: JSON.stringify({ imageIds }), headers: { Accept: "application/json", "Content-Type": "application/json" } });
     if (!response.ok) throw new Error(productImageError(response.status));
     return adaptImages(await response.json() as RawImage[]);
   },
   async deleteProduct(id) {
-    const url = baseUrl();
-    if (!url) { await wait(); if (!products.some((p) => p.id === id)) throw missing(); products = products.filter((p) => p.id !== id); return; }
+    baseUrl();
+    if (fixturesEnabled()) { await wait(); if (!products.some((p) => p.id === id)) throw missing(); products = products.filter((p) => p.id !== id); return; }
     await unsupportedDelete();
   },
 };
