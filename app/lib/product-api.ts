@@ -21,7 +21,7 @@ type RawBrand = { id: string; name: string };
 type RawUnit = { id: string; code: string; name: string };
 type RawImage = { id?: unknown; url?: unknown; altText?: unknown; sortOrder?: unknown; isPrimary?: unknown };
 type RawBarcode = { value?: unknown };
-type RawProduct = { id: string; name: string; description?: string; slug: string; categoryId: string; brandId: string | null; unitId: string; isActive: boolean; updatedAt: string; availableStock?: number; category?: { name?: unknown }; brand?: { name?: unknown } | null; unit?: { code?: unknown }; images?: RawImage[]; barcodes?: RawBarcode[] };
+type RawProduct = Pick<Product, "saleMode" | "weightMinGrams" | "weightStepGrams"> & { id: string; name: string; description?: string; slug: string; categoryId: string; brandId: string | null; unitId: string; isActive: boolean; updatedAt: string; availableStock?: number; category?: { name?: unknown }; brand?: { name?: unknown } | null; unit?: { code?: unknown }; images?: RawImage[]; barcodes?: RawBarcode[] };
 type RawResolvedPrice = { productId: string; amount: string };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
@@ -41,6 +41,9 @@ function adaptProduct(raw: RawProduct, unitById: Map<string, RawUnit>): Product 
   return {
     id: raw.id,
     slug: raw.slug,
+    saleMode: raw.saleMode ?? "UNIT",
+    weightMinGrams: raw.weightMinGrams ?? null,
+    weightStepGrams: raw.weightStepGrams ?? null,
     name: raw.name,
     description: raw.description ?? "",
     sku: raw.slug.toUpperCase(),
@@ -70,13 +73,16 @@ function buildCreateBody(input: ProductInput, unitId: string) {
     categoryId: Number(input.categoryId),
     brandId: input.brandId ? Number(input.brandId) : undefined,
     unitId: Number(unitId),
+    saleMode: input.saleMode ?? "UNIT",
+    weightMinGrams: input.saleMode === "WEIGHT" ? input.weightMinGrams : null,
+    weightStepGrams: input.saleMode === "WEIGHT" ? input.weightStepGrams : null,
     barcodes: input.barcode ? [{ value: input.barcode }] : [],
     images: input.imageUrl ? [{ url: input.imageUrl, isPrimary: true }] : [],
   };
 }
 
 function buildUpdateBody(input: ProductInput, unitId: string) {
-  return { name: input.name, description: input.description?.trim() || undefined, categoryId: Number(input.categoryId), brandId: input.brandId ? Number(input.brandId) : undefined, unitId: Number(unitId), barcodes: input.barcode ? [{ value: input.barcode }] : [], isActive: input.active };
+  return { saleMode: input.saleMode ?? "UNIT", weightMinGrams: input.saleMode === "WEIGHT" ? input.weightMinGrams : null, weightStepGrams: input.saleMode === "WEIGHT" ? input.weightStepGrams : null, name: input.name, description: input.description?.trim() || undefined, categoryId: Number(input.categoryId), brandId: input.brandId ? Number(input.brandId) : undefined, unitId: Number(unitId), barcodes: input.barcode ? [{ value: input.barcode }] : [], isActive: input.active };
 }
 
 /** Real backend has no product DELETE — products can only be deactivated (PATCH isActive:false). */

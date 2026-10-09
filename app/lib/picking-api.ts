@@ -99,6 +99,7 @@ async function http(path: string, init?: RequestInit): Promise<PickingTask> {
       throw new PickingApiError("El código escaneado no corresponde a este producto.", 400, "barcode_mismatch");
     }
     const known: Record<string, string> = {
+      "Peso fuera de tolerancia": "Peso fuera de tolerancia: el peso real puede superar hasta un 15% el pedido. Revisá la balanza y corregí los gramos.",
       "Task not found.": "La tarea ya no está disponible.",
       "Picking task not found.": "La tarea ya no está disponible.",
       "Task has pending items.": "Todavía hay productos sin resolver.",
@@ -199,6 +200,19 @@ export const pickingApi: PickingApi = {
       method: "POST",
       body: JSON.stringify({ quantity, ...(barcode ? { barcode } : {}) }),
     });
+  },
+  async recordWeight(taskId, itemId, grams) {
+    if (fixturesEnabled()) {
+      await wait(150);
+      const next = clone(find(taskId));
+      const line = next.items.find((item) => item.id === itemId);
+      if (!line) throw new PickingApiError("Línea no encontrada.", 404);
+      if (next.status !== "IN_PROGRESS" || line.saleMode !== "WEIGHT" || ["SHORT", "SUBSTITUTED"].includes(line.status)) throw new PickingApiError("No se puede registrar el peso de esta línea.", 400);
+      if (!Number.isInteger(grams) || grams <= 0) throw new PickingApiError("Ingresá gramos enteros mayores que cero.", 400);
+      if (grams * 100 > line.quantityRequired * 115) throw new PickingApiError("Peso fuera de tolerancia: el máximo es un 15% sobre el pedido.", 400);
+      line.quantityPicked = grams; line.status = "PICKED"; replace(next); return clone(next);
+    }
+    return http(`/picking/tasks/${encodeURIComponent(taskId)}/items/${encodeURIComponent(itemId)}/weight`, { method: "POST", body: JSON.stringify({ grams }) });
   },
   async reportShortage(taskId, itemId, resolution, substituteProductId, note) {
     if (fixturesEnabled()) {

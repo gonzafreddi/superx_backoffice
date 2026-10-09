@@ -1,7 +1,8 @@
+import type { SaleMode, WeightFields } from "./quantity-rules";
 export type PickingTaskStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 export type PickingItemStatus = "PENDING" | "PICKED" | "SHORT" | "SUBSTITUTED";
 
-export type PickingItem = {
+export type PickingItem = WeightFields & {
   id: string;
   productName: string;
   unitCode: string;
@@ -58,7 +59,8 @@ export type PickingApi = {
   assignToMe(id: string): Promise<PickingTask>;
   startTask(id: string): Promise<PickingTask>;
   pickItem(taskId: string, itemId: string, quantity: number, barcode?: string): Promise<PickingTask>;
+  recordWeight(taskId: string, itemId: string, grams: number): Promise<PickingTask>;
   reportShortage(taskId: string, itemId: string, resolution: "REPLACE_SIMILAR" | "CONTACT_ME" | "REMOVE_ITEM", substituteProductId?: string, note?: string): Promise<PickingTask>;
-  searchProducts(query: string): Promise<Array<{ id: string; name: string }>>;
+  searchProducts(query: string): Promise<Array<{ id: string; name: string; saleMode?: SaleMode }>>;
   completeTask(id: string): Promise<PickingTask>;
 };

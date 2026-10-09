@@ -1,3 +1,5 @@
+import { ProductQuantityInput } from "@/app/components/ui/product-quantity-input";
+import { formatQuantity, priceSuffix } from "@/app/lib/quantity-rules";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { money } from "../purchase-order-ui";
 import { previewPurchaseOrderLine } from "@/app/lib/purchase-order-rules";
@@ -78,8 +80,8 @@ export function OrderLines({
               <th>Producto</th>
               <th>Presentación</th>
               <th>Packs</th>
-              <th>U./pack</th>
-              <th>Unidades</th>
+              <th>U. o kg/pack</th>
+              <th>Cantidad</th>
               <th>Costo pack</th>
               <th>Costo unit.</th>
               <th>Desc. $</th>
@@ -164,18 +166,16 @@ export function OrderLines({
                       {errors[`item-${index}-quantity`] && <small>{errors[`item-${index}-quantity`]}</small>}
                     </td>
                     <td>
-                      <input
-                        aria-label={`Unidades por pack línea ${index + 1}`}
+                      <ProductQuantityInput
+                        aria-label={`${line.product?.saleMode === "WEIGHT" ? "Kg" : "Unidades"} por pack línea ${index + 1}`}
                         disabled={readOnly || Boolean(line.packagingId)}
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={line.unitsPerPack}
-                        onChange={(event) => onUpdate(index, { unitsPerPack: event.target.value })}
+                        saleMode={line.product?.saleMode}
+                        value={Number(line.unitsPerPack)}
+                        onChange={(quantity) => onUpdate(index, { unitsPerPack: String(quantity) })}
                       />
                       {errors[`item-${index}-units`] && <small>{errors[`item-${index}-units`]}</small>}
                     </td>
-                    <td className="poe-number">{preview.unitQuantity}</td>
+                    <td className="poe-number">{formatQuantity(preview.unitQuantity, line.product?.saleMode)}</td>
                     <td>
                       <input
                         aria-label={`Costo por pack línea ${index + 1}`}
@@ -188,7 +188,7 @@ export function OrderLines({
                       />
                       {errors[`item-${index}-cost`] && <small>{errors[`item-${index}-cost`]}</small>}
                     </td>
-                    <td className="poe-number">{money(preview.unitCost)}</td>
+                    <td className="poe-number">{money(preview.unitCost * (line.product?.saleMode === "WEIGHT" ? 1000 : 1))}{priceSuffix(line.product?.saleMode)}</td>
                     <td>
                       <input
                         aria-label={`Descuento línea ${index + 1}`}

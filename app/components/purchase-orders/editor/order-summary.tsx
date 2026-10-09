@@ -1,3 +1,4 @@
+import { summarizeQuantities } from "@/app/lib/quantity-rules";
 import { money } from "../purchase-order-ui";
 import type { OrderSummaryValues } from "./types";
 import type { Line } from "./types";
@@ -71,7 +72,7 @@ export function OrderSummary({
           <strong>{money(summary.total)}</strong>
         </div>
         <small>
-          {summary.lineCount} {summary.lineCount === 1 ? "línea" : "líneas"} · {summary.unitCount} u. en total
+          {summary.lineCount} {summary.lineCount === 1 ? "línea" : "líneas"} · {summarizeQuantities(lines, (line) => Number(line.packageQuantity) * Number(line.unitsPerPack), (line) => line.product?.saleMode)} en total
         </small>
       </div>
       {breakdown.some(({ tax }) => tax.includeInCost) && <small className="poe-cost-hint">Costo al recibir incluye: {breakdown.filter(({ tax }) => tax.includeInCost).map(({ tax }) => tax.name).join(", ")}.</small>}

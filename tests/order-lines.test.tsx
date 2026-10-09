@@ -17,3 +17,14 @@ const createButton = () => screen.queryByRole("button", { name: /Crear producto 
 test("los resultados solo aparecen con el buscador enfocado", () => { renderLines(); assert.equal(createButton(), null); const input = screen.getByLabelText("Producto línea 1"); fireEvent.focus(input); assert.ok(createButton()); fireEvent.blur(input); assert.equal(createButton(), null); });
 test("crear producto cierra los resultados para no tapar el diálogo", () => { let created = ""; renderLines({ onCreateProduct: (_index, query) => { created = query; } }); fireEvent.focus(screen.getByLabelText("Producto línea 1")); fireEvent.mouseDown(createButton()!); assert.equal(created, "yerba"); assert.equal(createButton(), null); });
 test("elegir un resultado o Escape cierran la lista", () => { let selected = ""; renderLines({ onSelectProduct: (_index, product) => { selected = product.name; } }); const input = screen.getByLabelText("Producto línea 1"); fireEvent.focus(input); fireEvent.keyDown(input, { key: "Escape" }); assert.equal(createButton(), null); fireEvent.change(input, { target: { value: "yerb" } }); fireEvent.click(screen.getByRole("button", { name: "Yerba Playadito" })); assert.equal(selected, "Yerba Playadito"); assert.equal(createButton(), null); });
+
+test("línea WEIGHT muestra kg y convierte coma decimal a gramos para compras", () => {
+  const line = { ...searchLine("queso"), product: { id: "5", name: "Queso", slug: "queso", saleMode: "WEIGHT" as const }, unitsPerPack: "1250", packageQuantity: "2", costPerPackage: "1000" };
+  let saved: Partial<Line> = {};
+  renderLines({ lines: [line], onUpdate: (_index, patch) => { saved = patch; } });
+  const input = screen.getByLabelText("Kg por pack línea 1") as HTMLInputElement;
+  assert.equal(input.value, "1.25");
+  assert.ok(screen.getByText("2,5 kg"));
+  fireEvent.change(input, { target: { value: "0,530" } });
+  assert.deepEqual(saved, { unitsPerPack: "530" });
+});

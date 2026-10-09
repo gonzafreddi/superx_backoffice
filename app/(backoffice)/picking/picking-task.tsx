@@ -9,7 +9,7 @@ import { PickingLine, type Incident } from "./picking-line";
 import { AuthState, type Deps, errorMessage, Icon, isAuthError, Loading, Progress, Spinner, Status } from "./picking-ui";
 import styles from "./picking.module.css";
 
-export function PickingTask({ id, loadTask = pickingApi.getTask, loadMine = pickingApi.listMyTasks, start = pickingApi.startTask, pick = pickingApi.pickItem, reportShortage = pickingApi.reportShortage, searchProducts = pickingApi.searchProducts, complete = pickingApi.completeTask }: Deps & { id: string }) {
+export function PickingTask({ id, loadTask = pickingApi.getTask, loadMine = pickingApi.listMyTasks, start = pickingApi.startTask, pick = pickingApi.pickItem, recordWeight = pickingApi.recordWeight, reportShortage = pickingApi.reportShortage, searchProducts = pickingApi.searchProducts, complete = pickingApi.completeTask }: Deps & { id: string }) {
   const [task, setTask] = useState<Task | null>(null), [state, setState] = useState<"loading" | "ready" | "error" | "auth" | "blocked" | "done">("loading");
   const [error, setError] = useState(""), [lineErrors, setLineErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null), [barcode, setBarcode] = useState(""), [highlight, setHighlight] = useState("");
@@ -58,7 +58,7 @@ export function PickingTask({ id, loadTask = pickingApi.getTask, loadMine = pick
     } finally { locked.current = false; setBusy(null); }
     return success;
   };
-  const pickLine = (item: PickingItem, quantity: number, code?: string) => mutate(item.id, () => pick(id, item.id, quantity, code), item.id);
+  const pickLine = (item: PickingItem, quantity: number, code?: string) => mutate(item.id, () => item.saleMode === "WEIGHT" ? recordWeight(id, item.id, quantity) : pick(id, item.id, quantity, code), item.id);
   const shortage = (item: PickingItem, incident: Incident) => mutate(item.id, async () => {
     if (incident.quantity !== item.quantityPicked) accept(await pick(id, item.id, incident.quantity));
     return reportShortage(id, item.id, incident.resolution, incident.substituteId, incident.note);
@@ -70,6 +70,7 @@ export function PickingTask({ id, loadTask = pickingApi.getTask, loadMine = pick
     if (!item) { setError("El código no coincide con un producto pendiente. Revisá el código o confirmá la línea manualmente."); scanRef.current?.select(); return; }
     setHighlight(item.id);
     document.getElementById(`line-${item.id}`)?.scrollIntoView?.({ behavior: "instant", block: "center" });
+    if (item.saleMode === "WEIGHT") { setBarcode(""); setError("Ingresá el peso real (g) en la línea antes de confirmar."); document.getElementById(`weight-${item.id}`)?.focus(); return; }
     if (await pickLine(item, Math.min(item.quantityRequired, item.quantityPicked + 1), code)) setBarcode("");
     scanRef.current?.focus();
   };

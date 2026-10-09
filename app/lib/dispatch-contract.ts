@@ -1,3 +1,4 @@
+import type { WeightFields } from "./quantity-rules";
 export type LatLng = { lat: number; lng: number };
 export type IncidentReason = "CUSTOMER_ABSENT" | "WRONG_ADDRESS" | "NO_ANSWER" | "ORDER_PROBLEM" | "PAYMENT" | "OTHER";
 export type DispatchIncident = { id: string; reason: IncidentReason; note: string | null; createdAt: string; reportedBy: { id: string; name: string | null } };
@@ -7,13 +8,14 @@ export type DispatchOrder = {
   paymentMethod: "CASH" | "BANK_TRANSFER" | "MERCADO_PAGO"; paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
   delivery: DispatchDelivery; location: LatLng | null; dispatchedBy: { id: string; name: string | null } | null;
   dispatchedAt: string | null; deliveredAt: string | null; incident: DispatchIncident | null;
-  items: Array<{ productName: string; quantity: number; unitCode: string; imageUrl: string | null }>;
+  items: Array<WeightFields & { pickedQuantity?: number | null; productName: string; quantity: number; unitCode: string; imageUrl: string | null }>;
 };
 export type DispatchSummary = { total: number; pending: number; delivered: number; incidents: number };
 export type DispatchBoard = { date: string; ready: DispatchOrder[]; dispatched: DispatchOrder[]; outForDelivery: DispatchOrder[]; delivered: DispatchOrder[]; summary: DispatchSummary };
 export type RouteEstimate = { available: false; reason: string } | { available: true; distanceMeters: number; durationSeconds: number; geometry: LatLng[]; missingLocation: string[] };
 export type DispatchHistory = { days: Array<{ date: string; delivered: number; incidents: number; orders: DispatchOrder[] }> };
 export type DispatchApi = {
+  getOrderItems(id: string): Promise<DispatchOrder["items"]>;
   getBoard(date?: string): Promise<DispatchBoard>; saveSequence(orderIds: string[]): Promise<DispatchBoard>;
   assign(orderIds: string[]): Promise<DispatchBoard>; start(orderIds: string[]): Promise<DispatchBoard>;
   route(orderIds: string[], origin?: LatLng): Promise<RouteEstimate>;

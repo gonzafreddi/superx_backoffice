@@ -1,3 +1,4 @@
+import type { WeightFields } from "./quantity-rules";
 export type SupplierStatus = "ACTIVE" | "INACTIVE";
 export type PaymentCondition = "CASH" | "CREDIT" | "TRANSFER" | "OTHER";
 
@@ -14,7 +15,7 @@ export type SupplierInput = {
 export type CreateSupplierDto = SupplierInput;
 export type UpdateSupplierDto = Partial<SupplierInput>;
 
-export type SupplierProduct = { id: string; name: string; slug: string };
+export type SupplierProduct = WeightFields & { id: string; name: string; slug: string };
 export type PurchasePackaging = {
   id: string; productId: string; supplierId: string | null; supplier?: Pick<Supplier, "id" | "name">;
   product: SupplierProduct; name: string; unitsPerPack: number; barcode: string | null; supplierCode: string | null;

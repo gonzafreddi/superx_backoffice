@@ -1,6 +1,7 @@
 "use client";
 import { can } from "@/app/lib/permissions";
 
+import { formatQuantity } from "@/app/lib/quantity-rules";
 import { fixturesEnabled } from "@/app/lib/api-mode";
 /* eslint-disable @next/next/no-img-element -- remote product images, same as the rest of the backoffice */
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -415,7 +416,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                   <div>
                     <h2>{line.product.name}</h2>
                     <p>
-                      {line.packagingName} · {line.unitsPerPack} unidades por pack
+                      {line.packagingName} · {formatQuantity(line.unitsPerPack, line.product.saleMode)} por pack
                     </p>
                     <small>
                       {[line.packagingBarcode, ...line.product.barcodes].filter(Boolean).join(" · ") ||
@@ -428,21 +429,21 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                     <dt>Pedido</dt>
                     <dd>
                       {packs(line.orderedPackages)}
-                      <small>{line.orderedUnits} u.</small>
+                      <small>{formatQuantity(line.orderedUnits, line.product.saleMode)}</small>
                     </dd>
                   </div>
                   <div>
                     <dt>Ya recibido</dt>
                     <dd>
                       {packs(line.receivedPackages)}
-                      <small>{line.receivedUnits} u.</small>
+                      <small>{formatQuantity(line.receivedUnits, line.product.saleMode)}</small>
                     </dd>
                   </div>
                   <div>
                     <dt>Pendiente</dt>
                     <dd>
                       {packs(line.pendingPackages)}
-                      <small>{line.pendingUnits} u.</small>
+                      <small>{formatQuantity(line.pendingUnits, line.product.saleMode)}</small>
                     </dd>
                   </div>
                 </dl>
@@ -477,7 +478,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                   </button>
                 </div>
                 <p id={`units-${line.purchaseOrderItemId}`} className={styles.units}>
-                  {diff.received * line.unitsPerPack} unidades ingresadas
+                  {formatQuantity(diff.received * line.unitsPerPack, line.product.saleMode)} ingresados
                 </p>
                 {diff.extra > 0 && (
                   <label className={styles.warning}>
@@ -715,7 +716,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
                   </span>
                 </div>
                 <strong className={styles.pendingQty}>
-                  {packs(item.pendingPackages)} <small>· {item.pendingUnits} unidades pendientes</small>
+                  {packs(item.pendingPackages)} <small>pendientes</small>
                 </strong>
                 <span className={styles.open}>
                   Controlar <b aria-hidden="true">→</b>

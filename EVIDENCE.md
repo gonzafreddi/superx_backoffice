@@ -1095,3 +1095,10 @@ La URL local satisface la variable obligatoria de next.config.ts para typegen/bu
 - Verificación final: `pnpm typecheck` PASS; `pnpm lint` PASS sin warnings; `pnpm test` PASS (196 tests, 0 fallos, sin NEXT_PUBLIC_SUPERX_API_BASE_URL); `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm build` PASS (41 páginas estáticas, incluye `/repartidores`); `git diff --check` PASS.
 - `admin-shell` muestra el error de configuración de producción sin ocultarlo tras una redirección a login. Con URL configurada conserva la validación de sesión y comportamiento existentes.
 - Las verificaciones HTTP usan fetch simulado; no se probó contra el backend que se está implementando en paralelo ni en navegador real. Sin commit ni push.
+
+## Venta por peso (2026-10-09, branch peso-minimo)
+- Productos: Se vende por Unidad/Peso, mínimo/incremento en g, precio por kg; listados y precios con /kg.
+- Stock/inventario/compras/recepción/depósito/ubicaciones: cantidades WEIGHT en kg (gramos en API), helper app/lib/quantity-rules.js.
+- Picking: peso real obligatorio (POST /picking/tasks/:id/items/:itemId/weight), sin precios.
+- Pedido: "500 g pedidos · 530 g reales", $/kg, total final.
+- La compra mínima se edita en Configuración (business settings de main); se descartó el campo por zona en /entregas.

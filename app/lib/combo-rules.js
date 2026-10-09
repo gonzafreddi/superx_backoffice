@@ -54,3 +54,6 @@ export function comboTiming(combo, now = new Date()) {
   if (combo.validUntil && new Date(combo.validUntil) < now) return "expired";
   return "current";
 }
+
+/** Quantity promotions cannot contain products sold by weight. */
+export function canUseInCombo(product) { return product?.saleMode !== "WEIGHT"; }

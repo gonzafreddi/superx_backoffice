@@ -125,3 +125,57 @@ test("tarea ajena, cancelada y 404 tienen estado claro; completada muestra éxit
     cleanup();
   }
 });
+
+const weightTask = () => { const next = structuredClone(task); next.items[0] = { ...next.items[0], productName: "Queso", saleMode: "WEIGHT", quantityRequired: 500, quantityPicked: 0, unitCode: "KG", unitName: "Kilogramo" }; return next; };
+test("WEIGHT exige peso real, confirma menos del pedido y permite corregir hasta +15% sin dinero", async () => {
+  const s = setup(weightTask());
+  const recordWeight = async (id: string, itemId: string, grams: number) => { s.calls.push(["weight", id, itemId, grams]); const next = structuredClone(s.current()); next.items[0].quantityPicked = grams; next.items[0].status = "PICKED"; s.update(next); return next; };
+  render(<PickingTask id={task.id} {...s.deps} recordWeight={recordWeight} />);
+  await screen.findByText("Queso");
+  assert.match(document.body.textContent ?? "", /Pedido: 500 g/);
+  const confirm = screen.getByRole("button", { name: "Confirmar" }) as HTMLButtonElement;
+  assert.equal(confirm.disabled, true);
+  fireEvent.change(screen.getByRole("spinbutton", { name: /^Peso real/ }), { target: { value: "450" } });
+  fireEvent.click(confirm);
+  await screen.findByText("500 g pedidos · 450 g reales");
+  assert.deepEqual(s.calls, [["weight", task.id, "pi-1", 450]]);
+  fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+  fireEvent.change(screen.getByRole("spinbutton", { name: /^Peso real/ }), { target: { value: "576" } });
+  assert.ok(screen.getByText("Peso fuera de tolerancia. Corregí el peso real."));
+  assert.equal((screen.getByRole("button", { name: "Confirmar" }) as HTMLButtonElement).disabled, true);
+  fireEvent.change(screen.getByRole("spinbutton", { name: /^Peso real/ }), { target: { value: "575" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+  await screen.findByText("500 g pedidos · 575 g reales");
+  assert.deepEqual(s.calls[1], ["weight", task.id, "pi-1", 575]);
+  assert.doesNotMatch(document.body.textContent ?? "", /\$|precio|total|saldo/i);
+});
+test("escaneo WEIGHT ubica el campo pero no confirma peso ni suma gramos", async () => {
+  const s = setup(weightTask());
+  render(<PickingTask id={task.id} {...s.deps} recordWeight={async () => { throw new Error("No debe confirmar por escaneo"); }} />);
+  await screen.findByText("Queso");
+  fireEvent.change(screen.getByLabelText("Escanear código"), { target: { value: "779123" } });
+  fireEvent.click(screen.getByRole("button", { name: "Registrar" }));
+  await screen.findAllByText("Ingresá el peso real (g) en la línea antes de confirmar.");
+  assert.equal(s.calls.length, 0);
+  assert.equal(document.activeElement?.id, "weight-pi-1");
+});
+test("error 400 de peso se muestra en la línea sin marcarla preparada", async () => {
+  const s = setup(weightTask());
+  render(<PickingTask id={task.id} {...s.deps} recordWeight={async () => { throw new PickingApiError("Peso fuera de tolerancia", 400); }} />);
+  await screen.findByText("Queso");
+  fireEvent.change(screen.getByRole("spinbutton", { name: /^Peso real/ }), { target: { value: "530" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+  await screen.findByText("Peso fuera de tolerancia");
+  assert.equal(s.current().items[0].status, "PENDING");
+  assert.ok(screen.getByRole("spinbutton", { name: /^Peso real/ }));
+});
+test("faltante WEIGHT conserva cantidad parcial en gramos en el endpoint pick existente", async () => {
+  const s = setup(weightTask());
+  render(<PickingTask id={task.id} {...s.deps} reportShortage={async (id, itemId, resolution) => { s.calls.push(["shortage", id, itemId, resolution]); const next = structuredClone(s.current()); next.items[0].status = "SHORT"; s.update(next); return next; }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Reportar faltante" }));
+  fireEvent.change(screen.getByLabelText("Cantidad disponible (g)"), { target: { value: "300" } });
+  fireEvent.click(screen.getByRole("radio", { name: "Quitar producto" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar incidencia" }));
+  await screen.findByText("Faltante", { selector: "span" });
+  assert.deepEqual(s.calls, [["pick", task.id, "pi-1", 300, undefined], ["shortage", task.id, "pi-1", "REMOVE_ITEM"]]);
+});

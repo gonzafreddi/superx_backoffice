@@ -4,3 +4,5 @@ export function comboRegularPrice(items: ComboFormItem[], prices: Record<string,
 export function validateCombo(input: ComboFormValue, regularPrice: number): Record<string, string>;
 export function comboPayload(input: ComboFormValue): Record<string, unknown>;
 export function comboTiming(combo: { validFrom: string | null; validUntil: string | null }, now?: Date): "upcoming" | "expired" | "current";
+
+export function canUseInCombo(product?: { saleMode?: "UNIT" | "WEIGHT" }): boolean;

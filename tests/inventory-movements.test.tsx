@@ -19,3 +19,11 @@ test("movimientos de reserva muestran pedido y cantidades neutrales", () => {
   assert.match(html, /class="muted">\+2 liberado/);
   assert.doesNotMatch(html, /class="(?:positive|negative)"/);
 });
+
+test("kardex WEIGHT presenta kilos también en reservas", () => {
+  const base = { inventoryItemId: "1:2", reference: "PX1", reason: "Preparación", occurredAt: "2026-10-01T10:00:00Z", createdBy: "Usuario #4", saleMode: "WEIGHT" as const };
+  const html = renderToStaticMarkup(<InventoryRecentMovements movements={[{ ...base, id: "1", type: "reservation", quantity: -1250 }, { ...base, id: "2", type: "sale", quantity: -530 }]} />);
+  assert.match(html, /−1,25 kg reservado/);
+  assert.match(html, /-0,53 kg/);
+  assert.doesNotMatch(html, /1250|530 u\./);
+});

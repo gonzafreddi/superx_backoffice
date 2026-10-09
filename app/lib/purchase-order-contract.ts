@@ -1,7 +1,8 @@
+import type { WeightFields } from "./quantity-rules";
 export type PurchaseOrderStatus = "DRAFT" | "CONFIRMED" | "CANCELLED" | "CLOSED";
 export type ReceiptStatus = "NOT_RECEIVED" | "PARTIALLY_RECEIVED" | "RECEIVED";
 
-export type PurchaseOrderProduct = { id: string; name: string; slug: string };
+export type PurchaseOrderProduct = WeightFields & { id: string; name: string; slug: string };
 export type PurchaseOrderSupplier = { id: string; name: string };
 export type PurchaseOrderWarehouse = { id: string; name: string };
 export type PurchaseOrderPackaging = { id: string; name: string; unitsPerPack: number; equivalence?: string; isDefault?: boolean; isActive?: boolean };
