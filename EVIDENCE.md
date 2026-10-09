@@ -1,3 +1,11 @@
+## H — Hoja de ruta por repartidor (Backoffice) — 2026-10-09
+
+- Implementada `/repartidores/[id]/hoja-de-ruta?date=` con selector de fecha, carga/error/reintento/vacío, paradas en orden de dispatch, datos de entrega, bultos/ítems, cobros, firma/observación y totales del servidor. Accesos en fila y detalle de repartidores y panel Reparto del pedido con asignación activa.
+- Adapter autenticado con api-mode y fixtures de desarrollo. Contrato alineado con `back-routesheet/src/route-sheets/route-sheets.service.ts`: `driver`, `date`, `stops`, `totals`; importes decimales string. Sin paginación de paradas para imprimir toda la ruta.
+- Permisos: usa `drivers.read` (admin/support) y navegación existente `/repartidores`, que cubre rutas descendientes; no requiere acción ni item de menú adicionales. Impresión A4 con reglas scoped que ocultan TODOS los hijos del AdminShell salvo main, incluyendo sidebar/topbar/modales/push; controles ocultos, encabezado de tabla repetible, filas sin corte. En móvil, paradas en tarjetas.
+- Verificación PASS: `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm typecheck`; `pnpm lint`; `env -u NEXT_PUBLIC_SUPERX_API_BASE_URL pnpm test` (256 tests, 0 fallos); `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm build`; `git diff --check`. Build incluye la ruta dinámica; se inspeccionó el CSS compilado y se comprobó A4, shell oculto, encabezados repetidos y filas sin corte. Tests node --test cubren fechas, día argentino, links, adapter HTTP/error/fixtures, orden/totales y render del documento completo/vacío.
+- No hay tablero de despacho del Backoffice con selección de repartidor: `/reparto` pertenece al grupo driver y tiene contrato distinto. Se conservaron los tres accesos solicitados de Backoffice. Sin commit/push. Sin integración backend vivo ni navegador; impresión validada mediante render en servidor, reglas CSS y build, sin comprobación visual en navegador.
+
 ## Conteos físicos por peso — 2026-10-09
 
 - Líneas WEIGHT: sistema/contado/diferencia en kg usando el formateador existente (hasta 3 decimales); input en kg con coma o punto, convertido a gramos enteros al guardar. Vacío sigue sin contar; cero cuenta; se validan precisión, valores no negativos y límite int32 en gramos.

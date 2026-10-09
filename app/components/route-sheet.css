@@ -1,0 +1,37 @@
+/* Scoped print rules preserve other backoffice screens. */
+.route-document { background: var(--surface, white); padding: 24px; border: 1px solid var(--border, #ddd); }
+.route-document h1 { font-size: 1.6rem; }
+.route-stops { width: 100%; table-layout: fixed; }
+.route-stops th:first-child { width: 15%; }
+.route-stops th:nth-child(2) { width: 32%; }
+.route-stops th:last-child { width: 19%; }
+.route-stops td { vertical-align: top; overflow-wrap: anywhere; }
+.route-stops p { margin: 6px 0; }
+.route-signature { min-height: 80px; border-bottom: 1px solid currentColor; }
+.route-totals { display: flex; flex-wrap: wrap; gap: 12px 28px; margin-top: 20px; }
+.route-controls { flex-wrap: wrap; gap: 12px; }
+@media screen and (max-width: 700px) {
+  .route-document { padding: 16px; }
+  .route-stops, .route-stops tbody, .route-stops tr, .route-stops td { display: block; width: 100%; }
+  .route-stops thead { display: none; }
+  .route-stops tr { border-bottom: 2px solid var(--border, #ddd); padding: 12px 0; }
+  .route-stops td::before { content: attr(data-label); display: block; font-weight: 600; margin-bottom: 6px; }
+  .route-stops td { font-size: 16px; }
+  .route-controls .button { min-height: 44px; }
+}
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+  body:has(.route-sheet) { background: white !important; color: black !important; }
+  body:has(.route-sheet) .catalog-shell { display: block !important; }
+  body:has(.route-sheet) .catalog-shell > :not(.backoffice-main) { display: none !important; }
+  body:has(.route-sheet) .backoffice-main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  .route-sheet.workspace { margin: 0 !important; padding: 0 !important; max-width: none !important; }
+  .route-controls, .route-sheet .notice { display: none !important; }
+  .route-document { padding: 0; border: 0; background: white; color: black; font-size: 10pt; }
+  .route-document h1 { font-size: 16pt; }
+  .route-stops { display: table; font-size: 9pt; }
+  .route-stops thead { display: table-header-group; }
+  .route-stops th, .route-stops td { padding: 7px 5px; border: 1px solid #777; color: black; background: white; }
+  .route-stops tr, .route-totals { break-inside: avoid; }
+  .route-signature { min-height: 24mm; }
+}
