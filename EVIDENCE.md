@@ -1,3 +1,18 @@
+# S — Configuración del negocio (Backoffice)
+
+Pantalla `/configuracion` en Administración, acceso admin mediante `can(role, "settings.manage")`. Formulario por secciones fiscales, contacto/atención y reglas de pedido; errores por campo, carga/reintento, guardado, descarte y última actualización. Diseño responsive con estilos existentes y Notice.
+
+Adapter GET/PATCH `/settings`, authFetch, apiBaseUrl/fixturesEnabled y fixtures mutables para desarrollo. Contrato JSON camelCase (convención de adapters existentes); montos numeric aceptados como string en respuesta, PATCH numérico; umbral vacío = null, cero = envío gratis. CUIT de 11 dígitos con verificador, email y montos no negativos con dos decimales. Backend implementa reglas de checkout en paralelo.
+
+Tests node --test para validación, payload/null vs cero, fixtures y permisos/navegación. Verificación según Reglas comunes:
+- `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test` sin `NEXT_PUBLIC_SUPERX_API_BASE_URL`: 207 tests, 207 PASS (6 nuevos).
+- `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm build`: PASS; incluye `/configuracion`.
+- `git diff --check`: PASS.
+
+La prueba HTTP simula fetch y comprueba URL, GET/PATCH, payload, montos numeric como string y errores 400/403/red. No se verificó integración contra el backend paralelo ni se realizó prueba visual en navegador; la adaptación móvil usa CSS responsive. No commit ni push.
+
 # A — Registro de auditoría (Backoffice)
 
 Implementado `/auditoria` en Administración para admin/accountant, tabla con fecha, actor, acción legible, entidad y resumen; filtros por fechas, usuario (ID), entidad y texto, paginación y detalle expandible de valores antes/después. Historial reutilizable `EntityAuditHistory({ entityType, entityId })` integrado en pedido y producto con IDs del registro cargado y permisos centralizados. Actualización manual, estados de carga/error/vacío, cancelación de consultas obsoletas y tarjetas en móvil.

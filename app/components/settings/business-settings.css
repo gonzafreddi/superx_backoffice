@@ -1,0 +1,11 @@
+.business-settings-page { max-width: 1120px; }
+.settings-section { margin: 20px 0; padding: 20px; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.settings-section legend { padding: 0 8px; font-size: 18px; font-weight: 700; color: var(--ink); }
+.settings-section .field { min-width: 0; }
+.settings-section input, .settings-section select, .settings-section textarea { width: 100%; min-width: 0; padding: 10px; }
+.settings-hint { color: var(--muted); font-size: 12px; font-weight: 400; }
+.settings-error { color: var(--red); font-size: 12px; }
+.settings-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.settings-footer p { margin: 0; color: var(--muted); }
+.settings-footer .detail-actions { padding: 0; }
+@media (max-width: 620px) { .settings-section { padding: 14px; } .settings-footer, .settings-footer .detail-actions { flex-direction: column; align-items: stretch; width: 100%; } }

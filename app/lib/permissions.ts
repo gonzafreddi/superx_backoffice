@@ -31,6 +31,7 @@ export const actionRoles = {
   "finance.write": ["accountant"],
   "dashboard.read": ["accountant"],
   "audit.read": ["accountant"],
+  "settings.manage": [],
   "users.manage": [],
   "notifications.manage": [],
   "paymentMethods.manage": [],
