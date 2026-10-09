@@ -1,6 +1,7 @@
 "use client";
+import { can } from "@/app/lib/permissions";
 
-import { fixturesEnabled } from "@/app/lib/api-mode";
+
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/immutability */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -142,7 +143,7 @@ export function PurchaseOrderEditor({ orderId }: { orderId?: string }) {
   const readOnly = order?.status === "CONFIRMED";
   useEffect(() => {
     const user = getStoredUser();
-    setAccess(fixturesEnabled() || user?.role === "admin" ? "ready" : "denied");
+    setAccess(can(user?.role, "purchasing.write") ? "ready" : "denied");
   }, []);
   useEffect(() => {
     if (access !== "ready") return;

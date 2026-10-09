@@ -32,6 +32,8 @@ test("usuarios permite borrar datos, valida confirmación y confirma desactivaci
   const previous = process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL;
   process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL = "https://api.example";
   t.after(() => { if (previous === undefined) delete process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; else process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL = previous; });
+  window.sessionStorage.setItem("superx.access-user", JSON.stringify({ id: "admin1", email: "admin@example.com", role: "admin" }));
+  t.after(() => window.sessionStorage.clear());
   const user = {id: "u1", email: "ana@example.com", name: "Ana", phone: "1234567", role: "picker", isActive: true, createdAt: item.createdAt};
   const writes: unknown[] = [];
   t.mock.method(globalThis, "fetch", async (_url: string | URL | Request, init?: RequestInit) => { if (init?.method === "PATCH") { writes.push(JSON.parse(init.body as string)); return Response.json({...user, name: null, phone: null}); } return Response.json({items: [user], total: 1, page: 1, pageSize: 100}); });

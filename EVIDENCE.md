@@ -1,3 +1,26 @@
+# R — Roles finos (Backoffice)
+
+Implementación de support (Atención al cliente) y accountant (Contabilidad): autenticación, alta/edición/filtro de usuarios, matriz central de acciones, navegación y home por rol.
+
+Pedidos separa transiciones/asignación (support) de pagos/reintegros (accountant). Catálogo, promociones, precios, inventario, proveedores y compras restringen escritura según matriz; finanzas y dashboard habilitan accountant. Las consultas auxiliares a asignaciones, usuarios y configuración de depósitos/ubicaciones se omiten para roles sin acceso. Fixtures conserva privilegios admin. Backend mantiene la validación final de permisos.
+
+Tests node --test: matriz completa por acción/rol, fixtures, navegación/home y vistas de pedidos/precios. Se actualizó el test existente de gestión de usuarios para declarar la sesión admin que autoriza su flujo.
+
+Verificación según Reglas comunes:
+- `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm typecheck`: PASS.
+- `pnpm lint`: PASS.
+- `pnpm test` sin `NEXT_PUBLIC_SUPERX_API_BASE_URL`: 201 tests, 201 PASS.
+- `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm build`: PASS.
+- `git diff --check`: PASS.
+
+Las pruebas de vistas usan adapters/fetch simulados; no se realizó una integración contra el backend paralelo. El GET público de medios de pago se conserva para acreditar pagos; su configuración sigue reservada a admin. Sin acceso a configuración de depósitos, inventario usa identificadores como etiquetas y compras toma los depósitos incluidos en los resultados.
+
+Los chequeos restantes de admin para proteger la propia cuenta/último admin y para identidad/propiedad del trabajo en Reparto se conservan: no son mapeos de permisos de las pantallas administrativas.
+
+Sin commit ni push. No se modifica backend.
+
+---
+
 # 2026-10-01 — Reservas de pedidos en inventario
 
 ## Implementado y decisiones

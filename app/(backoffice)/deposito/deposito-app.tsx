@@ -1,4 +1,5 @@
 "use client";
+import { can } from "@/app/lib/permissions";
 
 import { fixturesEnabled } from "@/app/lib/api-mode";
 /* eslint-disable @next/next/no-img-element -- remote product images, same as the rest of the backoffice */
@@ -78,7 +79,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
     const user = getStoredUser();
     if (fixturesEnabled()) setAccess("ready");
     else if (!user) setAccess("auth");
-    else setAccess(user.role === "admin" || user.role === "warehouse" ? "ready" : "forbidden");
+    else setAccess(can(user.role, "receiving.write") ? "ready" : "forbidden");
     try {
       setWarehouseId(localStorage.getItem("superx.receiving.warehouse") ?? "");
     } catch {}

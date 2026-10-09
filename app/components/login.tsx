@@ -27,7 +27,7 @@ export function Login({ signIn = loginRequest }: { signIn?: Login }) {
     try {
       const user = await signIn(email.trim(), password);
       const next = searchParams.get("next");
-      const roleHome: Record<string, string> = { warehouse: "/deposito", picker: "/picking", driver: "/reparto", admin: "/tablero" };
+      const roleHome: Record<string, string> = { support: "/pedidos", accountant: "/administracion", warehouse: "/deposito", picker: "/picking", driver: "/reparto", admin: "/tablero" };
       router.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : roleHome[user.role] ?? "/tablero");
     } catch (cause) {
       setError(cause instanceof AuthApiError ? cause.message : "No pudimos iniciar sesión. Revisá tu conexión.");
