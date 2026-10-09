@@ -8,6 +8,22 @@
 - Playwright contra build de producción con API simulada del contrato: 1440 px y 375 px, tabla/ordenamiento, aviso de cobertura, descarga CSV real, sin overflow horizontal ni errores JS. Capturas `/tmp/bo-reports-1440.png` y `/tmp/bo-reports-375.png`; CSV descargados `/tmp/bo-reports-browser-{1440,375}.csv`. Captura móvil inspeccionada visualmente.
 - Se actualizaron las expectativas existentes de matriz de permisos y navegación para las nuevas acciones y `/reportes`.
 - Sin commit/push. Backend implementado en paralelo; no se verificó integración con backend real.
+# C — Conteo físico de inventario (Backoffice)
+
+Implementadas lista `/inventario/conteos` y detalle `/inventario/conteos/[id]`, alta con depósito y ubicación opcional, filtros, paginación, búsqueda/escaneo exacto por barcode o SKU con alta de línea, cantidades grandes, motivos, resumen de diferencias, guardado visible de borrador y confirmación para aplicar/cancelar. Contabilidad sólo consulta; admin/warehouse operan. Navegación y acceso desde Inventario mediante permisos centrales.
+
+Adapter contra contrato `/inventory-counts`, con authFetch y apiBaseUrl/fixturesEnabled. Fixtures persistidos en localStorage para navegar y recargar en desarrollo. La aplicación real la ejecuta el backend contra stock físico actual; fixtures cierran el conteo sin simular movimientos auditables. Campos camelCase, IDs numéricos enviados al backend, lectura de producto anidado o campos planos. Endpoints de configuración de depósitos/ubicaciones pueden rechazar warehouse/accountant: fallback ID de depósito y conteo de todo el depósito.
+
+Ocho tests node --test nuevos de cantidades (incluido cero vs sin contar), payload parcial, resumen, escaneo exacto, adaptación, roles/navegación, contrato HTTP con fetch simulado y ciclo de fixtures (crear, guardar, agregar, aplicar/cancelar y bloqueo al cerrar). Actualizadas expectativas de la matriz de permisos existente. Documentación local Next consultada (páginas, componentes cliente/servidor y params async).
+
+Verificación (todos los archivos de implementación escritos antes de iniciar; luego corrección de typecheck y actualización de pruebas existentes):
+- `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm typecheck`: PASS tras corregir propiedades duplicadas en edición de línea.
+- `pnpm lint`: PASS; eslint dirigido a archivos nuevos y tests modificados volvió a pasar tras ajustes finales.
+- `env -u NEXT_PUBLIC_SUPERX_API_BASE_URL pnpm test`: 219 tests, 219 PASS.
+- `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm build`: PASS; incluye `/inventario/conteos` y `/inventario/conteos/[id]`.
+- `git diff --check`: PASS.
+
+No se ha probado integración con backend paralelo ni navegador móvil. El layout móvil adapta las líneas a tarjetas, inputMode numeric y controles de 44–48 px; el escáner recupera foco sin desplazar la pantalla, permite editar cantidades/motivos y Enter en cantidad vuelve al escáner. Guardado manual visible, cambios pendientes y advertencia al recargar/salir por el enlace de regreso. Sin commit ni push.
 
 ---
 

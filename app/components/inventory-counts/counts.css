@@ -1,0 +1,31 @@
+.count-workspace { min-width: 0; }
+.count-workspace .field input, .count-workspace .field select, .count-workspace .field textarea { min-height: 48px; font-size: 16px; width: 100%; }
+.count-workspace .button { min-height: 44px; }
+.count-form, .count-filters, .count-scan, .count-summary, .count-actions { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 16px 0; }
+.count-form { align-items: stretch; flex-direction: column; }
+.count-filters > .field, .count-scan > .field { flex: 1; min-width: 200px; }
+.count-summary > span { padding: 12px 16px; border: 1px solid var(--border, #ddd); border-radius: 12px; }
+.count-table { overflow-x: auto; margin-top: 16px; }
+.count-table table { width: 100%; border-collapse: collapse; }
+.count-table th, .count-table td { padding: 14px; text-align: left; border-bottom: 1px solid var(--border, #ddd); }
+.count-table small { display: block; }
+.count-workspace .count-quantity { font-size: 24px; font-weight: 700; min-width: 100px; }
+.count-difference { color: var(--danger, #a32d22); }
+.count-highlight { outline: 2px solid var(--primary, #27834a); outline-offset: -2px; }
+.count-actions { position: sticky; bottom: 0; background: var(--surface, #fff); border-top: 1px solid var(--border, #ddd); padding-bottom: max(16px, env(safe-area-inset-bottom)); z-index: 5; }
+.count-workspace .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 700px) {
+  .count-workspace .topbar { flex-wrap: wrap; gap: 12px; }
+  .count-lines { overflow: visible; }
+  .count-lines thead { display: none; }
+  .count-lines table, .count-lines tbody { display: block; }
+  .count-lines tr { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border, #ddd); border-radius: 12px; margin-bottom: 16px; padding: 8px; }
+  .count-lines td { display: block; padding: 8px; min-width: 0; }
+  .count-lines td:first-child, .count-lines td:last-child { grid-column: 1 / -1; }
+  .count-lines td::before { content: attr(data-label); display: block; font-size: 13px; margin-bottom: 6px; }
+  .count-actions { gap: 8px; }
+  .count-actions > span { width: 100%; }
+  .count-actions .button { flex: 1; }
+  .count-scan { align-items: stretch; }
+  .count-scan .button { width: 100%; }
+}

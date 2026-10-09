@@ -35,6 +35,7 @@ export const navGroups = [
   {
     label: "Depósito",
     items: [
+      { href: "/inventario/conteos", label: "Conteos físicos", icon: "shelves", roles: ["warehouse", "accountant"] },
       { href: "/deposito", label: "Por recibir", icon: "warehouse", roles: ["admin", "warehouse"] },
       { href: "/picking", label: "Picking", icon: "box", roles: ["admin", "picker"] },
       { href: "/reparto", label: "Reparto", icon: "truck", roles: ["admin", "driver"] },

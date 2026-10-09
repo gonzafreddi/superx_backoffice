@@ -19,6 +19,8 @@ export const actionRoles = {
   "prices.write": [],
   "inventory.read": ["support", "accountant"],
   "inventory.write": [],
+  "inventoryCounts.read": ["warehouse", "accountant"],
+  "inventoryCounts.write": ["warehouse"],
   "suppliers.read": ["accountant"],
   "suppliers.write": [],
   "purchasing.read": ["accountant"],
