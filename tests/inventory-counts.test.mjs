@@ -15,7 +15,7 @@ test('guardado parcial conserva cero, limpia motivo y valida antes de enviar', (
   assert.throws(() => countPatches([line], { '42': { quantity: '1', reason: 'x'.repeat(81) } }));
 });
 test('resumen ignora sin contar e incluye pérdidas, ganancias y cero', () => {
-  assert.deepEqual(countSummary([line, { ...line, countedQuantity: 0 }, { ...line, countedQuantity: 10 }, { ...line, countedQuantity: 8 }]), { counted: 3, changed: 2, positive: 2, negative: -8 });
+  assert.deepEqual(countSummary([line, { ...line, countedQuantity: 0 }, { ...line, countedQuantity: 10 }, { ...line, countedQuantity: 8 }]), { counted: 3, changed: 2, positive: 2, negative: -8, positiveGrams: 0, negativeGrams: 0 });
 });
 test('escaneo exacto conserva ceros iniciales y busca SKU', () => {
   assert.equal(findScanLine([line], ' 779000 ')?.productId, '42'); assert.equal(findScanLine([line], 'AGUA')?.productId, '42'); assert.equal(findScanLine([line], '779'), undefined);
@@ -70,3 +70,18 @@ test('fixtures permiten crear, contar cero, agregar, aplicar y bloquean cambios 
   const another = await inventoryCountApi.create({ warehouseId: 'wh-central', locationId: 'loc-001' });
   assert.equal(another.locationId, 'loc-001'); assert.equal((await inventoryCountApi.close(another.id, 'cancel')).status, 'CANCELLED');
 });
+
+ test('WEIGHT convierte kg a gramos enteros y preserva precisión y límites', async () => {
+  const { quantityInput } = await import('../app/lib/quantity-rules.js');
+  for (const [input, grams] of [['0', 0], ['0,001', 1], ['1.234', 1234], ['2,5', 2500], ['2147483.647', 2147483647]]) {
+    assert.equal(parseCountQuantity(input, 'WEIGHT'), grams);
+    assert.equal(parseCountQuantity(quantityInput(grams, 'WEIGHT'), 'WEIGHT'), grams);
+  }
+  assert.equal(parseCountQuantity('', 'WEIGHT'), null);
+  for (const input of ['-1', '1.0001', '1e3', '1,2.3', '2147483.648']) assert.throws(() => parseCountQuantity(input, 'WEIGHT'));
+  const weight = { ...line, saleMode: 'WEIGHT', systemQuantity: 2000, countedQuantity: 2500 };
+  assert.equal(countPatches([weight], { '42': { quantity: '2,501', reason: '' } })[0].countedQuantity, 2501);
+  assert.deepEqual(countSummary([{ ...line, countedQuantity: 10 }, weight, { ...weight, countedQuantity: 1000 }]), { counted: 3, changed: 3, positive: 2, negative: 0, positiveGrams: 500, negativeGrams: -1000 });
+  assert.equal(adaptCount({ lines: [weight] }).lines[0].saleMode, 'WEIGHT');
+  assert.equal(adaptCount({ lines: [line] }).lines[0].saleMode, 'UNIT');
+ });

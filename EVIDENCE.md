@@ -1,3 +1,11 @@
+## Conteos físicos por peso — 2026-10-09
+
+- Líneas WEIGHT: sistema/contado/diferencia en kg usando el formateador existente (hasta 3 decimales); input en kg con coma o punto, convertido a gramos enteros al guardar. Vacío sigue sin contar; cero cuenta; se validan precisión, valores no negativos y límite int32 en gramos.
+- Adapter y fixtures conservan saleMode; su ausencia se trata como UNIT. Resumen de diferencias separa unidades y kg. Reportes/exportaciones permanecen sin cambios: consumen el agregado units del backend (una unidad por línea de peso), sin reinterpretar gramos.
+- Tests node --test agregados: conversión kg↔g, límites, guardado parcial, resumen mixto, compatibilidad del adapter y render de línea WEIGHT editable/cerrada con validación local.
+- Verificación: NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm typecheck PASS; pnpm lint PASS; pnpm test SIN NEXT_PUBLIC_SUPERX_API_BASE_URL PASS (252 tests, 0 fallos).
+- NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm build PASS (incluye /inventario/conteos y /inventario/conteos/[id]). git diff --check PASS. Sin commit. Pruebas de render en servidor y HTTP simulado; sin integración con backend activo ni navegador real.
+
 # E — Exportaciones y reportes de ventas/margen (Backoffice)
 
 - `/reportes` en Finanzas para admin y Contabilidad: presets de fechas, cuatro agrupaciones, KPIs, aviso por cobertura incompleta, tabla ordenable y paginada, CSV y estados de carga/error/vacío. Diseño con clases existentes y tarjetas en móvil.

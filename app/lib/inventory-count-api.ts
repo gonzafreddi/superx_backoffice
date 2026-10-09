@@ -40,9 +40,9 @@ export const inventoryCountApi = {
   },
   async create(input: { warehouseId: string; locationId?: string; note?: string }): Promise<InventoryCount> {
     if (fixturesEnabled()) {
-      const stock = input.locationId ? (await locationApi.getLocationStock(input.warehouseId, input.locationId, "", 1, 10000)).items.map(item => ({ productId: item.product.id, productName: item.product.name, sku: item.product.slug ?? "", onHand: item.quantity })) : await inventoryApi.listInventory({ warehouseId: input.warehouseId });
+      const stock = input.locationId ? (await locationApi.getLocationStock(input.warehouseId, input.locationId, "", 1, 10000)).items.map(item => ({ productId: item.product.id, productName: item.product.name, sku: item.product.slug ?? "", saleMode: item.product.saleMode, onHand: item.quantity })) : await inventoryApi.listInventory({ warehouseId: input.warehouseId });
       const products = await locationApi.searchProducts("");
-      const lines = stock.map(item => ({ productId: item.productId, productName: item.productName, sku: products.find(p => p.id === item.productId)?.sku ?? item.sku, barcode: products.find(p => p.id === item.productId)?.barcode ?? null, systemQuantity: item.onHand, countedQuantity: null, reason: null }));
+      const lines = stock.map(item => ({ productId: item.productId, saleMode: item.saleMode ?? "UNIT", productName: item.productName, sku: products.find(p => p.id === item.productId)?.sku ?? item.sku, barcode: products.find(p => p.id === item.productId)?.barcode ?? null, systemQuantity: item.onHand, countedQuantity: null, reason: null }));
       return persist({ id: crypto.randomUUID(), code: `CNT-${String(fixtures().length + 1).padStart(6, "0")}`, ...input, locationId: input.locationId ?? null, note: input.note ?? null, status: "DRAFT", createdAt: new Date().toISOString(), lines });
     }
     return adaptCount(await request("", "POST", { ...input, warehouseId: Number(input.warehouseId), ...(input.locationId ? { locationId: Number(input.locationId) } : {}) }));
@@ -52,7 +52,7 @@ export const inventoryCountApi = {
       const count = await draft(id); if (count.lines.some(line => line.productId === productId)) return count;
       const product = (await locationApi.searchProducts("")).find(item => item.id === productId); if (!product) throw new Error("Producto no encontrado.");
       const stock = await inventoryApi.listInventory({ warehouseId: count.warehouseId });
-      count.lines.push({ productId, productName: product.name, sku: product.sku ?? "", barcode: product.barcode ?? null, systemQuantity: stock.find(item => item.productId === productId)?.onHand ?? 0, countedQuantity: null, reason: null }); return persist(count);
+      count.lines.push({ productId, saleMode: product.saleMode ?? "UNIT", productName: product.name, sku: product.sku ?? "", barcode: product.barcode ?? null, systemQuantity: stock.find(item => item.productId === productId)?.onHand ?? 0, countedQuantity: null, reason: null }); return persist(count);
     }
     await request(`/${encodeURIComponent(id)}/lines`, "POST", { productId: Number(productId) }); return this.get(id);
   },
