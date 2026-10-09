@@ -43,6 +43,7 @@ export const navGroups = [
   {
     label: "Finanzas",
     items: [
+      { href: "/reportes", label: "Reportes", icon: "chart", roles: ["accountant"] },
       { href: "/gastos", label: "Gastos", icon: "expense", roles: ["accountant"] },
       { href: "/inversiones", label: "Inversiones", icon: "asset", roles: ["accountant"] },
       { href: "/tesoreria", label: "Tesorería", icon: "treasury", roles: ["accountant"] },

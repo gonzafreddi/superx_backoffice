@@ -1,3 +1,16 @@
+# E — Exportaciones y reportes de ventas/margen (Backoffice)
+
+- `/reportes` en Finanzas para admin y Contabilidad: presets de fechas, cuatro agrupaciones, KPIs, aviso por cobertura incompleta, tabla ordenable y paginada, CSV y estados de carga/error/vacío. Diseño con clases existentes y tarjetas en móvil.
+- Exportaciones de pedidos (rango de creación/estado), líneas, inventario (depósito), tesorería general y libro por cuenta (rango). Las descripciones explicitan los filtros soportados por el contrato; entrega/zona/pago/búsqueda y tipo/referencia no están en el contrato CSV.
+- Helper compartido `downloadCsv(path, filename)`: authFetch → blob → enlace temporal con limpieza. Fixtures locales UTF-8 BOM, `;`, decimales con coma y escape CSV.
+- Adapters usan api-mode; acciones `reports.read`/`exports.read` con admin/accountant. Tests node --test de presets, rangos, orden, CSV, fixtures, contrato y permisos.
+- Verificación OK: `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm typecheck` y `pnpm build` con esa misma variable; `pnpm lint`; `env -u NEXT_PUBLIC_SUPERX_API_BASE_URL pnpm test` (217/217); `git diff --check`.
+- Playwright contra build de producción con API simulada del contrato: 1440 px y 375 px, tabla/ordenamiento, aviso de cobertura, descarga CSV real, sin overflow horizontal ni errores JS. Capturas `/tmp/bo-reports-1440.png` y `/tmp/bo-reports-375.png`; CSV descargados `/tmp/bo-reports-browser-{1440,375}.csv`. Captura móvil inspeccionada visualmente.
+- Se actualizaron las expectativas existentes de matriz de permisos y navegación para las nuevas acciones y `/reportes`.
+- Sin commit/push. Backend implementado en paralelo; no se verificó integración con backend real.
+
+---
+
 # S — Configuración del negocio (Backoffice)
 
 Pantalla `/configuracion` en Administración, acceso admin mediante `can(role, "settings.manage")`. Formulario por secciones fiscales, contacto/atención y reglas de pedido; errores por campo, carga/reintento, guardado, descarte y última actualización. Diseño responsive con estilos existentes y Notice.

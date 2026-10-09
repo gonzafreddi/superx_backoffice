@@ -4,7 +4,7 @@ import { can, actionRoles, type Action } from "../app/lib/permissions";
 import { navGroups, canSee, roleHome } from "../app/lib/navigation";
 
 const support: Action[] = ["orders.read", "orders.transition", "orders.assignDriver", "drivers.read", "customers.read", "withdrawals.read", "withdrawals.write", "catalog.read", "prices.read", "inventory.read"];
-const accountant: Action[] = ["audit.read", "orders.read", "orders.payment", "orders.refund", "customers.read", "withdrawals.read", "catalog.read", "prices.read", "inventory.read", "suppliers.read", "purchasing.read", "receiving.read", "finance.read", "finance.write", "dashboard.read"];
+const accountant: Action[] = ["reports.read", "exports.read", "audit.read", "orders.read", "orders.payment", "orders.refund", "customers.read", "withdrawals.read", "catalog.read", "prices.read", "inventory.read", "suppliers.read", "purchasing.read", "receiving.read", "finance.read", "finance.write", "dashboard.read"];
 test("permissions enforce the complete role matrix with a real API", () => {
   const previous = process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL;
   process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL = "http://backend.test";
@@ -28,7 +28,7 @@ test("navigation and homes match the plan; admin sees every item", () => {
   const items = navGroups.flatMap(group => group.items);
   const visible = (role: string) => items.filter(item => canSee(item, role)).map(item => item.href);
   assert.deepEqual(visible("support"), ["/pedidos", "/clientes", "/repartidores", "/productos", "/productos/categorias", "/precios", "/promociones", "/inventario", "/arrepentimientos"]);
-  assert.deepEqual(visible("accountant"), ["/administracion", "/tablero", "/pedidos", "/clientes", "/productos", "/precios", "/inventario", "/proveedores", "/compras", "/facturas", "/pagos", "/impuestos", "/gastos", "/inversiones", "/tesoreria", "/auditoria"]);
+  assert.deepEqual(visible("accountant"), ["/administracion", "/tablero", "/pedidos", "/clientes", "/productos", "/precios", "/inventario", "/proveedores", "/compras", "/facturas", "/pagos", "/impuestos", "/reportes", "/gastos", "/inversiones", "/tesoreria", "/auditoria"]);
   assert.equal(visible("admin").length, items.length);
   assert.deepEqual(visible("warehouse"), ["/deposito"]);
   assert.deepEqual(visible("picker"), ["/picking"]);
