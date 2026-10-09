@@ -1,6 +1,7 @@
 "use client";
+import { can } from "@/app/lib/permissions";
 
-import { fixturesEnabled } from "@/app/lib/api-mode";
+
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -45,7 +46,7 @@ export function DashboardWorkspace() {
   const [treasury, setTreasury] = useState<Block<DashboardTreasury>>(empty);
   const filters = useMemo<DashboardFilters>(() => ({ ...range, supplierId: supplierId || undefined, currency, limit: 12 }), [range, supplierId, currency]);
 
-  useEffect(() => { const timer = window.setTimeout(() => { const user = getStoredUser(); setAccess(fixturesEnabled() || user?.role === "admin" ? "ready" : user ? "forbidden" : "unauthenticated"); }, 0); return () => window.clearTimeout(timer); }, []);
+  useEffect(() => { const timer = window.setTimeout(() => { const user = getStoredUser(); setAccess(can(user?.role, "dashboard.read") ? "ready" : user ? "forbidden" : "unauthenticated"); }, 0); return () => window.clearTimeout(timer); }, []);
   useEffect(() => { if (access !== "ready") return; void supplierApi.listSuppliers({ status: "ACTIVE", pageSize: 100 }).then((result) => setSuppliers(result.items)).catch(() => setSuppliers([])); }, [access]);
   const loadKpis = async () => { setKpis((current) => ({ ...current, loading: true, error: "" })); try { setKpis({ loading: false, error: "", data: await dashboardApi.kpis(filters) }); } catch (error) { setKpis({ loading: false, error: errorText(error), data: null }); } };
   const loadPayables = async () => { setPayables((current) => ({ ...current, loading: true, error: "" })); try { setPayables({ loading: false, error: "", data: await dashboardApi.payablesDue(filters) }); } catch (error) { setPayables({ loading: false, error: errorText(error), data: null }); } };

@@ -1,4 +1,5 @@
 "use client";
+import { can } from "@/app/lib/permissions";
 
 import { fixturesEnabled } from "@/app/lib/api-mode";
 
@@ -57,7 +58,7 @@ export function KpiDashboard() {
     void load(range);
   }, [range]);
   useEffect(() => { const user = getStoredUser(); // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRole(user?.role === "admin" ? "admin" : "viewer"); }, []);
+    setRole(can(user?.role, "dashboard.read") ? "admin" : "viewer"); }, []);
   useEffect(() => { if (formError) errorRef.current?.focus(); }, [formError]);
 
   const applyPreset = (preset: MetricsPreset) => { const next = presetRange(preset, { today }); setDraft(next); setFormError(""); setRange(next); };

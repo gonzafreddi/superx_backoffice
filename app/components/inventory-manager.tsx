@@ -1,4 +1,5 @@
 "use client";
+import { can } from "@/app/lib/permissions";
 
 import { ProductQuantityInput } from "@/app/components/ui/product-quantity-input";
 import { formatQuantity } from "@/app/lib/quantity-rules";
@@ -29,7 +30,7 @@ const actors: Record<UserRole, string> = { viewer: "Usuario de consulta", operat
 export function InventoryManager() {
   const [items, setItems] = useState<InventoryItem[]>([]), [warehouses, setWarehouses] = useState<Warehouse[]>([]), [selectedId, setSelectedId] = useState<string | null>(null), [role, setRole] = useState<UserRole>("viewer"), [query, setQuery] = useState(""), [warehouseId, setWarehouseId] = useState(""), [status, setStatus] = useState<"all" | InventoryStatus>("all"), [view, setView] = useState<InventoryView>("grid"), [loading, setLoading] = useState(true), [loadError, setLoadError] = useState(""), [notice, setNotice] = useState<Notice>(null), [dialog, setDialog] = useState<Dialog>(null), [adjustment, setAdjustment] = useState<Adjustment>({ quantity: 0, reason: "" }), [errors, setErrors] = useState<Partial<Record<keyof Adjustment, string>>>({}), [pending, setPending] = useState(false), [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null); const permissions = getInventoryPermissions(role); const selected = items.find((item) => item.id === selectedId) ?? null;
-  const load = async () => { setLoading(true); setLoadError(""); try { if (!navigator.onLine) throw new Error("Sin conexión a internet. Verificá tu conexión y reintentá."); const [nextItems, nextWarehouses] = await Promise.all([inventoryApi.listInventory(), inventoryApi.listWarehouses()]); setItems(nextItems); setWarehouses(nextWarehouses); setSelectedId((current) => current && nextItems.some((item) => item.id === current) ? current : nextItems[0]?.id ?? null); } catch (error) { setLoadError(error instanceof Error ? error.message : "No se pudo cargar el inventario."); } finally { setLoading(false); } };
+  const load = async () => { setLoading(true); setLoadError(""); try { if (!navigator.onLine) throw new Error("Sin conexión a internet. Verificá tu conexión y reintentá."); const [nextItems, nextWarehouses] = await Promise.all([inventoryApi.listInventory(), can(getStoredUser()?.role, "warehouses.manage") ? inventoryApi.listWarehouses() : Promise.resolve([])]); setItems(nextItems); setWarehouses(nextWarehouses.length ? nextWarehouses : [...new Set(nextItems.map(item => item.warehouseId))].map(id => ({ id, name: `Depósito #${id}`, code: id }))); setSelectedId((current) => current && nextItems.some((item) => item.id === current) ? current : nextItems[0]?.id ?? null); } catch (error) { setLoadError(error instanceof Error ? error.message : "No se pudo cargar el inventario."); } finally { setLoading(false); } };
   useEffect(() => { // Sincronización inicial con el adaptador temporal de inventario.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
@@ -49,7 +50,7 @@ export function InventoryManager() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movementsKey]);
   useEffect(() => { const user = getStoredUser(); // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRole(user?.role === "admin" ? "admin" : "viewer"); }, []);
+    setRole(can(user?.role, "inventory.write") ? "admin" : "viewer"); }, []);
   const visible = useMemo(() => { const normalized = query.trim().toLocaleLowerCase("es-AR"); return items.filter((item) => (!normalized || [item.productName, item.sku].some((value) => value.toLocaleLowerCase("es-AR").includes(normalized))) && (!warehouseId || item.warehouseId === warehouseId) && (status === "all" || getInventoryStatus(item) === status)); }, [items, query, warehouseId, status]);
   const warehouseName = (id: string) => warehouses.find((warehouse) => warehouse.id === id)?.name ?? "Depósito no disponible";
   const openAdjustment = () => { setAdjustment({ quantity: 0, reason: "" }); setErrors({}); setDialog("adjust"); };

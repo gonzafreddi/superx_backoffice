@@ -1,6 +1,7 @@
 "use client";
+import { can } from "@/app/lib/permissions";
 
-import { fixturesEnabled } from "@/app/lib/api-mode";
+
 
 import { Notice } from "@/app/components/ui/notice";
 import { MobileFilters } from "@/app/components/ui/mobile-filters";
@@ -15,7 +16,7 @@ import { supplierApi } from "@/app/lib/supplier-api";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 const money = (v: string, c = "ARS") => new Intl.NumberFormat("es-AR", { style: "currency", currency: c }).format(Number(v)); const date = (v: string) => new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(new Date(`${v}T12:00:00`));
 export function InvoiceList() { const [items, setItems] = useState<SupplierInvoiceSummary[]>([]), [suppliers, setSuppliers] = useState<Array<{id:string;name:string}>>([]), [loading, setLoading] = useState(true), [error, setError] = useState(""), [filter, setFilter] = useState<{supplierId:string;paymentStatus:InvoicePaymentStatus|"";q:string;overdue:boolean}>({supplierId:"",paymentStatus:"",q:"",overdue:false}), [summary, setSummary] = useState<Awaited<ReturnType<typeof invoiceApi.summary>> | null>(null);
- const allowed = fixturesEnabled() || getStoredUser()?.role === "admin";
+ const allowed = can(getStoredUser()?.role, "finance.write");
  const load = useCallback(async () => { if (!allowed) return; setLoading(true); try { const result = await invoiceApi.list({ supplierId:filter.supplierId || undefined, paymentStatus: filter.overdue ? "OVERDUE" : filter.paymentStatus || undefined, q:filter.q || undefined }); setItems(result.items); setSummary(await invoiceApi.summary(filter.supplierId || undefined)); setError(""); } catch(e) { setError(e instanceof Error ? e.message : "No pudimos cargar facturas."); } finally { setLoading(false); } }, [allowed,filter]);
  useEffect(() => { void supplierApi.listSuppliers({pageSize:100}).then(x => setSuppliers(x.items)); }, []); useEffect(() => { void load(); }, [load]);
  if (!allowed) return <section className="workspace"><div className="state error-state"><strong>No autorizado</strong><span>Facturas de proveedor es sólo para administradores.</span></div></section>;

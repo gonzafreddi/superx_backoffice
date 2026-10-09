@@ -10,63 +10,8 @@ import { receivingApi } from "@/app/lib/receiving-api";
 import { forgetDevice } from "@/app/lib/push-api";
 import { StaffPushPrompt } from "./staff-push-prompt";
 
-const navGroups = [
-  {
-    label: "Operación",
-    items: [
-      { href: "/administracion", label: "Administración", icon: "admin" },
-      { href: "/tablero", label: "Tablero", icon: "chart" },
-      { href: "/pedidos", label: "Pedidos", icon: "receipt" },
-      { href: "/clientes", label: "Clientes", icon: "users" },
-      { href: "/repartidores", label: "Repartidores", icon: "truck" },
-      { href: "/entregas", label: "Entregas", icon: "truck" },
-    ],
-  },
-  {
-    label: "Catálogo",
-    items: [
-      { href: "/productos", label: "Productos", icon: "box" },
-      { href: "/productos/categorias", label: "Categorías", icon: "tag" },
-      { href: "/precios", label: "Precios", icon: "tag" },
-      { href: "/promociones", label: "Promociones", icon: "promotion" },
-      { href: "/inventario", label: "Inventario", icon: "shelves" },
-      // Ubicaciones/racks deferred: stock is tracked per warehouse for now (route still exists).
-      // Combos parked by the owner (route /combos still exists; the API only serves them with COMBOS_ENABLED=true).
-    ],
-  },
-  {
-    label: "Compras y proveedores",
-    items: [
-      { href: "/proveedores", label: "Proveedores", icon: "supplier" },
-      { href: "/compras", label: "Compras", icon: "purchase" },
-      { href: "/facturas", label: "Facturas", icon: "invoice" },
-      { href: "/pagos", label: "Pagos", icon: "payment" },
-      { href: "/impuestos", label: "Impuestos", icon: "tag" },
-    ],
-  },
-  {
-    label: "Depósito",
-    items: [
-      { href: "/deposito", label: "Por recibir", icon: "warehouse", roles: ["admin", "warehouse"] },
-      { href: "/picking", label: "Picking", icon: "box", roles: ["admin", "picker"] },
-      { href: "/reparto", label: "Reparto", icon: "truck", roles: ["admin", "driver"] },
-    ],
-  },
-  {
-    label: "Finanzas",
-    items: [
-      { href: "/gastos", label: "Gastos", icon: "expense" },
-      { href: "/inversiones", label: "Inversiones", icon: "asset" },
-      { href: "/tesoreria", label: "Tesorería", icon: "treasury" },
-    ],
-  },
-  { label: "Administración", items: [{ href: "/usuarios", label: "Usuarios", icon: "users" }, { href: "/arrepentimientos", label: "Arrepentimientos", icon: "receipt" }, { href: "/notificaciones", label: "Notificaciones", icon: "bell" }, { href: "/medios-de-pago", label: "Medios de pago", icon: "payment" }] },
-];
-type NavItem = { href: string; label: string; icon: string; roles?: string[] };
-/** Items without `roles` are admin-only. Without a backend (fixture mode) everyone is treated as admin. */
-const canSee = (item: NavItem, role: string) => role === "admin" || Boolean(item.roles?.includes(role));
+import { navGroups, canSee, roleHome, type NavItem } from "@/app/lib/navigation";
 const allItems: NavItem[] = navGroups.flatMap((group) => group.items);
-const roleHome: Record<string, string> = { warehouse: "/deposito", picker: "/picking", driver: "/reparto" };
 
 function NavIcon({ name }: { name: string }) {
   const props = {

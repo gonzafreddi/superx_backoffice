@@ -1,4 +1,5 @@
 "use client";
+import { can } from "@/app/lib/permissions";
 
 import { Notice } from "@/app/components/ui/notice";
 
@@ -69,7 +70,7 @@ export function DeliveryManager() {
     void load();
   }, []);
   useEffect(() => { const user = getStoredUser(); // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRole(user?.role === "admin" ? "admin" : "viewer"); }, []);
+    setRole(can(user?.role, "delivery.configure") ? "admin" : "viewer"); }, []);
   useEffect(() => { if (formError) errorRef.current?.focus(); }, [formError]);
   const visible = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("es-AR");

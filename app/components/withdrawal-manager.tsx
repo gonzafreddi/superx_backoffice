@@ -1,4 +1,6 @@
 "use client";
+import { getStoredUser } from "@/app/lib/auth-api";
+import { can } from "@/app/lib/permissions";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { withdrawalApi } from "@/app/lib/withdrawal-api";
 import type { WithdrawalPage, WithdrawalRequest, WithdrawalStatus } from "@/app/lib/withdrawal-contract";
@@ -33,7 +35,7 @@ function WithdrawalDialog({ item, onClose, onSaved }: { item: WithdrawalRequest;
   const [status, setStatus] = useState(item.status), [note, setNote] = useState(item.resolutionNote ?? ""), [saving, setSaving] = useState(false), [error, setError] = useState("");
   useEffect(() => { const trigger = document.activeElement; const dialog = ref.current; dialog?.showModal(); return () => { dialog?.close(); if (trigger instanceof HTMLElement) trigger.focus(); }; }, []);
   const submit = async (event: FormEvent) => {
-    event.preventDefault(); if (lock.current) return;
+    event.preventDefault(); if (lock.current || !can(getStoredUser()?.role, "withdrawals.write")) return;
     const input = { status, resolutionNote: note.trim() }; const message = validateWithdrawalUpdate(input);
     if (message) { setError(message); return; }
     lock.current = true; setSaving(true); setError("");
@@ -41,5 +43,5 @@ function WithdrawalDialog({ item, onClose, onSaved }: { item: WithdrawalRequest;
   };
   return <dialog ref={ref} className="modal catalog-entity-modal user-create-modal" aria-labelledby="withdrawal-title" onCancel={(e) => { if (saving) e.preventDefault(); else onClose(); }}><header><h2 id="withdrawal-title">{item.code}</h2><button className="icon-button" aria-label="Cerrar" disabled={saving} onClick={onClose}>×</button></header>
     <dl className="withdrawal-details">{[["Nombre", item.fullName], ["Email", item.email], ["Teléfono", item.phone], ["Pedido", item.orderNumber], ["Motivo", item.reason], ["Fecha de solicitud", date.format(new Date(item.createdAt))], ["Fecha de resolución", item.resolvedAt ? date.format(new Date(item.resolvedAt)) : null]].map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || "—"}</dd></div>)}</dl>
-    <form onSubmit={(e) => void submit(e)} aria-busy={saving}>{error && <Notice kind="error" role="alert">{error}</Notice>}<label className="field"><span>Estado</span><select autoFocus value={status} disabled={saving} onChange={(e) => setStatus(e.target.value as WithdrawalStatus)}>{withdrawalStatuses.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label><label className="field"><span>Nota de resolución (opcional)</span><textarea value={note} rows={5} maxLength={1000} disabled={saving} onChange={(e) => setNote(e.target.value)} /></label><p className="catalog-entity-help">Hasta 1000 caracteres. Para borrar una nota, dejá el campo vacío.</p><footer><button type="button" className="button ghost" disabled={saving} onClick={onClose}>Cancelar</button><button className="button primary" disabled={saving}>{saving ? "Guardando…" : "Guardar cambios"}</button></footer></form></dialog>;
+    <form onSubmit={(e) => void submit(e)} aria-busy={saving}>{error && <Notice kind="error" role="alert">{error}</Notice>}<label className="field"><span>Estado</span><select autoFocus value={status} disabled={saving || !can(getStoredUser()?.role, "withdrawals.write")} onChange={(e) => setStatus(e.target.value as WithdrawalStatus)}>{withdrawalStatuses.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label><label className="field"><span>Nota de resolución (opcional)</span><textarea value={note} rows={5} maxLength={1000} disabled={saving || !can(getStoredUser()?.role, "withdrawals.write")} onChange={(e) => setNote(e.target.value)} /></label><p className="catalog-entity-help">Hasta 1000 caracteres. Para borrar una nota, dejá el campo vacío.</p><footer><button type="button" className="button ghost" disabled={saving} onClick={onClose}>Cancelar</button>{can(getStoredUser()?.role, "withdrawals.write") && <button className="button primary" disabled={saving}>{saving ? "Guardando…" : "Guardar cambios"}</button>}</footer></form></dialog>;
 }

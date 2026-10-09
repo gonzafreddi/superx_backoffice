@@ -1,6 +1,7 @@
 "use client";
+import { can } from "@/app/lib/permissions";
 
-import { fixturesEnabled } from "@/app/lib/api-mode";
+
 import { Notice } from "@/app/components/ui/notice";
 /* eslint-disable react-hooks/set-state-in-effect */
 import Link from "next/link";
@@ -15,7 +16,7 @@ type Access = "loading" | "ready" | "forbidden";
 const today = () => new Date().toISOString().slice(0, 10);
 export function TreasuryLedgerView({ accountId }: { accountId: string }) {
   const [access, setAccess] = useState<Access>("loading"), [account, setAccount] = useState<TreasuryAccount | null>(null), [accounts, setAccounts] = useState<TreasuryAccount[]>([]), [ledger, setLedger] = useState<TreasuryLedger | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState(""), [from, setFrom] = useState(""), [to, setTo] = useState(""), [type, setType] = useState<TreasuryMovementType | "">(""), [referenceType, setReferenceType] = useState(""), [query, setQuery] = useState(""), [page, setPage] = useState(1), [modal, setModal] = useState<"manual" | "transfer" | TreasuryMovement | null>(null);
-  useEffect(() => { const user = getStoredUser(); setAccess(fixturesEnabled() || user?.role === "admin" ? "ready" : "forbidden"); }, []);
+  useEffect(() => { const user = getStoredUser(); setAccess(can(user?.role, "finance.write") ? "ready" : "forbidden"); }, []);
   const load = useCallback(async () => { if (access !== "ready") return; setLoading(true); try { const [current, accountsResult, result] = await Promise.all([treasuryApi.getAccount(accountId), treasuryApi.listAccounts(), treasuryApi.ledger(accountId, { from, to, type, referenceType, q: query, page, pageSize: 25 })]); setAccount(current); setAccounts(accountsResult.items); setLedger(result); setError(""); } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo cargar el libro de cuenta."); } finally { setLoading(false); } }, [access, accountId, from, page, query, referenceType, to, type]);
   useEffect(() => { void load(); }, [load]);
   if (access !== "ready") return <section className="workspace"><div className="state error-state"><strong>{access === "loading" ? "Verificando acceso…" : "No autorizado"}</strong><span>Tesorería está disponible únicamente para cuentas administradoras.</span></div></section>;

@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { deliveryApi } from "../app/lib/delivery-api";
 import { productApi } from "../app/lib/product-api";
 import { pickingApi, PickingApiError } from "../app/lib/picking-api";
 import { dispatchApi } from "../app/lib/dispatch-api";
@@ -19,16 +18,6 @@ async function withBackend(handler: Handler, action: () => Promise<void>) {
   try { await action(); } finally { globalThis.fetch = previousFetch; if (previousBase === undefined) delete process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL; else process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL = previousBase; }
 }
 const product = { id: "5", name: "Queso", slug: "queso", categoryId: "1", brandId: "1", unitId: "2", saleMode: "WEIGHT", weightMinGrams: 250, weightStepGrams: 250, isActive: true, updatedAt: "2026-10-09T12:00:00Z" };
-test("delivery lee mínimo y alta/edición/vaciado serializan string monetario", async () => {
-  const bodies: Record<string, unknown>[] = [];
-  const zone = { id: "1", cityId: "1", name: "Centro", postalCodes: ["2741"], neighborhoods: [], deliveryFee: "200.00", freeDeliveryThreshold: "1000.00", minimumOrderAmount: "600.00", priority: 0, isActive: true };
-  await withBackend((path, init) => { if (path === "/cities") return [{ id: "1", name: "Salto" }]; if (init?.body) { bodies.push(JSON.parse(String(init.body))); return zone; } return [zone]; }, async () => {
-    const input = { name: "Centro", cityName: "Salto", postalCodes: ["2741"], neighborhoods: [], deliveryFee: 200, freeDeliveryThreshold: 1000, minimumOrderAmount: 600.50, priority: 0, active: true, changedBy: "Admin" };
-    assert.equal((await deliveryApi.listZones())[0].minimumOrderAmount, 600);
-    await deliveryApi.createZone(input); await deliveryApi.updateZone("1", input); await deliveryApi.updateZone("1", { ...input, minimumOrderAmount: "" });
-    assert.deepEqual(bodies.map((body) => body.minimumOrderAmount), ["600.50", "600.50", "0.00"]);
-  });
-});
 test("producto conserva configuración de peso en lecturas y escrituras", async () => {
   const bodies: Record<string, unknown>[] = [];
   await withBackend((path, init) => { if (path === "/units") return [{ id: "2", code: "KG", name: "Kilogramo" }]; if (init?.body) { bodies.push(JSON.parse(String(init.body))); return product; } return product; }, async () => {

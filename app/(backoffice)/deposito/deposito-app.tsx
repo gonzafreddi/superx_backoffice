@@ -1,4 +1,5 @@
 "use client";
+import { can } from "@/app/lib/permissions";
 
 import { formatQuantity } from "@/app/lib/quantity-rules";
 import { fixturesEnabled } from "@/app/lib/api-mode";
@@ -79,7 +80,7 @@ export function DepositoApp({ initialPurchaseOrderId }: { initialPurchaseOrderId
     const user = getStoredUser();
     if (fixturesEnabled()) setAccess("ready");
     else if (!user) setAccess("auth");
-    else setAccess(user.role === "admin" || user.role === "warehouse" ? "ready" : "forbidden");
+    else setAccess(can(user.role, "receiving.write") ? "ready" : "forbidden");
     try {
       setWarehouseId(localStorage.getItem("superx.receiving.warehouse") ?? "");
     } catch {}

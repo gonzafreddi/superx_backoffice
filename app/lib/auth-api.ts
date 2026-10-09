@@ -2,7 +2,7 @@ import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 export type AdminUser = { id: string; email: string; role: string; name: string | null };
 export type ManagedUser = AdminUser & { phone: string | null; isActive: boolean; createdAt: string };
 import { userOperationError } from "./user-rules";
-export type UserRole = "customer" | "admin" | "picker" | "driver" | "warehouse";
+export type UserRole = "customer" | "admin" | "picker" | "driver" | "warehouse" | "support" | "accountant";
 
 import { authFetch } from "./http";
 
@@ -15,7 +15,7 @@ export class AuthApiError extends Error {
 
 const TOKEN_KEY = "superx.access-token";
 const USER_KEY = "superx.access-user";
-const BACKOFFICE_ROLES = new Set(["admin", "picker", "driver", "warehouse"]);
+const BACKOFFICE_ROLES = new Set(["admin", "picker", "driver", "warehouse", "support", "accountant"]);
 
 function persist(key: string, value: string): void {
   try {
