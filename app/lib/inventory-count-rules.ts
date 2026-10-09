@@ -36,6 +36,6 @@ export function adaptCount(raw: Record<string, unknown>): import("./inventory-co
   const lines = (Array.isArray(raw.lines) ? raw.lines : []) as Array<Record<string, unknown>>;
   return { ...raw, id: String(raw.id), warehouseId: String(raw.warehouseId), locationId: raw.locationId == null ? null : String(raw.locationId), lines: lines.map(line => {
     const product = (line.product ?? {}) as Record<string, unknown>;
-    return { ...line, productId: String(line.productId ?? product.id), saleMode: line.saleMode === "WEIGHT" ? "WEIGHT" : "UNIT", productName: String(line.productName ?? product.name ?? "Producto"), sku: String(line.sku ?? product.sku ?? product.slug ?? ""), barcode: (line.barcode ?? product.barcode ?? null) as string | null, systemQuantity: Number(line.systemQuantity), countedQuantity: line.countedQuantity == null ? null : Number(line.countedQuantity), reason: (line.reason ?? null) as string | null } as CountLine;
+    return { ...line, productId: String(line.productId ?? product.id), saleMode: (line.saleMode ?? product.saleMode) === "WEIGHT" ? "WEIGHT" : "UNIT", productName: String(line.productName ?? product.name ?? "Producto"), sku: String(line.sku ?? product.sku ?? product.slug ?? ""), barcode: (line.barcode ?? product.barcode ?? null) as string | null, systemQuantity: Number(line.systemQuantity), countedQuantity: line.countedQuantity == null ? null : Number(line.countedQuantity), reason: (line.reason ?? null) as string | null } as CountLine;
   }) } as import("./inventory-count-contract").InventoryCount;
 }
