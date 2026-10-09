@@ -1,4 +1,5 @@
 "use client";
+import { EntityAuditHistory } from "../audit-history";
 import { can } from "@/app/lib/permissions";
 
 import { OrderAssignmentPanel } from "./order-assignment-panel";
@@ -43,6 +44,7 @@ export function OrderDetailWorkspace({ id, returnQuery }: { id: string; returnQu
     {alerts.length > 0 && <div className="order-alert-strip"><OrderIcon name="alert" /><strong>Atención operativa</strong><span>{alerts.join(" · ")}</span></div>}
     <OrderSummary order={order} />
     <section className="order-detail-layout"><main><OrderTimeline order={order} /><OrderItems order={order} /></main><aside><CustomerCard order={order} /><AddressCard order={order} /><PaymentCard order={order} canManage={can(getStoredUser()?.role, "orders.payment")} onPay={() => setPaymentModal(true)} onRefund={() => setRefundModal(true)} /><OrderActions order={order} transitions={transitions} onTransition={setPendingStatus} /></aside></section>
+    <EntityAuditHistory entityType="order" entityId={order.id} />
     {can(getStoredUser()?.role, "drivers.read") && <OrderAssignmentPanel orderId={order.id} status={order.status} canManage={can(getStoredUser()?.role, "orders.assignDriver")} />}
     <OrderHistory order={order} />
     {pendingStatus && <ConfirmOrderTransition order={order} status={pendingStatus} pending={pending} onCancel={() => setPendingStatus(null)} onConfirm={(note, checklist) => void transition(note, checklist)} />}{paymentModal && <ConfirmOrderPayment order={order} pending={pending} onCancel={() => setPaymentModal(false)} onConfirm={(paymentMethod, treasuryAccountId, note) => void confirmPayment(paymentMethod, treasuryAccountId, note)} />}{refundModal && <ConfirmOrderRefund order={order} pending={pending} onCancel={() => setRefundModal(false)} onConfirm={(amount, treasuryAccountId, note) => void confirmRefund(amount, treasuryAccountId, note)} />}

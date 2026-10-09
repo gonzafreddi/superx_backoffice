@@ -16,7 +16,7 @@ test("order detail separates support logistics from accountant payment and refun
   process.env.NEXT_PUBLIC_SUPERX_API_BASE_URL = "http://backend.test";
   orderApi.getOrder = async () => order;
   const requests: string[] = [];
-  globalThis.fetch = async url => { requests.push(String(url)); return new Response(JSON.stringify(String(url).includes("/assignment") ? { active: null, history: [] } : [])); };
+  globalThis.fetch = async url => { requests.push(String(url)); return new Response(JSON.stringify(String(url).includes("/audit-logs") ? { items: [], total: 0, page: 1, pageSize: 20 } : String(url).includes("/assignment") ? { active: null, history: [] } : [])); };
   try {
     for (const role of ["support", "accountant", "admin"]) {
       requests.length = 0;
@@ -29,10 +29,20 @@ test("order detail separates support logistics from accountant payment and refun
       assert.equal(Boolean(view.queryByRole("button", { name: "Registrar reintegro" })), role !== "support", `${role} refund`);
       if (role === "accountant") {
         assert.equal(view.queryByRole("heading", { name: "Reparto" }), null);
-        assert.equal(requests.length, 0, "accountant must not query assignment/driver endpoints");
+        assert.equal(requests.filter(url => /\/(assignment|drivers)(?:[/?]|$)/.test(url)).length, 0, "accountant must not query assignment/driver endpoints");
       } else {
         await waitFor(() => assert.ok(view.queryByText("Sin repartidor asignado.")));
         assert.ok(requests.some(url => url.includes("/assignment")));
+      }
+      if (role === "support") {
+        assert.equal(view.queryByRole("heading", { name: "Historial de cambios" }), null);
+        assert.equal(requests.some(url => url.includes("/audit-logs")), false);
+      } else {
+        await waitFor(() => assert.ok(requests.some(url => url.includes("/audit-logs"))));
+        const request = new URL(requests.find(url => url.includes("/audit-logs"))!);
+        assert.equal(request.searchParams.get("entityType"), "order");
+        assert.equal(request.searchParams.get("entityId"), order.id);
+        assert.ok(view.queryByRole("heading", { name: "Historial de cambios" }));
       }
       cleanup();
     }

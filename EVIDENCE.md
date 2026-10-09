@@ -1,3 +1,22 @@
+# A — Registro de auditoría (Backoffice)
+
+Implementado `/auditoria` en Administración para admin/accountant, tabla con fecha, actor, acción legible, entidad y resumen; filtros por fechas, usuario (ID), entidad y texto, paginación y detalle expandible de valores antes/después. Historial reutilizable `EntityAuditHistory({ entityType, entityId })` integrado en pedido y producto con IDs del registro cargado y permisos centralizados. Actualización manual, estados de carga/error/vacío, cancelación de consultas obsoletas y tarjetas en móvil.
+
+Adapter de lectura contra `GET /audit-logs` según contrato, usando authFetch, apiBaseUrl/fixturesEnabled y fixtures filtrables en desarrollo. Fechas locales convertidas a límites UTC inclusivos. Identificadores conservados como strings. No modifica backend ni agrega escrituras de auditoría.
+
+Tests node --test de filtros, orden, paginación, serialización, límites de fechas, presentación de cambios, permisos y navegación. Documentación local de Next consultada antes de escribir código.
+
+Verificación:
+- `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm typecheck`: PASS.
+- `pnpm lint`: PASS; eslint del test de vistas volvió a pasar tras actualizarlo.
+- `env -u NEXT_PUBLIC_SUPERX_API_BASE_URL pnpm test`: 205 tests, 205 PASS.
+- `NEXT_PUBLIC_SUPERX_API_BASE_URL=http://127.0.0.1:4000 pnpm build`: PASS; incluye `/auditoria`.
+- `git diff --check`: PASS.
+
+La primera corrida de tests detectó una expectativa antigua de cero consultas para accountant en pedido; se ajustó para excluir asignaciones/repartidores y comprobar la nueva consulta audit-logs por entidad y el bloqueo para support. La suite completa volvió a pasar. No se realizó integración con el backend paralelo ni inspección visual en navegador. Sin commit ni push.
+
+---
+
 # R — Roles finos (Backoffice)
 
 Implementación de support (Atención al cliente) y accountant (Contabilidad): autenticación, alta/edición/filtro de usuarios, matriz central de acciones, navegación y home por rol.
