@@ -21,6 +21,7 @@ export type DeliveryZone = {
   neighborhoods: string[];
   deliveryFee: number;
   freeDeliveryThreshold: number | null;
+  minimumOrderAmount?: number | null;
   priority: number;
   active: boolean;
   updatedAt: string;
@@ -34,6 +35,7 @@ export type ZoneInput = {
   neighborhoods: string[];
   deliveryFee: number | "";
   freeDeliveryThreshold: number | "" | null;
+  minimumOrderAmount?: number | "" | null;
   priority: number | "";
   active: boolean;
 };

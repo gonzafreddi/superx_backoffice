@@ -1,3 +1,4 @@
+import { formatQuantity } from "@/app/lib/quantity-rules";
 import type { InventoryItem, Warehouse } from "@/app/lib/inventory-contract";
 import { getInventoryStatus, getAvailableStock } from "@/app/lib/inventory-rules";
 import { InventoryIcon, StockStatusBadge, InventoryThumb } from "./inventory-ui";
@@ -5,7 +6,7 @@ import { InventoryIcon, StockStatusBadge, InventoryThumb } from "./inventory-ui"
 const dates = new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" });
 export function InventoryProductCard({ item, warehouseName, selected, onSelect }: { item: InventoryItem; warehouseName: string; selected: boolean; onSelect: () => void }) {
   const status = getInventoryStatus(item);
-  return <button className={`inventory-product-card ${selected ? "selected" : ""}`} onClick={onSelect} aria-pressed={selected}><InventoryThumb className="inventory-product-image" imageUrl={item.imageUrl} />{selected && <span className="inventory-selected-check"><InventoryIcon name="check" /><span className="sr-only">Seleccionado</span></span>}<span className="inventory-card-heading"><strong>{item.productName}</strong><small>{item.sku}</small></span><StockStatusBadge status={status} /><span className="inventory-stock-pair"><span><b>{getAvailableStock(item)}</b><small>disponibles</small></span><span><b>{item.minimum}</b><small>mínimo</small></span></span><span className="inventory-card-meta"><span><InventoryIcon name="pin" />{warehouseName}</span><span><InventoryIcon name="clock" />Actualizado {dates.format(new Date(item.updatedAt))}</span></span></button>;
+  return <button className={`inventory-product-card ${selected ? "selected" : ""}`} onClick={onSelect} aria-pressed={selected}><InventoryThumb className="inventory-product-image" imageUrl={item.imageUrl} />{selected && <span className="inventory-selected-check"><InventoryIcon name="check" /><span className="sr-only">Seleccionado</span></span>}<span className="inventory-card-heading"><strong>{item.productName}</strong><small>{item.sku}</small></span><StockStatusBadge status={status} /><span className="inventory-stock-pair"><span><b>{formatQuantity(getAvailableStock(item), item.saleMode)}</b><small>disponibles</small></span><span><b>{formatQuantity(item.minimum, item.saleMode)}</b><small>mínimo</small></span></span><span className="inventory-card-meta"><span><InventoryIcon name="pin" />{warehouseName}</span><span><InventoryIcon name="clock" />Actualizado {dates.format(new Date(item.updatedAt))}</span></span></button>;
 }
 
 export function InventoryGrid({ items, warehouses, selectedId, onSelect }: { items: InventoryItem[]; warehouses: Warehouse[]; selectedId: string | null; onSelect: (id: string) => void }) {

@@ -30,3 +30,10 @@ test("clasifica la vigencia", () => {
   assert.equal(comboTiming({ validFrom: "2026-10-01", validUntil: null }, now), "upcoming");
   assert.equal(comboTiming({ validFrom: null, validUntil: "2026-09-01" }, now), "expired");
 });
+
+test("combos excluyen peso y conservan elegibilidad de UNIT", async () => {
+  const { canUseInCombo } = await import("../app/lib/combo-rules.js");
+  assert.equal(canUseInCombo({ saleMode: "WEIGHT" }), false);
+  assert.equal(canUseInCombo({ saleMode: "UNIT" }), true);
+  assert.equal(canUseInCombo({}), true);
+});

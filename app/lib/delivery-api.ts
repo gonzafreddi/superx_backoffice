@@ -30,7 +30,7 @@ function assertValid(errors: object) {
 function baseUrl(): string | undefined { return apiBaseUrl(); }
 
 type RawCity = { id: string; name: string };
-type RawZone = { id: string; cityId: string; name: string; postalCodes: string[]; neighborhoods: string[]; deliveryFee: string; freeDeliveryThreshold: string | null; priority: number; isActive: boolean };
+type RawZone = { id: string; cityId: string; name: string; postalCodes: string[]; neighborhoods: string[]; deliveryFee: string; freeDeliveryThreshold: string | null; minimumOrderAmount?: string | null; priority: number; isActive: boolean };
 type RawWindow = { id: string; startTime: string; endTime: string; weekdays: number[]; isActive: boolean };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
@@ -65,6 +65,7 @@ function adaptZone(raw: RawZone, cityName: string): DeliveryZone {
     neighborhoods: raw.neighborhoods,
     deliveryFee: Number(raw.deliveryFee),
     freeDeliveryThreshold: raw.freeDeliveryThreshold === null ? null : Number(raw.freeDeliveryThreshold),
+    minimumOrderAmount: raw.minimumOrderAmount == null ? null : Number(raw.minimumOrderAmount),
     priority: raw.priority,
     active: raw.isActive,
     updatedAt: new Date().toISOString(),
@@ -94,7 +95,7 @@ export const deliveryApi: DeliveryApi = {
       assertValid(validateZoneInput(input));
       const now = new Date().toISOString();
       const { buildDeliveryChangeEvent } = await import("./delivery-rules");
-      const zone: DeliveryZone = { id: `zone-${uid()}`, name: input.name.trim(), cityName: input.cityName.trim(), postalCodes: input.postalCodes.map((code) => code.trim()).filter(Boolean), neighborhoods: input.neighborhoods.map((name) => name.trim()).filter(Boolean), deliveryFee: Number(input.deliveryFee), freeDeliveryThreshold: input.freeDeliveryThreshold === "" || input.freeDeliveryThreshold === null ? null : Number(input.freeDeliveryThreshold), priority: Number(input.priority), active: input.active, updatedAt: now, history: [buildDeliveryChangeEvent(`Zona creada por ${input.changedBy}`, input.changedBy, input.changedByRole, now, `dc-${uid()}`)] };
+      const zone: DeliveryZone = { id: `zone-${uid()}`, name: input.name.trim(), cityName: input.cityName.trim(), postalCodes: input.postalCodes.map((code) => code.trim()).filter(Boolean), neighborhoods: input.neighborhoods.map((name) => name.trim()).filter(Boolean), deliveryFee: Number(input.deliveryFee), freeDeliveryThreshold: input.freeDeliveryThreshold === "" || input.freeDeliveryThreshold === null ? null : Number(input.freeDeliveryThreshold), minimumOrderAmount: input.minimumOrderAmount == null || input.minimumOrderAmount === "" ? null : Number(input.minimumOrderAmount), priority: Number(input.priority), active: input.active, updatedAt: now, history: [buildDeliveryChangeEvent(`Zona creada por ${input.changedBy}`, input.changedBy, input.changedByRole, now, `dc-${uid()}`)] };
       zones = [...zones, zone];
       return cloneZone(zone);
     }
@@ -103,7 +104,7 @@ export const deliveryApi: DeliveryApi = {
     const cityId = await resolveCityId(root, input.cityName);
     const payload = await fetchJson(`${root}/delivery-zones`, {
       method: "POST",
-      body: JSON.stringify({ cityId: Number(cityId), name: input.name.trim(), postalCodes: input.postalCodes.map((code) => code.trim()).filter(Boolean), neighborhoods: input.neighborhoods.map((name) => name.trim()).filter(Boolean), deliveryFee: Number(input.deliveryFee).toFixed(2), freeDeliveryThreshold: input.freeDeliveryThreshold === "" || input.freeDeliveryThreshold === null ? undefined : Number(input.freeDeliveryThreshold).toFixed(2), priority: Number(input.priority) }),
+      body: JSON.stringify({ cityId: Number(cityId), name: input.name.trim(), postalCodes: input.postalCodes.map((code) => code.trim()).filter(Boolean), neighborhoods: input.neighborhoods.map((name) => name.trim()).filter(Boolean), deliveryFee: Number(input.deliveryFee).toFixed(2), freeDeliveryThreshold: input.freeDeliveryThreshold === "" || input.freeDeliveryThreshold === null ? undefined : Number(input.freeDeliveryThreshold).toFixed(2), minimumOrderAmount: Number(input.minimumOrderAmount || 0).toFixed(2), priority: Number(input.priority) }),
     });
     return adaptZone(payload as RawZone, input.cityName.trim());
   },
@@ -118,7 +119,7 @@ export const deliveryApi: DeliveryApi = {
       const { buildDeliveryChangeEvent } = await import("./delivery-rules");
       const threshold = input.freeDeliveryThreshold === "" || input.freeDeliveryThreshold === null ? null : Number(input.freeDeliveryThreshold);
       const summary = `${input.changedBy} actualizó envío $${Number(input.deliveryFee).toLocaleString("es-AR")}${threshold ? ` · gratis desde $${threshold.toLocaleString("es-AR")}` : " · sin envío gratis"}${input.active ? "" : " · zona inactiva"}${input.reason ? ` — ${input.reason}` : ""}`;
-      const updated: DeliveryZone = { ...zone, name: input.name.trim(), cityName: input.cityName.trim(), postalCodes: input.postalCodes.map((c) => c.trim()).filter(Boolean), neighborhoods: input.neighborhoods.map((n) => n.trim()).filter(Boolean), deliveryFee: Number(input.deliveryFee), freeDeliveryThreshold: threshold, priority: Number(input.priority), active: input.active, updatedAt: now, history: [...zone.history, buildDeliveryChangeEvent(summary, input.changedBy, input.changedByRole, now, `dc-${uid()}`)] };
+      const updated: DeliveryZone = { ...zone, name: input.name.trim(), cityName: input.cityName.trim(), postalCodes: input.postalCodes.map((c) => c.trim()).filter(Boolean), neighborhoods: input.neighborhoods.map((n) => n.trim()).filter(Boolean), deliveryFee: Number(input.deliveryFee), freeDeliveryThreshold: threshold, minimumOrderAmount: input.minimumOrderAmount == null || input.minimumOrderAmount === "" ? null : Number(input.minimumOrderAmount), priority: Number(input.priority), active: input.active, updatedAt: now, history: [...zone.history, buildDeliveryChangeEvent(summary, input.changedBy, input.changedByRole, now, `dc-${uid()}`)] };
       zones = zones.map((candidate) => (candidate.id === id ? updated : candidate));
       return cloneZone(updated);
     }
@@ -130,7 +131,7 @@ export const deliveryApi: DeliveryApi = {
     await resolveCityId(root, input.cityName);
     const payload = await fetchJson(`${root}/delivery-zones/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      body: JSON.stringify({ name: input.name.trim(), postalCodes: input.postalCodes.map((code) => code.trim()).filter(Boolean), neighborhoods: input.neighborhoods.map((name) => name.trim()).filter(Boolean), deliveryFee: Number(input.deliveryFee).toFixed(2), freeDeliveryThreshold: input.freeDeliveryThreshold === "" || input.freeDeliveryThreshold === null ? undefined : Number(input.freeDeliveryThreshold).toFixed(2), priority: Number(input.priority), isActive: input.active }),
+      body: JSON.stringify({ name: input.name.trim(), postalCodes: input.postalCodes.map((code) => code.trim()).filter(Boolean), neighborhoods: input.neighborhoods.map((name) => name.trim()).filter(Boolean), deliveryFee: Number(input.deliveryFee).toFixed(2), freeDeliveryThreshold: input.freeDeliveryThreshold === "" || input.freeDeliveryThreshold === null ? undefined : Number(input.freeDeliveryThreshold).toFixed(2), minimumOrderAmount: Number(input.minimumOrderAmount || 0).toFixed(2), priority: Number(input.priority), isActive: input.active }),
     });
     return adaptZone(payload as RawZone, input.cityName.trim());
   },

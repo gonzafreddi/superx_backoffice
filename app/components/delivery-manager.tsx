@@ -31,7 +31,7 @@ function Icon({ name }: { name: "search" | "zone" | "close" | "chevron" | "histo
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
 
-const emptyZoneForm = { name: "", cityName: "", postalCodes: "", neighborhoods: "", deliveryFee: "", freeDeliveryThreshold: "", priority: "0", active: true, reason: "" };
+const emptyZoneForm = { name: "", cityName: "", postalCodes: "", neighborhoods: "", deliveryFee: "", freeDeliveryThreshold: "", minimumOrderAmount: "", priority: "0", active: true, reason: "" };
 
 export function DeliveryManager() {
   const [zones, setZones] = useState<DeliveryZone[]>([]);
@@ -79,7 +79,7 @@ export function DeliveryManager() {
   const openZoneDialog = (kind: "zone-new" | "zone-edit") => {
     setFormError("");
     if (kind === "zone-edit" && selected) {
-      setZoneForm({ name: selected.name, cityName: selected.cityName, postalCodes: selected.postalCodes.join(", "), neighborhoods: selected.neighborhoods.join(", "), deliveryFee: String(selected.deliveryFee), freeDeliveryThreshold: selected.freeDeliveryThreshold === null ? "" : String(selected.freeDeliveryThreshold), priority: String(selected.priority), active: selected.active, reason: "" });
+      setZoneForm({ name: selected.name, cityName: selected.cityName, postalCodes: selected.postalCodes.join(", "), neighborhoods: selected.neighborhoods.join(", "), deliveryFee: String(selected.deliveryFee), freeDeliveryThreshold: selected.freeDeliveryThreshold === null ? "" : String(selected.freeDeliveryThreshold), minimumOrderAmount: selected.minimumOrderAmount ? String(selected.minimumOrderAmount) : "", priority: String(selected.priority), active: selected.active, reason: "" });
     } else {
       setZoneForm(emptyZoneForm);
     }
@@ -89,7 +89,7 @@ export function DeliveryManager() {
 
   const submitZone = (event: FormEvent) => {
     event.preventDefault();
-    const input = { name: zoneForm.name, cityName: zoneForm.cityName, postalCodes: parseList(zoneForm.postalCodes), neighborhoods: parseList(zoneForm.neighborhoods), deliveryFee: zoneForm.deliveryFee === "" ? "" : Number(zoneForm.deliveryFee), freeDeliveryThreshold: zoneForm.freeDeliveryThreshold === "" ? "" : Number(zoneForm.freeDeliveryThreshold), priority: zoneForm.priority === "" ? "" : Number(zoneForm.priority), active: zoneForm.active } as const;
+    const input = { name: zoneForm.name, cityName: zoneForm.cityName, postalCodes: parseList(zoneForm.postalCodes), neighborhoods: parseList(zoneForm.neighborhoods), deliveryFee: zoneForm.deliveryFee === "" ? "" : Number(zoneForm.deliveryFee), freeDeliveryThreshold: zoneForm.freeDeliveryThreshold === "" ? "" : Number(zoneForm.freeDeliveryThreshold), minimumOrderAmount: zoneForm.minimumOrderAmount === "" ? "" : Number(zoneForm.minimumOrderAmount), priority: zoneForm.priority === "" ? "" : Number(zoneForm.priority), active: zoneForm.active } as const;
     const message = Object.values(validateZoneInput(input))[0] ?? "";
     setFormError(message);
     if (message) return;
@@ -127,7 +127,7 @@ export function DeliveryManager() {
       <div className="list-panel">
         <div className="filters"><label className="search"><Icon name="search" /><span className="sr-only">Buscar zona</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar zona, ciudad, CP o barrio" /></label></div>
         <div className="list-meta"><strong>{visible.length} {visible.length === 1 ? "zona" : "zonas"}</strong><button className="link-button" onClick={() => setQuery("")}>Limpiar</button></div>
-        {loading ? <ListSkeleton label="Cargando zonas…" /> : loadError ? <div className="state error-state"><strong>{loadError.startsWith("Sin conexión") ? "Sin conexión" : "No pudimos cargar las zonas"}</strong><span>{loadError}</span><button className="button secondary" onClick={() => void load()}>Reintentar</button></div> : visible.length === 0 ? <div className="state"><Icon name="zone" /><strong>No encontramos zonas</strong><span>Ajustá la búsqueda o creá una zona nueva.</span></div> : <ul className="zone-list">{visible.map((zone) => <li key={zone.id}><button className={`zone-row ${selected?.id === zone.id ? "selected" : ""}`} onClick={() => { setSelectedId(zone.id); setMobileDetailOpen(true); }}><span className="zone-row-head"><strong>{zone.name}</strong><span className={`status ${zone.active ? "active" : "inactive"}`}>{zone.active ? "Activa" : "Inactiva"}</span></span><span className="zone-row-meta">{zone.cityName} · {money.format(zone.deliveryFee)} envío{zone.freeDeliveryThreshold ? ` · gratis desde ${money.format(zone.freeDeliveryThreshold)}` : ""}</span></button></li>)}</ul>}
+        {loading ? <ListSkeleton label="Cargando zonas…" /> : loadError ? <div className="state error-state"><strong>{loadError.startsWith("Sin conexión") ? "Sin conexión" : "No pudimos cargar las zonas"}</strong><span>{loadError}</span><button className="button secondary" onClick={() => void load()}>Reintentar</button></div> : visible.length === 0 ? <div className="state"><Icon name="zone" /><strong>No encontramos zonas</strong><span>Ajustá la búsqueda o creá una zona nueva.</span></div> : <ul className="zone-list">{visible.map((zone) => <li key={zone.id}><button className={`zone-row ${selected?.id === zone.id ? "selected" : ""}`} onClick={() => { setSelectedId(zone.id); setMobileDetailOpen(true); }}><span className="zone-row-head"><strong>{zone.name}</strong><span className={`status ${zone.active ? "active" : "inactive"}`}>{zone.active ? "Activa" : "Inactiva"}</span></span><span className="zone-row-meta">{zone.cityName} · {money.format(zone.deliveryFee)} envío{zone.minimumOrderAmount ? ` · compra mínima ${money.format(zone.minimumOrderAmount)}` : " · sin compra mínima"}{zone.freeDeliveryThreshold ? ` · gratis desde ${money.format(zone.freeDeliveryThreshold)}` : ""}</span></button></li>)}</ul>}
       </div>
       <aside className={`detail-panel mobile-detail-sheet${mobileDetailOpen ? " mobile-detail-open" : ""}`} aria-live="polite">
         {!selected ? <div className="state detail-empty"><Icon name="zone" /><strong>Seleccioná una zona</strong><span>Vas a ver su cobertura y costos.</span></div> : <>
@@ -161,7 +161,8 @@ function ZoneForm({ mode, form, error, errorRef, pending, onChange, onClose, onS
         <Field label="Nombre"><input value={form.name} maxLength={80} onChange={(event) => set({ name: event.target.value })} /></Field>
         <Field label="Ciudad"><input value={form.cityName} maxLength={80} onChange={(event) => set({ cityName: event.target.value })} /></Field>
         <Field label="Costo de envío (ARS)"><input inputMode="decimal" type="number" min="0" step="0.01" value={form.deliveryFee} onChange={(event) => set({ deliveryFee: event.target.value })} /></Field>
-        <Field label="Umbral envío gratis" hint="(vacío = sin envío gratis)"><input inputMode="decimal" type="number" min="0" step="0.01" value={form.freeDeliveryThreshold} onChange={(event) => set({ freeDeliveryThreshold: event.target.value })} /></Field>
+        <Field label="Compra mínima" hint="(vacío = sin mínimo)"><input inputMode="decimal" type="number" min="0" step="0.01" value={form.minimumOrderAmount} onChange={(event) => set({ minimumOrderAmount: event.target.value })} /></Field>
+        <Field label="Envío gratis desde" hint="(vacío = sin envío gratis)"><input inputMode="decimal" type="number" min="0" step="0.01" value={form.freeDeliveryThreshold} onChange={(event) => set({ freeDeliveryThreshold: event.target.value })} /></Field>
         <Field label="Prioridad" hint="(mayor gana ante solapamiento)"><input type="number" min="0" step="1" value={form.priority} onChange={(event) => set({ priority: event.target.value })} /></Field>
         <Field label="Estado"><select value={form.active ? "active" : "inactive"} onChange={(event) => set({ active: event.target.value === "active" })}><option value="active">Activa</option><option value="inactive">Inactiva</option></select></Field>
       </div>

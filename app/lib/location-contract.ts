@@ -1,24 +1,25 @@
+import type { WeightFields } from "./quantity-rules";
 import type { UserRole } from "./product-contract";
 
 export type LocationStatus = "ACTIVE" | "BLOCKED" | "INACTIVE";
-export type LocationProduct = { id: string; name: string; slug?: string; sku?: string; barcode?: string; availableStock?: number };
+export type LocationProduct = WeightFields & { id: string; name: string; slug?: string; sku?: string; barcode?: string; availableStock?: number };
 export type WarehouseLocation = { id: string; warehouseId: string; code: string; aisle: string; rack: string; level: string; sortOrder: number; isActive: boolean; status: LocationStatus; capacity: number | null; capacityUnit: string | null; createdAt: string; updatedAt: string };
-export type LocationListStock = { productCount: number; totalQuantity: number; reservedQuantity: number; availableQuantity: number; occupancyPercentage: number | null; primaryProduct: Pick<LocationProduct, "id" | "name" | "slug"> | null };
+export type LocationListStock = { quantityTotals?: Array<{ quantity: number; reservedQuantity: number; availableQuantity: number; saleMode?: "UNIT" | "WEIGHT" }>; productCount: number; totalQuantity: number; reservedQuantity: number; availableQuantity: number; occupancyPercentage: number | null; primaryProduct: Pick<LocationProduct, "id" | "name" | "slug" | "saleMode"> | null };
 /** A location as returned by the list endpoint — includes what's currently stored there. */
 export type WarehouseLocationWithProducts = WarehouseLocation & { products: LocationProduct[]; stock: LocationListStock };
 export type WarehouseStatus = "ACTIVE" | "INACTIVE" | "MAINTENANCE";
 export type LocationWarehouse = { id: string; name: string; status: WarehouseStatus; cityId?: string; city?: { id?: string; name?: string } | null; isPrimary?: boolean; isActive?: boolean };
-export type WarehouseStats = { warehouseId: string; locationsCount: number; racksCount: number; productsCount: number; totalQuantity: number; totalCapacity: number; occupancyPercentage: number | null; locationsFullCount: number; locationsEmptyCount: number; lastUpdatedAt: string | null };
+export type WarehouseStats = { quantityTotals?: Array<{ quantity: number; reservedQuantity: number; availableQuantity: number; saleMode?: "UNIT" | "WEIGHT" }>; warehouseId: string; locationsCount: number; racksCount: number; productsCount: number; totalQuantity: number; totalCapacity: number; occupancyPercentage: number | null; locationsFullCount: number; locationsEmptyCount: number; lastUpdatedAt: string | null };
 export type WarehouseInput = { cityId?: string; name: string; isPrimary?: boolean; status?: WarehouseStatus };
 export type LocationCity = { id: string; name: string };
 export type ProductLocation = { productId: string; warehouseId: string; location: WarehouseLocation };
 export type LocationInput = { code: string; aisle: string; rack: string; level: string; sortOrder?: number; isActive?: boolean; status?: LocationStatus; capacity?: number | null; capacityUnit?: string | null };
-export type LocationStats = { productsCount: number; totalQuantity: number; reservedQuantity: number; availableQuantity: number; capacity: number | null; capacityUnit: string | null; occupancyPercentage: number | null };
+export type LocationStats = { quantityTotals?: Array<{ quantity: number; reservedQuantity: number; availableQuantity: number; saleMode?: "UNIT" | "WEIGHT" }>; productsCount: number; totalQuantity: number; reservedQuantity: number; availableQuantity: number; capacity: number | null; capacityUnit: string | null; occupancyPercentage: number | null };
 export type LocationDetailData = { location: WarehouseLocation; stats: LocationStats };
 export type LocationStockItem = { product: LocationProduct; quantity: number; reservedQuantity: number; availableQuantity: number };
 export type WarehouseStockItem = { product: LocationProduct; location: Pick<WarehouseLocation, "id" | "code" | "aisle" | "rack" | "level">; quantity: number; reservedQuantity: number; availableQuantity: number };
 export type LocationMovementType = "IN" | "OUT" | "TRANSFER" | "ADJUSTMENT";
-export type LocationStockMovement = { id: string; type: LocationMovementType; productId: string; fromLocationId: string | null; toLocationId: string | null; quantity: number; reference: string | null; reason?: LocationAdjustmentReason | null; notes: string | null; actorUserId: string | null; createdAt: string };
+export type LocationStockMovement = WeightFields & { id: string; type: LocationMovementType; productId: string; fromLocationId: string | null; toLocationId: string | null; quantity: number; reference: string | null; reason?: LocationAdjustmentReason | null; notes: string | null; actorUserId: string | null; createdAt: string };
 export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: number };
 export type LocationAdjustmentReason = "PHYSICAL_COUNT" | "BREAKAGE" | "LOSS" | "LOAD_ERROR" | "RETURN" | "OTHER";
 

@@ -10,7 +10,7 @@ export function sequenceItems(task) {
 
 /** A line is resolved once it is no longer PENDING (picked in full, short or substituted). */
 export function isResolved(item) {
-  return item.status === "SHORT" || item.status === "SUBSTITUTED" || (item.status === "PICKED" && item.quantityPicked === item.quantityRequired);
+  return item.status === "SHORT" || item.status === "SUBSTITUTED" || (item.status === "PICKED" && (item.saleMode === "WEIGHT" ? item.quantityPicked > 0 : item.quantityPicked === item.quantityRequired));
 }
 
 export function pendingLines(task) {

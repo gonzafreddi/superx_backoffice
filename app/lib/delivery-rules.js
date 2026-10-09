@@ -18,6 +18,8 @@ export function validateZoneInput(input) {
   if (!input.name || !String(input.name).trim()) errors.name = "El nombre de la zona es obligatorio.";
   if (!input.cityName || !String(input.cityName).trim()) errors.cityName = "La ciudad es obligatoria.";
   if (input.deliveryFee === "" || !isMoney(Number(input.deliveryFee))) errors.deliveryFee = "El costo de envío debe ser un número mayor o igual a 0, con hasta dos decimales.";
+  const minimum = input.minimumOrderAmount;
+  if (minimum != null && minimum !== "" && !isMoney(Number(minimum))) errors.minimumOrderAmount = "La compra mínima debe ser un número mayor o igual a 0, con hasta dos decimales, o dejarse vacía.";
   const threshold = input.freeDeliveryThreshold;
   if (threshold !== null && threshold !== "" && !(isMoney(Number(threshold)) && Number(threshold) > 0)) errors.freeDeliveryThreshold = "El umbral de envío gratis debe ser un número mayor a 0, o dejarse vacío.";
   if (input.priority === "" || !Number.isInteger(Number(input.priority)) || Number(input.priority) < 0) errors.priority = "La prioridad debe ser un entero mayor o igual a 0.";
@@ -88,7 +90,7 @@ export function summarizeCheckoutImpact(zone) {
   if (!zone.active) return "Zona inactiva: no se ofrece en el checkout.";
   const fee = zone.deliveryFee === 0 ? "Envío sin cargo" : `Envío $${Number(zone.deliveryFee).toLocaleString("es-AR")}`;
   const free = zone.freeDeliveryThreshold ? ` · gratis desde $${Number(zone.freeDeliveryThreshold).toLocaleString("es-AR")}` : " · sin envío gratis";
-  return `${fee}${free}`;
+  return `${fee}${free}${zone.minimumOrderAmount ? ` · compra mínima $${Number(zone.minimumOrderAmount).toLocaleString("es-AR")}` : ""}`;
 }
 
 export function buildDeliveryChangeEvent(summary, actor, role, changedAt, id) {

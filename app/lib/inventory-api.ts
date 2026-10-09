@@ -18,9 +18,9 @@ const itemId = (productId: string, warehouseId: string) => `${productId}:${wareh
 const parseItemId = (id: string) => { const [productId, warehouseId] = id.split(":"); return { productId, warehouseId }; };
 
 type RawWarehouse = { id: string; name: string };
-type RawSnapshot = { id: string; productId: string; warehouseId: string; quantityOnHand: number; reserved: number; available: number; reorderThreshold: number; updatedAt: string };
-type RawProduct = { id: string; name: string; slug: string; images?: Array<{ url?: string; isPrimary?: boolean; sortOrder?: number }> };
-type RawMovement = { id: string; type: string; quantity: number; reference: string | null; note: string | null; actorUserId: string; createdAt: string };
+type RawSnapshot = Pick<InventoryItem, "saleMode"> & { id: string; productId: string; warehouseId: string; quantityOnHand: number; reserved: number; available: number; reorderThreshold: number; updatedAt: string };
+type RawProduct = Pick<InventoryItem, "saleMode"> & { id: string; name: string; slug: string; images?: Array<{ url?: string; isPrimary?: boolean; sortOrder?: number }> };
+type RawMovement = Pick<InventoryItem, "saleMode"> & { id: string; type: string; quantity: number; reference: string | null; note: string | null; actorUserId: string; createdAt: string };
 
 async function fetchJson(url: string, init: RequestInit = {}): Promise<unknown> {
   const response = await authFetch(url, { ...init, headers: { Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers } });
@@ -79,6 +79,7 @@ export const inventoryApi: InventoryApi = {
       const item: InventoryItem = {
         id: itemId(snapshot.productId, snapshot.warehouseId),
         snapshotId: snapshot.id,
+        saleMode: snapshot.saleMode ?? product?.saleMode ?? "UNIT",
         productId: snapshot.productId,
         productName: product?.name ?? `Producto #${snapshot.productId}`,
         sku: product?.slug.toUpperCase() ?? snapshot.productId,
@@ -128,6 +129,7 @@ export const inventoryApi: InventoryApi = {
       id: itemId(productId, warehouseId),
       snapshotId: snapshot?.id ?? "",
       productId,
+      saleMode: snapshot?.saleMode ?? product?.saleMode ?? "UNIT",
       productName: product?.name ?? `Producto #${productId}`,
       sku: product?.slug.toUpperCase() ?? productId,
       warehouseId,
@@ -158,6 +160,7 @@ export const inventoryApi: InventoryApi = {
       id: itemId,
       snapshotId: updatedSnapshot.id,
       productId,
+      saleMode: snapshot?.saleMode ?? product?.saleMode ?? "UNIT",
       productName: product?.name ?? `Producto #${productId}`,
       sku: product?.slug.toUpperCase() ?? productId,
       warehouseId,

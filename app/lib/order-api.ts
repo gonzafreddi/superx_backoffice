@@ -24,7 +24,7 @@ const clone = (order: Order): Order => ({ ...order, payment: { ...order.payment 
 
 function baseUrl(): string | undefined { return apiBaseUrl(); }
 
-type RawOrderItem = { id: string; productName: string; quantity: number; unitPrice: string };
+type RawOrderItem = Pick<OrderLine, "saleMode" | "pickedQuantity"> & { lineTotal?: string; id: string; productName: string; quantity: number; unitPrice: string };
 type RawOrder = {
   id: string; orderNumber: string; status: Order["status"];
   recipientName: string; phone: string; street: string; streetNumber: string; apartment: string | null; postalCode: string;
@@ -32,7 +32,7 @@ type RawOrder = {
   createdAt: string; updatedAt: string; paymentMethod: Order["payment"]["method"]; paymentStatus: Order["payment"]["status"];
   substitutionPreference: Order["substitutionPreference"]; customerNotes: string | null;
   itemsSubtotal: string; deliveryFee: string; discountTotal: string; grandTotal: string; items: RawOrderItem[];
-  paidAmount?: string | null; refundedAmount?: string; refundDue?: string;
+  paidAmount?: string | null; refundedAmount?: string; refundDue?: string; balanceDue?: string;
 };
 type RawOrderEvent = { id: string; toStatus: Order["status"]; actorUserId: string; actorRole: string; note: string | null; createdAt: string };
 
@@ -71,7 +71,8 @@ function adaptOrder(raw: RawOrder, events: RawOrderEvent[]): Order {
     charges: charges(Number(raw.itemsSubtotal), Number(raw.deliveryFee), Number(raw.discountTotal)),
     total: Number(raw.grandTotal),
     // Picking-time substitutions aren't exposed on this endpoint (only via the picking module, not wired here).
-    lines: raw.items.map((item) => line(item.id, item.productName, item.quantity, Number(item.unitPrice))),
+    lines: raw.items.map((item) => ({ ...line(item.id, item.productName, item.quantity, Number(item.unitPrice)), saleMode: item.saleMode ?? "UNIT", pickedQuantity: item.pickedQuantity ?? null, lineTotal: item.lineTotal == null ? undefined : Number(item.lineTotal) })),
+    balanceDue: raw.balanceDue == null ? undefined : Number(raw.balanceDue),
     events: events.map(adaptEvent),
     refund: { paid: raw.paidAmount == null ? null : Number(raw.paidAmount), refunded: Number(raw.refundedAmount ?? 0), due: Number(raw.refundDue ?? 0) },
   };

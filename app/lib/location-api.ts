@@ -17,17 +17,17 @@ let fixtureAssignments: ProductLocation[] = [{ productId: "prd-001", warehouseId
 let fixtureStock: Array<{ warehouseId: string; locationId: string; productId: string; quantity: number; reservedQuantity: number }> = [{ warehouseId: "wh-central", locationId: "loc-001", productId: "prd-001", quantity: 72, reservedQuantity: 12 }, { warehouseId: "wh-central", locationId: "loc-001", productId: "prd-002", quantity: 18, reservedQuantity: 0 }, { warehouseId: "wh-central", locationId: "loc-002", productId: "prd-001", quantity: 24, reservedQuantity: 4 }];
 let fixtureMovements: LocationStockMovement[] = [];
 
-type RawLocationProduct = { id: string | number; name: string; slug?: string; sku?: string; barcode?: string; availableStock?: number };
-type RawLocationStock = { productCount?: number; totalQuantity?: number; reservedQuantity?: number; availableQuantity?: number; occupancyPercentage?: number | null; primaryProduct?: { id: string | number; name: string; slug?: string } | null };
+type RawLocationProduct = Pick<LocationProduct, "saleMode"> & { id: string | number; name: string; slug?: string; sku?: string; barcode?: string; availableStock?: number };
+type RawLocationStock = { productCount?: number; totalQuantity?: number; reservedQuantity?: number; availableQuantity?: number; occupancyPercentage?: number | null; primaryProduct?: Pick<LocationProduct, "saleMode"> & { id: string | number; name: string; slug?: string } | null };
 type RawLocation = { id: string | number; warehouseId: string | number; code: string; aisle: string; rack: string; level: string; sortOrder: number; isActive: boolean; status?: "ACTIVE" | "BLOCKED" | "INACTIVE"; capacity?: number | null; capacityUnit?: string | null; createdAt: string; updatedAt: string; products?: RawLocationProduct[]; stock?: RawLocationStock };
 type RawWarehouse = { id: string | number; name: string; status?: "ACTIVE" | "INACTIVE" | "MAINTENANCE"; cityId?: string | number; city?: { id?: string | number; name?: string } | null; isPrimary?: boolean; isActive?: boolean };
 type RawWarehouseStats = { warehouseId: string | number; locationsCount: number; racksCount: number; productsCount: number; totalQuantity: number; totalCapacity: number; occupancyPercentage: number | null; locationsFullCount: number; locationsEmptyCount: number; lastUpdatedAt: string | null };
 type RawProductLocation = { productId: string | number; warehouseId: string | number; location: RawLocation };
 type RawWarehouseStockItem = { product: RawLocationProduct; location: Pick<RawLocation, "id" | "code" | "aisle" | "rack" | "level">; quantity: number; reservedQuantity: number; availableQuantity: number };
 
-const adaptProduct = (raw: RawLocationProduct): LocationProduct => ({ id: String(raw.id), name: raw.name, slug: raw.slug, sku: raw.sku, barcode: raw.barcode, availableStock: raw.availableStock });
+const adaptProduct = (raw: RawLocationProduct): LocationProduct => ({ id: String(raw.id), saleMode: raw.saleMode ?? "UNIT", name: raw.name, slug: raw.slug, sku: raw.sku, barcode: raw.barcode, availableStock: raw.availableStock });
 const adaptLocation = (raw: RawLocation): WarehouseLocation => ({ ...raw, id: String(raw.id), warehouseId: String(raw.warehouseId), status: raw.status ?? (raw.isActive ? "ACTIVE" : "INACTIVE"), capacity: raw.capacity ?? null, capacityUnit: raw.capacityUnit ?? null });
-const adaptLocationWithProducts = (raw: RawLocation): WarehouseLocationWithProducts => ({ ...adaptLocation(raw), products: (raw.products ?? []).map(adaptProduct), stock: { productCount: Number(raw.stock?.productCount ?? 0), totalQuantity: Number(raw.stock?.totalQuantity ?? 0), reservedQuantity: Number(raw.stock?.reservedQuantity ?? 0), availableQuantity: Number(raw.stock?.availableQuantity ?? 0), occupancyPercentage: raw.stock?.occupancyPercentage == null ? null : Number(raw.stock.occupancyPercentage), primaryProduct: raw.stock?.primaryProduct ? { id: String(raw.stock.primaryProduct.id), name: raw.stock.primaryProduct.name, slug: raw.stock.primaryProduct.slug ?? "" } : null } });
+const adaptLocationWithProducts = (raw: RawLocation): WarehouseLocationWithProducts => ({ ...adaptLocation(raw), products: (raw.products ?? []).map(adaptProduct), stock: { productCount: Number(raw.stock?.productCount ?? 0), totalQuantity: Number(raw.stock?.totalQuantity ?? 0), reservedQuantity: Number(raw.stock?.reservedQuantity ?? 0), availableQuantity: Number(raw.stock?.availableQuantity ?? 0), occupancyPercentage: raw.stock?.occupancyPercentage == null ? null : Number(raw.stock.occupancyPercentage), primaryProduct: raw.stock?.primaryProduct ? { id: String(raw.stock.primaryProduct.id), name: raw.stock.primaryProduct.name, saleMode: raw.stock.primaryProduct.saleMode ?? "UNIT", slug: raw.stock.primaryProduct.slug ?? "" } : null } });
 const adaptAssignment = (raw: RawProductLocation): ProductLocation => ({ productId: String(raw.productId), warehouseId: String(raw.warehouseId), location: adaptLocation(raw.location) });
 const adaptWarehouse = (raw: RawWarehouse): LocationWarehouse => ({ id: String(raw.id), name: raw.name, status: raw.status ?? (raw.isActive === false ? "INACTIVE" : "ACTIVE"), cityId: raw.cityId === undefined ? undefined : String(raw.cityId), city: raw.city ? { id: raw.city.id === undefined ? undefined : String(raw.city.id), name: raw.city.name } : null, isPrimary: raw.isPrimary, isActive: raw.isActive });
 const adaptWarehouseStats = (raw: RawWarehouseStats): WarehouseStats => ({ ...raw, warehouseId: String(raw.warehouseId), locationsCount: Number(raw.locationsCount ?? 0), racksCount: Number(raw.racksCount ?? 0), productsCount: Number(raw.productsCount ?? 0), totalQuantity: Number(raw.totalQuantity ?? 0), totalCapacity: Number(raw.totalCapacity ?? 0), occupancyPercentage: raw.occupancyPercentage === null ? null : Number(raw.occupancyPercentage), locationsFullCount: Number(raw.locationsFullCount ?? 0), locationsEmptyCount: Number(raw.locationsEmptyCount ?? 0), lastUpdatedAt: raw.lastUpdatedAt ?? null });
@@ -50,6 +50,17 @@ const fixtureWarehouseStockItem = (warehouseId: string, locationId: string, prod
 const fixtureLocationStock = (warehouseId: string, location: WarehouseLocation) => { const rows = fixtureStock.filter((item) => item.warehouseId === warehouseId && item.locationId === location.id); const totalQuantity = rows.reduce((sum, item) => sum + item.quantity, 0); const reservedQuantity = rows.reduce((sum, item) => sum + item.reservedQuantity, 0); const primary = rows[0] ? fixtureProducts.find((product) => product.id === rows[0].productId) : undefined; return { productCount: new Set(rows.map((item) => item.productId)).size, totalQuantity, reservedQuantity, availableQuantity: totalQuantity - reservedQuantity, occupancyPercentage: location.capacity ? totalQuantity / location.capacity * 100 : null, primaryProduct: primary ? { id: primary.id, name: primary.name, slug: primary.slug ?? "" } : null }; };
 const fixtureMovement = (movement: Omit<LocationStockMovement, "id" | "createdAt" | "actorUserId">) => { fixtureMovements = [{ ...movement, id: crypto.randomUUID(), actorUserId: "Sistema", createdAt: new Date().toISOString() }, ...fixtureMovements]; };
 
+/** Read all positions before summarizing so UNIT and WEIGHT totals stay separate. */
+async function allWarehouseStock(warehouseId: string): Promise<WarehouseStockItem[]> {
+  const items: WarehouseStockItem[] = [];
+  for (let page = 1; ; page += 1) {
+    const result = await locationApi.getWarehouseStock(warehouseId, "", page, 100);
+    items.push(...result.items);
+    if (!result.items.length || items.length >= result.total) return items;
+  }
+}
+const quantityTotals = (items: Array<LocationStockItem>) => items.map((item) => ({ quantity: item.quantity, reservedQuantity: item.reservedQuantity, availableQuantity: item.availableQuantity, saleMode: item.product.saleMode }));
+
 export const locationApi: LocationApi = {
   async listWarehouses() {
     if (fixturesEnabled()) { await wait(); return fixtureWarehouses; }
@@ -60,11 +71,13 @@ export const locationApi: LocationApi = {
     if (fixturesEnabled()) { await wait(); return fixtureWarehouses.filter((warehouse) => !ids || ids.includes(warehouse.id)).map((warehouse) => fixtureWarehouseStats(warehouse.id)); }
     const query = ids?.length ? `?warehouseIds=${ids.map(encodeURIComponent).join(",")}` : "";
     const payload = await fetchJson(`/warehouses/stats${query}`);
-    return Array.isArray(payload) ? (payload as RawWarehouseStats[]).map(adaptWarehouseStats) : [];
+    const stats = Array.isArray(payload) ? (payload as RawWarehouseStats[]).map(adaptWarehouseStats) : [];
+    return Promise.all(stats.map(async (item) => ({ ...item, quantityTotals: quantityTotals(await allWarehouseStock(item.warehouseId)) })));
   },
   async getWarehouseStats(id) {
     if (fixturesEnabled()) { await wait(); const warehouse = fixtureWarehouses.find((item) => item.id === id); if (!warehouse) throw new Error("El depósito ya no está disponible."); return fixtureWarehouseStats(id); }
-    return adaptWarehouseStats((await fetchJson(`/warehouses/${encodeURIComponent(id)}/stats`)) as RawWarehouseStats);
+    const [raw, stock] = await Promise.all([fetchJson(`/warehouses/${encodeURIComponent(id)}/stats`), allWarehouseStock(id)]);
+    return { ...adaptWarehouseStats(raw as RawWarehouseStats), quantityTotals: quantityTotals(stock) };
   },
   async createWarehouse(input) {
     if (fixturesEnabled()) { await wait(); if (!input.name.trim() || !input.cityId) throw new Error("Completá el nombre y la ciudad del depósito."); const city = fixtureCities.find((item) => item.id === input.cityId); const warehouse: LocationWarehouse = { id: `wh-${crypto.randomUUID()}`, name: input.name.trim(), status: "ACTIVE", cityId: input.cityId, city: city ? { name: city.name } : null, isPrimary: input.isPrimary ?? false, isActive: true }; fixtureWarehouses = [...fixtureWarehouses, warehouse]; return warehouse; }
@@ -84,7 +97,9 @@ export const locationApi: LocationApi = {
         .map((location) => ({ ...location, products: fixtureAssignments.filter((assignment) => assignment.warehouseId === warehouseId && assignment.location.id === location.id).map((assignment) => fixtureProducts.find((product) => product.id === assignment.productId) ?? { id: assignment.productId, name: assignment.productId }), stock: fixtureLocationStock(warehouseId, location) }));
     }
     const payload = await fetchJson(`/warehouses/${encodeURIComponent(warehouseId)}/locations`);
-    return Array.isArray(payload) ? (payload as RawLocation[]).map(adaptLocationWithProducts) : [];
+    const locations = Array.isArray(payload) ? (payload as RawLocation[]).map(adaptLocationWithProducts) : [];
+    const stock = await allWarehouseStock(warehouseId);
+    return locations.map((location) => ({ ...location, stock: { ...location.stock, quantityTotals: quantityTotals(stock.filter((item) => item.location.id === location.id)) } }));
   },
   async createLocation(warehouseId, input) {
     if (fixturesEnabled()) { await wait(); const next = { ...inputBody(input), id: `loc-${crypto.randomUUID()}`, warehouseId, sortOrder: input.sortOrder ?? 0, isActive: input.isActive ?? true, status: input.status ?? "ACTIVE", capacity: input.capacity ?? null, capacityUnit: input.capacityUnit ?? null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; fixtureLocations = [...fixtureLocations, next]; return next; }
@@ -114,12 +129,14 @@ export const locationApi: LocationApi = {
   },
   async getLocation(warehouseId, locationId) {
     if (fixturesEnabled()) { await wait(); const location = fixtureLocations.find((item) => item.id === locationId && item.warehouseId === warehouseId); if (!location) throw new Error("La ubicación no está disponible."); const rows = fixtureStock.filter((item) => item.warehouseId === warehouseId && item.locationId === locationId); const totalQuantity = rows.reduce((sum, item) => sum + item.quantity, 0), reservedQuantity = rows.reduce((sum, item) => sum + item.reservedQuantity, 0); return { location, stats: { productsCount: rows.length, totalQuantity, reservedQuantity, availableQuantity: totalQuantity - reservedQuantity, capacity: location.capacity, capacityUnit: location.capacityUnit, occupancyPercentage: location.capacity ? totalQuantity / location.capacity * 100 : null } }; }
-    return (await fetchJson(`/warehouses/${encodeURIComponent(warehouseId)}/locations/${encodeURIComponent(locationId)}`)) as LocationDetailData;
+    const detail = await fetchJson(`/warehouses/${encodeURIComponent(warehouseId)}/locations/${encodeURIComponent(locationId)}`) as LocationDetailData;
+    const stock = await allWarehouseStock(warehouseId);
+    return { ...detail, stats: { ...detail.stats, quantityTotals: quantityTotals(stock.filter((item) => item.location.id === locationId)) } };
   },
   async getLocationStock(warehouseId, locationId, query = "", page = 1, pageSize = 20) {
     if (fixturesEnabled()) { await wait(); const normalized = query.toLocaleLowerCase("es-AR"); const all = fixtureStock.filter((row) => row.warehouseId === warehouseId && row.locationId === locationId).map((row) => fixtureItem(warehouseId, locationId, row.productId)).filter((item) => [item.product.name, item.product.slug, item.product.sku, item.product.barcode].some((value) => value?.toLocaleLowerCase("es-AR").includes(normalized))); return { items: all.slice((page - 1) * pageSize, page * pageSize), total: all.length, page, pageSize }; }
     const payload = await fetchJson(`/warehouses/${encodeURIComponent(warehouseId)}/locations/${encodeURIComponent(locationId)}/stock?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}`) as { items?: Array<{ product: RawLocationProduct & { slug?: string }; quantity: number; reservedQuantity: number; availableQuantity: number }>; total: number; page: number; pageSize: number };
-    return { items: (payload.items ?? []).map((item) => ({ product: { id: String(item.product.id), name: item.product.name, slug: item.product.slug }, quantity: item.quantity, reservedQuantity: item.reservedQuantity, availableQuantity: item.availableQuantity })), total: payload.total, page: payload.page, pageSize: payload.pageSize };
+    return { items: (payload.items ?? []).map((item) => ({ product: adaptProduct(item.product), quantity: item.quantity, reservedQuantity: item.reservedQuantity, availableQuantity: item.availableQuantity })), total: payload.total, page: payload.page, pageSize: payload.pageSize };
   },
   async getWarehouseStock(warehouseId, query = "", page = 1, pageSize = 20) {
     if (fixturesEnabled()) { await wait(); const normalized = query.trim().toLocaleLowerCase("es-AR"); const all = fixtureStock.filter((row) => row.warehouseId === warehouseId).map((row) => fixtureWarehouseStockItem(warehouseId, row.locationId, row.productId)).filter((item) => [item.product.name, item.product.slug, item.product.sku, item.product.barcode].some((value) => value?.toLocaleLowerCase("es-AR").includes(normalized))).sort((a, b) => a.product.name.localeCompare(b.product.name, "es-AR") || a.location.code.localeCompare(b.location.code, "es-AR")); return { items: all.slice((page - 1) * pageSize, page * pageSize), total: all.length, page, pageSize }; }

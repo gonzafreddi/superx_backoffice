@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canCompleteTask, clampPickQuantity, nextPendingIndex, pendingLines, pickingProgress, sequenceItems } from "../app/lib/picking-rules.js";
+import { canCompleteTask, clampPickQuantity, isResolved, nextPendingIndex, pendingLines, pickingProgress, sequenceItems } from "../app/lib/picking-rules.js";
 
 const item = (id, status, sort, code = "A", required = 2) => ({ id, status, locationSortOrder: sort, locationCode: code, quantityRequired: required, quantityPicked: status === "PICKED" ? required : 0 });
 
@@ -50,4 +50,14 @@ test("franja usa fecha local y ordenamiento es estable sin mutar entrada", async
   assert.deepEqual(sortPickingTasks(tasks, "oldest").map((t) => t.id), ["2", "10"]);
   assert.deepEqual(sortPickingTasks(tasks, "lines").map((t) => t.id), ["2", "10"]);
   assert.deepEqual(tasks.map((t) => t.id), ["10", "2"]);
+});
+
+test("peso real confirmado resuelve WEIGHT aunque difiera del pedido", () => {
+  for (const grams of [450, 530, 575]) {
+    const item = { saleMode: "WEIGHT", status: "PICKED", quantityRequired: 500, quantityPicked: grams };
+    assert.equal(isResolved(item), true);
+    assert.equal(canCompleteTask({ status: "IN_PROGRESS", items: [item] }), true);
+  }
+  assert.equal(isResolved({ saleMode: "UNIT", status: "PICKED", quantityRequired: 3, quantityPicked: 2 }), false);
+  assert.equal(isResolved({ saleMode: "WEIGHT", status: "PENDING", quantityRequired: 500, quantityPicked: 300 }), false);
 });

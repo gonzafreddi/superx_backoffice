@@ -1,5 +1,6 @@
 "use client";
 
+import { summarizeQuantities } from "@/app/lib/quantity-rules";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LocationCodeModal } from "@/app/components/locations/location-panels";
@@ -13,16 +14,16 @@ export function LocationsStats({ locations }: { locations: WarehouseLocationWith
   const total = locations.length;
   const occupied = locations.filter((location) => location.stock.productCount > 0).length;
   const empty = total - occupied;
-  const units = locations.reduce((sum, location) => sum + location.stock.totalQuantity, 0);
+  const units = summarizeQuantities(locations.flatMap((location) => location.stock.quantityTotals ?? [{ quantity: location.stock.totalQuantity, reservedQuantity: location.stock.reservedQuantity, availableQuantity: location.stock.availableQuantity, saleMode: location.stock.productCount === 1 ? location.stock.primaryProduct?.saleMode : "UNIT" }]));
   return <section className="locations-kpis" aria-label="Resumen de ubicaciones">
     <Metric icon="pin" value={total} label={total === 1 ? "ubicación" : "ubicaciones"} note="Total en este depósito" tone="locations" />
     <Metric icon="box" value={occupied} label={occupied === 1 ? "ocupada" : "ocupadas"} note="Con stock asignado" percent={total ? occupied / total * 100 : 0} tone="occupied" />
     <Metric icon="box" value={empty} label={empty === 1 ? "vacía" : "vacías"} note="Sin stock asignado" percent={total ? empty / total * 100 : 0} tone="empty" />
-    <Metric icon="barcode" value={units} label="unidades" note="Stock total en ubicaciones" tone="units" />
+    <Metric icon="barcode" value={units} label="cantidad" note="Stock total en ubicaciones" tone="units" />
   </section>;
 }
 
-function Metric({ icon, value, label, note, percent, tone }: { icon: "pin" | "box" | "barcode"; value: number; label: string; note: string; percent?: number; tone: string }) {
+function Metric({ icon, value, label, note, percent, tone }: { icon: "pin" | "box" | "barcode"; value: number | string; label: string; note: string; percent?: number; tone: string }) {
   return <article className={`locations-kpi locations-kpi-${tone}`}><span className="locations-kpi-icon"><LocationIcon name={icon} /></span><div><strong>{value}</strong><span>{label}</span><small>{note}</small></div>{percent !== undefined && <span className="locations-mini-ring" style={{ "--ring-value": `${percent}%` } as React.CSSProperties} aria-label={`${Math.round(percent)} por ciento`}><i>{Math.round(percent)}%</i></span>}</article>;
 }
 
@@ -52,7 +53,7 @@ type LocationItemProps = { warehouseId: string; location: WarehouseLocationWithP
 
 function LocationItem({ warehouseId, location, manage, onEdit, onStatus, compact }: LocationItemProps & { compact: boolean }) {
   const router = useRouter(); const href = `/ubicaciones/${encodeURIComponent(warehouseId)}/${encodeURIComponent(location.id)}`; const open = () => router.push(href); const keyOpen = (event: React.KeyboardEvent<HTMLElement>) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } };
-  return <article className={`location-visual-card ${compact ? "location-visual-card-compact" : ""} ${location.stock.productCount === 0 ? "is-empty" : ""}`} role="link" tabIndex={0} onClick={open} onKeyDown={keyOpen} aria-label={`Abrir ubicación ${location.code}`}><header><span className="location-visual-icon"><LocationIcon name="pin" /></span><div className="location-visual-title"><div><strong className="mono">{location.code}</strong><LocationStatusBadge location={location} /></div><span>Pasillo {location.aisle} · Rack {location.rack} · Nivel {location.level}</span></div></header><LocationProductPreview location={location} /><div className="location-visual-metrics"><span><b>{location.stock.productCount}</b>{location.stock.productCount === 1 ? " producto" : " productos"}</span><span><b>{location.stock.totalQuantity}</b> unidades</span></div><LocationOccupancyRing occupancy={location.stock.occupancyPercentage} /><div className="location-picking-order"><b>#{location.sortOrder}</b><span>Orden de picking</span></div><footer onClick={(event) => event.stopPropagation()}><button type="button" className="button secondary" onClick={open}><LocationIcon name="eye" />Ver detalles</button>{manage && <><button type="button" className="button secondary" onClick={() => onEdit(location)}><LocationIcon name="edit" />Editar</button><LocationActionsMenu location={location} onStatus={onStatus} onOpen={open} /></>}</footer></article>;
+  return <article className={`location-visual-card ${compact ? "location-visual-card-compact" : ""} ${location.stock.productCount === 0 ? "is-empty" : ""}`} role="link" tabIndex={0} onClick={open} onKeyDown={keyOpen} aria-label={`Abrir ubicación ${location.code}`}><header><span className="location-visual-icon"><LocationIcon name="pin" /></span><div className="location-visual-title"><div><strong className="mono">{location.code}</strong><LocationStatusBadge location={location} /></div><span>Pasillo {location.aisle} · Rack {location.rack} · Nivel {location.level}</span></div></header><LocationProductPreview location={location} /><div className="location-visual-metrics"><span><b>{location.stock.productCount}</b>{location.stock.productCount === 1 ? " producto" : " productos"}</span><span><b>{location.stock.quantityTotals ? summarizeQuantities(location.stock.quantityTotals) : location.stock.totalQuantity}</b></span></div><LocationOccupancyRing occupancy={location.stock.occupancyPercentage} /><div className="location-picking-order"><b>#{location.sortOrder}</b><span>Orden de picking</span></div><footer onClick={(event) => event.stopPropagation()}><button type="button" className="button secondary" onClick={open}><LocationIcon name="eye" />Ver detalles</button>{manage && <><button type="button" className="button secondary" onClick={() => onEdit(location)}><LocationIcon name="edit" />Editar</button><LocationActionsMenu location={location} onStatus={onStatus} onOpen={open} /></>}</footer></article>;
 }
 
 function LocationStatusBadge({ location }: { location: WarehouseLocationWithProducts }) { const label = location.status === "BLOCKED" ? "Bloqueada" : location.status === "INACTIVE" ? "Inactiva" : location.stock.productCount === 0 ? "Vacía" : location.stock.occupancyPercentage !== null && location.stock.occupancyPercentage >= 100 ? "Completa" : "Activa"; const tone = label.toLocaleLowerCase("es-AR").replace("í", "i"); return <span className={`location-visual-status location-visual-status-${tone}`}>{label}</span>; }

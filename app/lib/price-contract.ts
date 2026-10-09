@@ -1,7 +1,8 @@
+import type { WeightFields } from "./quantity-rules";
 export type PriceStatus = "active" | "in_promo" | "pending" | "no_price" | "inactive";
 export type PriceSortBy = "name" | "cost" | "price" | "margin" | "status";
 export type Promo = { promoId?: string | number; promoLabel?: string; promoDiscountType?: string; promoDiscountValue?: number; startsAt?: string; endsAt?: string };
-export type Price = { productId: string; name: string; slug: string; categoryId: string; categoryName: string; brandId: string; brandName: string; imageUrl: string; cost: number | null; price: number | null; previousPrice: number | null; margin: number | null; promo: Promo | null; status: PriceStatus; updatedAt?: string; /** @deprecated Compatibilidad temporal para consumidores previos; usar `price`. */ amount?: number };
+export type Price = WeightFields & { productId: string; name: string; slug: string; categoryId: string; categoryName: string; brandId: string; brandName: string; imageUrl: string; cost: number | null; price: number | null; previousPrice: number | null; margin: number | null; promo: Promo | null; status: PriceStatus; updatedAt?: string; /** @deprecated Compatibilidad temporal para consumidores previos; usar `price`. */ amount?: number };
 export type PriceFilters = { search?: string; categoryId?: string; brandId?: string; status?: PriceStatus | "all"; page?: number; pageSize?: number; sortBy?: PriceSortBy; sortOrder?: "asc" | "desc" };
 export type PricePage = { items: Price[]; total: number; page: number; pageSize: number };
 export type PriceStats = { pricedProducts: number; totalProducts: number; activePromos: number; promoPercentage: number; averageMargin: number; marginDelta: number; pendingChanges: number };

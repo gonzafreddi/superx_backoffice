@@ -1,3 +1,4 @@
+import type { WeightFields } from "./quantity-rules";
 export type ReceivingStatus = "pending" | "partial" | "all";
 export type ReceiptStatus = "NOT_RECEIVED" | "PARTIALLY_RECEIVED" | "RECEIVED";
 
@@ -9,7 +10,7 @@ export type ReceivingHeader = {
 };
 export type ReceivingLine = {
   purchaseOrderItemId: string;
-  product: { id: string; name: string; slug: string; imageUrl?: string; barcodes: string[] };
+  product: WeightFields & { id: string; name: string; slug: string; imageUrl?: string; barcodes: string[] };
   packagingName: string; unitsPerPack: number; packagingBarcode?: string;
   orderedPackages: number; orderedUnits: number; receivedPackages: number; receivedUnits: number;
   pendingPackages: number; pendingUnits: number; suggestedLocationId: string | null;

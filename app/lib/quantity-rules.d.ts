@@ -1,0 +1,12 @@
+export type SaleMode = "UNIT" | "WEIGHT";
+export type WeightFields = { saleMode?: SaleMode; weightMinGrams?: number | null; weightStepGrams?: number | null };
+export function parseKgToGrams(value: unknown): number;
+export function parseQuantity(value: unknown, saleMode?: SaleMode): number;
+export function quantityInput(value: number, saleMode?: SaleMode): string;
+export function quantityUnit(saleMode?: SaleMode): string;
+export function formatQuantity(value: number, saleMode?: SaleMode): string;
+export function formatWeight(grams: number): string;
+export function priceSuffix(saleMode?: SaleMode): string;
+export function orderQuantityLabel(item: { quantity: number; saleMode?: SaleMode; pickedQuantity?: number | null }): string;
+export function orderLineTotal(item: { quantity: number; unitPrice: number; lineTotal?: number; saleMode?: SaleMode; pickedQuantity?: number | null }): number;
+export function summarizeQuantities<T>(items: T[], getQuantity?: (item: T) => number, getMode?: (item: T) => SaleMode | undefined): string;

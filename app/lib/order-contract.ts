@@ -1,3 +1,4 @@
+import type { WeightFields } from "./quantity-rules";
 import type { UserRole } from "./product-contract";
 
 export type OrderStatus = "CREATED" | "CONFIRMED" | "PAID" | "PICKING" | "PACKED" | "READY" | "DISPATCHED" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED";
@@ -7,7 +8,7 @@ export type OrderPaymentMethodSetting = { method: OrderPaymentMethod; enabled: b
 export type OrderSubstitutionPreference = "REPLACE_SIMILAR" | "CONTACT_ME" | "REMOVE_ITEM";
 
 export type OrderLineSubstitution = { replacedBy: string; note?: string };
-export type OrderLine = { id: string; productName: string; quantity: number; unitPrice: number; substitution?: OrderLineSubstitution | null };
+export type OrderLine = WeightFields & { pickedQuantity?: number | null; lineTotal?: number; id: string; productName: string; quantity: number; unitPrice: number; substitution?: OrderLineSubstitution | null };
 export type OrderEvent = { id: string; status: OrderStatus; occurredAt: string; actor: string; role?: OrderRole; note?: string };
 export type OrderDeliverySlot = { date: string; startTime: string; endTime: string };
 export type OrderCharges = { subtotal: number; deliveryFee: number; discount: number };
@@ -29,6 +30,7 @@ export type Order = {
   customerNotes: string | null;
   charges: OrderCharges;
   total: number;
+  balanceDue?: number;
   lines: OrderLine[];
   events: OrderEvent[];
   /** Charged amount and money owed back to the customer (shortage after payment or paid cancellation). */

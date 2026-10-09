@@ -1,3 +1,4 @@
+import { formatQuantity } from "./quantity-rules.js";
 export const INVENTORY_PERMISSIONS = {
   viewer: { adjust: false },
   operator: { adjust: true },
@@ -32,7 +33,7 @@ export const MOVEMENT_TYPE_MAP = { PURCHASE: "receipt", RETURN: "receipt", SALE:
 
 export function adaptInventoryMovement(raw) {
   return {
-    id: raw.id, inventoryItemId: "", type: MOVEMENT_TYPE_MAP[raw.type] ?? "adjustment",
+    id: raw.id, saleMode: raw.saleMode ?? raw.product?.saleMode ?? "UNIT", inventoryItemId: "", type: MOVEMENT_TYPE_MAP[raw.type] ?? "adjustment",
     quantity: (["SALE", "TRANSFER_OUT", "RESERVATION"].includes(raw.type) ? -1 : 1) * raw.quantity,
     reference: raw.reference,
     reason: raw.note ?? raw.reference ?? "—",
@@ -50,7 +51,7 @@ export function movementStockDelta(movement) {
 }
 
 export function movementQuantityLabel(movement) {
-  if (movement.type === "reservation") return `−${Math.abs(movement.quantity)} reservado`;
-  if (movement.type === "reservation_release") return `+${Math.abs(movement.quantity)} liberado`;
-  return `${movement.quantity > 0 ? "+" : ""}${movement.quantity} u.`;
+  if (movement.type === "reservation") return `−${movement.saleMode === "WEIGHT" ? formatQuantity(Math.abs(movement.quantity), movement.saleMode) : Math.abs(movement.quantity)} reservado`;
+  if (movement.type === "reservation_release") return `+${movement.saleMode === "WEIGHT" ? formatQuantity(Math.abs(movement.quantity), movement.saleMode) : Math.abs(movement.quantity)} liberado`;
+  return `${movement.quantity > 0 ? "+" : ""}${formatQuantity(movement.quantity, movement.saleMode)}`;
 }

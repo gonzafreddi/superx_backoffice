@@ -13,6 +13,7 @@ export type Deps = {
   take?: PickingApi["takeTask"];
   start?: PickingApi["startTask"];
   pick?: PickingApi["pickItem"];
+  recordWeight?: PickingApi["recordWeight"];
   reportShortage?: PickingApi["reportShortage"];
   searchProducts?: PickingApi["searchProducts"];
   complete?: PickingApi["completeTask"];
@@ -27,6 +28,7 @@ export function errorMessage(error: unknown, fallback = "No pudimos guardar los 
   if (error.code === "pending_lines") return "Todavía hay productos sin resolver.";
   if (error.code === "not_started") return "Empezá la tarea antes de registrar cantidades.";
   if (error.code === "over_pick") return "La cantidad supera las unidades requeridas.";
+  if (error.status === 400 || error.status === 409) return error.message;
   return fallback;
 }
 export const isAuthError = (error: unknown) => error instanceof PickingApiError && (error.status === 401 || error.code === "unauthenticated");
