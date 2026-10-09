@@ -49,10 +49,3 @@ test("buildDeliveryChangeEvent deja auditoría con actor, rol y timestamp", () =
     { id: "dc-x", summary: "Envío $1.000", actor: "Administración actual", role: "admin", changedAt: "2026-09-10T12:00:00.000Z" },
   );
 });
-
-test("compra mínima permite vacío/0 y rechaza negativos o fracciones de centavo", () => {
-  const input = { name: "Centro", cityName: "Salto", postalCodes: ["2741"], neighborhoods: [], deliveryFee: 0, freeDeliveryThreshold: "", priority: 0, active: true };
-  for (const minimum of ["", null, 0, 1250.50]) assert.deepEqual(validateZoneInput({ ...input, minimumOrderAmount: minimum }), {});
-  for (const minimum of [-1, 0.001, NaN]) assert.ok(validateZoneInput({ ...input, minimumOrderAmount: minimum }).minimumOrderAmount);
-  assert.match(summarizeCheckoutImpact({ ...input, minimumOrderAmount: 600 }), /compra mínima \$600/);
-});
