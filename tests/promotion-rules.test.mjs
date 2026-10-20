@@ -21,3 +21,14 @@ test("clasifica vigentes, próximas y vencidas", () => {
   assert.equal(promotionTiming({ validFrom: "2026-02-01", validTo: null }, now), "upcoming");
   assert.equal(promotionTiming({ validFrom: "2025-01-01", validTo: "2025-02-01" }, now), "expired");
 });
+test("límites de uso de cupones", () => {
+  assert.ok(validatePromotion({ ...valid, maxRedemptions: "0" }).maxRedemptions);
+  assert.ok(validatePromotion({ ...valid, maxRedemptionsPerCustomer: "1.5" }).maxRedemptionsPerCustomer);
+  const limited = promotionPayload({ ...valid, maxRedemptions: "100", maxRedemptionsPerCustomer: "1" });
+  assert.equal(limited.maxRedemptions, 100);
+  assert.equal(limited.maxRedemptionsPerCustomer, 1);
+  assert.equal(promotionPayload({ ...valid, maxRedemptions: "" }).maxRedemptions, null);
+  const automatic = promotionPayload({ ...valid, couponCode: "", maxRedemptions: "100", maxRedemptionsPerCustomer: "1" });
+  assert.equal(automatic.maxRedemptions, null);
+  assert.equal(automatic.maxRedemptionsPerCustomer, null);
+});

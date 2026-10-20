@@ -2,6 +2,8 @@ export const PROMOTION_TYPES = ["PERCENTAGE", "FIXED_AMOUNT"];
 export const PROMOTION_SCOPES = ["ALL", "CATEGORY", "PRODUCT"];
 
 const hasValue = (value) => value !== "" && value !== null && value !== undefined;
+const isUsageLimit = (value) => !hasValue(value) || (Number.isInteger(Number(value)) && Number(value) > 0);
+const usageLimit = (input, value) => String(input.couponCode ?? "").trim() && hasValue(value) ? Number(value) : null;
 const validDate = (value) => hasValue(value) && !Number.isNaN(new Date(value).getTime());
 
 export function validatePromotion(input) {
@@ -22,6 +24,8 @@ export function validatePromotion(input) {
   if (input.scope === "PRODUCT" && !hasValue(input.productId)) errors.productId = "Elegí un producto.";
   if (hasValue(input.categoryId) && hasValue(input.productId)) errors.scope = "Elegí categoría o producto, no ambos.";
   if (couponCode.length > 40) errors.couponCode = "Usá hasta 40 caracteres.";
+  if (!isUsageLimit(input.maxRedemptions)) errors.maxRedemptions = "Ingresá un número entero mayor a 0.";
+  if (!isUsageLimit(input.maxRedemptionsPerCustomer)) errors.maxRedemptionsPerCustomer = "Ingresá un número entero mayor a 0.";
   if (!validDate(input.validFrom)) errors.validFrom = "Ingresá una fecha de inicio válida.";
   if (hasValue(input.validTo) && !validDate(input.validTo)) errors.validTo = "Ingresá una fecha de fin válida.";
   else if (validDate(input.validFrom) && validDate(input.validTo) && new Date(input.validTo) <= new Date(input.validFrom)) errors.validTo = "La fecha de fin debe ser posterior al inicio.";
@@ -41,6 +45,8 @@ export function promotionPayload(input) {
     categoryId: input.scope === "CATEGORY" ? reference(input.categoryId) : null,
     productId: input.scope === "PRODUCT" ? reference(input.productId) : null,
     couponCode: String(input.couponCode ?? "").trim().toUpperCase() || null,
+    maxRedemptions: usageLimit(input, input.maxRedemptions),
+    maxRedemptionsPerCustomer: usageLimit(input, input.maxRedemptionsPerCustomer),
     validFrom: new Date(input.validFrom).toISOString(),
     validTo: hasValue(input.validTo) ? new Date(input.validTo).toISOString() : null,
     active: Boolean(input.active),
