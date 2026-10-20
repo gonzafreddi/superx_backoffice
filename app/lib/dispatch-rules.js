@@ -15,8 +15,11 @@ export function mapsUrl(delivery, location) {
   const destination = location && Number.isFinite(location.lat) && Number.isFinite(location.lng) ? `${location.lat},${location.lng}` : [delivery?.addressLine, delivery?.cityName, delivery?.postalCode].filter((v) => typeof v === "string" && v.trim()).join(", ");
   return destination ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}` : null;
 }
+const cashFormat = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 });
+/** Cash the driver collects at the door: the only amount the driver UI shows. */
+export const cashToCollect = (order) => order?.paymentMethod === "CASH" && order?.paymentStatus !== "PAID" && order?.amountToCollect ? cashFormat.format(Number(order.amountToCollect)) : null;
 export function paymentHint(order) {
-  if (order?.paymentStatus === "PAID") return "Pago registrado"; if (order?.paymentMethod === "CASH") return "Cobro en efectivo pendiente";
+  if (order?.paymentStatus === "PAID") return "Pago registrado"; if (order?.paymentMethod === "CASH") { const cash = cashToCollect(order); return cash ? `Cobrar ${cash} en efectivo` : "Cobro en efectivo pendiente"; }
   if (order?.paymentStatus === "PENDING" && order?.paymentMethod === "BANK_TRANSFER") return "Transferencia pendiente de validar";
   if (order?.paymentStatus === "PENDING" && order?.paymentMethod === "MERCADO_PAGO") return "Mercado Pago pendiente de validar"; return "Revisar estado del pago";
 }

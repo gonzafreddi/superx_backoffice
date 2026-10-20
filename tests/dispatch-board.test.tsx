@@ -5,7 +5,7 @@ import React from "react";
 import { DispatchApiError } from "../app/lib/dispatch-api";
 import { DeliveryBoard } from "../app/(driver)/reparto/driver-app";
 import type { DispatchBoard, DispatchOrder, IncidentReason } from "../app/lib/dispatch-contract";
-const makeOrder = (id: string, status: DispatchOrder["status"]): DispatchOrder => ({ id, orderNumber: `SX-${id}`, status, position: Number(id), paymentMethod: "CASH", paymentStatus: "PENDING", delivery: { recipientName: `Cliente ${id}`, phone: "+54 11 5555 0000", addressLine: "Moldes 2480", neighborhood: "Colegiales", postalCode: "1428", cityName: "CABA", addressNotes: null, customerNotes: null, zoneName: "Norte", slotDate: "2026-09-28", slotStart: "10:00:00", slotEnd: "12:00:00" }, location: null, dispatchedBy: status === "READY" ? null : { id: "fixture-admin", name: "Admin" }, dispatchedAt: status === "READY" ? null : "2026-09-28T10:00:00Z", deliveredAt: status === "DELIVERED" ? "2026-09-28T11:00:00Z" : null, incident: null, items: [{ productName: "Yerba", quantity: 2, unitCode: "UN", imageUrl: null }] });
+const makeOrder = (id: string, status: DispatchOrder["status"]): DispatchOrder => ({ id, orderNumber: `SX-${id}`, status, position: Number(id), paymentMethod: "CASH", paymentStatus: "PENDING", amountToCollect: null, delivery: { recipientName: `Cliente ${id}`, phone: "+54 11 5555 0000", addressLine: "Moldes 2480", neighborhood: "Colegiales", postalCode: "1428", cityName: "CABA", addressNotes: null, customerNotes: null, zoneName: "Norte", slotDate: "2026-09-28", slotStart: "10:00:00", slotEnd: "12:00:00" }, location: null, dispatchedBy: status === "READY" ? null : { id: "fixture-admin", name: "Admin" }, dispatchedAt: status === "READY" ? null : "2026-09-28T10:00:00Z", deliveredAt: status === "DELIVERED" ? "2026-09-28T11:00:00Z" : null, incident: null, items: [{ productName: "Yerba", quantity: 2, unitCode: "UN", imageUrl: null }] });
 const createBoard = (ready: DispatchOrder[] = [], dispatched: DispatchOrder[] = [], out: DispatchOrder[] = [], delivered: DispatchOrder[] = []): DispatchBoard => ({ date: "2026-09-28", ready, dispatched, outForDelivery: out, delivered, summary: { total: ready.length + dispatched.length + out.length + delivered.length, pending: ready.length + dispatched.length + out.length, delivered: delivered.length, incidents: [...ready, ...dispatched, ...out, ...delivered].filter((o) => o.incident).length } });
 const ready3 = [makeOrder("1", "READY"), makeOrder("2", "READY"), makeOrder("3", "READY")]; const estimateRoute = async () => ({ available: false as const, reason: "Sin ruta" });
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/reparto?tab=pedidos" });
@@ -98,4 +98,12 @@ test("los controles táctiles ordenan cargados y permiten abrir la ruta", async 
   fireEvent.click(screen.getByRole("button", { name: "Ver ruta para iniciar" }));
   await waitFor(() => assert.equal(document.querySelector(".mapPanel")?.classList.contains("mobileHidden"), false));
   assert.ok(screen.getByRole("button", { name: /Iniciar ruta \(2\)/ }));
+});
+test("efectivo pendiente muestra cuánto cobrar y lo cobra al entregar", async () => {
+  let delivered = ""; const cash = { ...makeOrder("1", "OUT_FOR_DELIVERY"), amountToCollect: "1500.00" };
+  render(<DeliveryBoard loadBoard={async () => createBoard([], [], [cash])} estimateRoute={estimateRoute} deliver={async (id) => { delivered = id; return createBoard([], [], [], [{ ...cash, status: "DELIVERED", paymentStatus: "PAID", amountToCollect: null }]); }}/>);
+  fireEvent.click(await screen.findByRole("button", { name: /SX-1/ }));
+  assert.ok(screen.getAllByText(/^Cobrar \$\s1\.500,00 en efectivo$/).length > 0);
+  fireEvent.click(screen.getByRole("button", { name: /^✓ Cobré \$\s1\.500,00 y entregué$/ }));
+  await waitFor(() => assert.equal(delivered, "1"));
 });

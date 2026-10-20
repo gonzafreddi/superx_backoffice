@@ -5,7 +5,7 @@ export type DispatchIncident = { id: string; reason: IncidentReason; note: strin
 export type DispatchDelivery = { recipientName: string; phone: string; addressLine: string; neighborhood: string | null; postalCode: string; cityName: string; addressNotes: string | null; customerNotes: string | null; zoneName: string; slotDate: string; slotStart: string; slotEnd: string };
 export type DispatchOrder = {
   id: string; orderNumber: string; status: "READY" | "DISPATCHED" | "OUT_FOR_DELIVERY" | "DELIVERED"; position: number | null;
-  paymentMethod: "CASH" | "BANK_TRANSFER" | "MERCADO_PAGO"; paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+  paymentMethod: "CASH" | "BANK_TRANSFER" | "MERCADO_PAGO"; paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED"; amountToCollect: string | null;
   delivery: DispatchDelivery; location: LatLng | null; dispatchedBy: { id: string; name: string | null } | null;
   dispatchedAt: string | null; deliveredAt: string | null; incident: DispatchIncident | null;
   items: Array<WeightFields & { pickedQuantity?: number | null; productName: string; quantity: number; unitCode: string; imageUrl: string | null }>;
