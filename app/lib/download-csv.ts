@@ -1,12 +1,22 @@
 import { apiBaseUrl, fixturesEnabled } from "./api-mode";
 import { authFetch } from "./http";
 import { encodeCsv, type GroupBy } from "./report-rules";
+import { fixtureDaily, fixtureCash } from "./sales-fixtures";
+import { dayLabel, methodLabel } from "./sales-rules";
 import { fixtureReport } from "./reports-api";
 export function fixtureCsv(path: string): string {
   const url = new URL(path, "http://fixture.local"); const params = url.searchParams;
   if (url.pathname === "/exports/sales-report.csv") {
     const report = fixtureReport({ from: params.get("from") || "2026-10-01", to: params.get("to") || "2026-10-09", groupBy: (params.get("groupBy") || "day") as GroupBy });
     return encodeCsv([["Grupo", "Pedidos", "Unidades", "Ventas", "Costo", "Margen", "Margen %", "Cobertura %"], ...report.rows.map(r => [r.label, r.orders, r.units, r.revenue, r.cost, r.margin, r.marginPct, r.costCoverage])]);
+  }
+  if (/^\/sales\/(daily|cash-daily)\.csv$/.test(url.pathname)) {
+    if (process.env.NODE_ENV === "production") throw new Error("Configurá la API para exportar ventas en producción.");
+    const range = { from: params.get("from") || "2026-10-01", to: params.get("to") || "2026-10-17" };
+    if (url.pathname === "/sales/daily.csv") { const data = fixtureDaily(range); const keys = ["orders", "units", "grossSales", "discounts", "netSales", "deliveryFees", "billed", "cogs", "grossMargin", "grossMarginPct", "averageTicket"] as const;
+      return encodeCsv([["Fecha", "Pedidos", "Unidades", "Venta bruta", "Descuentos", "Venta neta", "Envíos", "Facturación", "CMV", "Margen bruto", "Margen %", "Ticket promedio"], ...data.rows.map(r => [dayLabel(r.date), ...keys.map(k => r[k])]), ["Totales", ...keys.map(k => data.totals[k])]]); }
+    const data = fixtureCash(range); const keys = ["total", "refunds", "net", "payments"] as const;
+    return encodeCsv([["Fecha", ...data.methods.map(methodLabel), "Total", "Devoluciones", "Neto", "Cobros"], ...data.rows.map(r => [dayLabel(r.date), ...data.methods.map(m => r.byMethod[m]), ...keys.map(k => r[k])]), ["Totales", ...data.methods.map(m => data.totals.byMethod[m]), ...keys.map(k => data.totals[k])]]);
   }
   const samples: Record<string, (string | number | null)[][]> = {
     "/exports/orders.csv": [["Pedido", "Fecha", "Cliente", "Estado", "Medio de pago", "Estado de pago", "Subtotal", "Envío", "Descuentos", "Total"], ["PED-000001", params.get("from") || "2026-10-09", "Cliente de ejemplo", params.get("status") || "DELIVERED", "CASH", "PAID", 1500.5, 100, 0, 1600.5]],
@@ -17,7 +27,7 @@ export function fixtureCsv(path: string): string {
   const rows = samples[url.pathname]; if (!rows) throw new Error("Exportación desconocida."); return encodeCsv(rows);
 }
 export async function csvBlob(path: string): Promise<Blob> {
-  if (!/^\/exports\/[a-z-]+\.csv(?:\?|$)/.test(path)) throw new Error("Ruta de exportación inválida.");
+  if (!/^\/(?:exports\/[a-z-]+|sales\/(?:daily|cash-daily))\.csv(?:\?|$)/.test(path)) throw new Error("Ruta de exportación inválida.");
   if (fixturesEnabled()) return new Blob([fixtureCsv(path)], { type: "text/csv;charset=utf-8" });
   const response = await authFetch(`${apiBaseUrl()!.replace(/\/$/, "")}${path}`, { headers: { Accept: "text/csv" } });
   if (!response.ok) throw new Error(response.status === 403 ? "No tenés permiso para exportar estos datos." : response.status === 401 ? "Iniciá sesión para exportar." : "No pudimos descargar el CSV. Reintentá.");

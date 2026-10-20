@@ -42,6 +42,10 @@ export const navGroups = [
     ],
   },
   {
+    label: "Ventas",
+    items: [{ href: "/ventas", label: "Ventas", icon: "chart", roles: ["accountant"] }],
+  },
+  {
     label: "Finanzas",
     items: [
       { href: "/reportes", label: "Reportes", icon: "chart", roles: ["accountant"] },
